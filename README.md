@@ -31,6 +31,12 @@ This is a browser key, so anyone who loads the deployed page can see it. That's 
 - Autocomplete: suggestions in a session that ends with a details lookup are free. Searches abandoned before picking count toward 10,000 free requests a month, then $2.83 per 1,000.
 - Place Details with phone, website, rating and review count bills as **Enterprise**: 1,000 free a month, then $20 per 1,000.
 
-## Deploying later
+## Hosting
 
-GitHub Pages can't publish from a private repo on the free plan. Keep the repo private and deploy with Cloudflare Pages or Vercel (both free and support private repos), then add the live domain to the key's website restrictions.
+Live at https://matviykorsunskiy.me/dialbridge-report/ via GitHub Pages (public repo, since Pages can't host private repos on the free plan).
+
+Every push to `main` runs `.github/workflows/deploy.yml`, which writes `config.js` from the repo secret `GOOGLE_MAPS_API_KEY` at deploy time. The key is never committed.
+
+- Set or change the key: `gh secret set GOOGLE_MAPS_API_KEY --repo matkors/dialbridge-report`
+- Redeploy without a code change: `gh workflow run deploy.yml --repo matkors/dialbridge-report`
+- The key's website restrictions must include `https://matviykorsunskiy.me/dialbridge-report/*`
