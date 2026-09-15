@@ -164,6 +164,16 @@ h1 {
   text-align: right;
 }
 
+.trap {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.status.success { color: var(--good); }
+
 .hint {
   margin: 10px 0 0;
   text-align: center;

@@ -48,6 +48,12 @@
       </div>
       </div>
 
+      <!-- Bot trap: hidden from people, bots that fill every field get rejected by n8n. -->
+      <div class="trap" aria-hidden="true">
+        <label for="companyFax">Company fax</label>
+        <input id="companyFax" name="company_fax" type="text" tabindex="-1" autocomplete="off" />
+      </div>
+
       <p id="searchHint" class="hint">Include your city for best results, e.g. Atlantic Shore Morganville</p>
 
       <button id="cantFind" class="link" type="button">Can't find your business?</button>

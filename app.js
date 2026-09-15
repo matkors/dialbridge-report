@@ -11,6 +11,7 @@ const reportBtn = document.getElementById("reportBtn");
 const pickedEl = document.getElementById("picked");
 
 const API_KEY = window.DIALBRIDGE_CONFIG?.GOOGLE_MAPS_API_KEY || "";
+const REPORT_WEBHOOK_URL = window.DIALBRIDGE_CONFIG?.N8N_REPORT_WEBHOOK_URL || "";
 const PLACES_URL = "https://places.googleapis.com/v1";
 const MIN_CHARS = 3;
 const DEBOUNCE_MS = 250;
@@ -47,9 +48,10 @@ let latestRequest = 0; // ignore responses that arrive out of order
 
 window.selectedBusiness = null;
 
-function setStatus(message, isError = false) {
+function setStatus(message, isError = false, isSuccess = false) {
   statusEl.textContent = message;
   statusEl.classList.toggle("error", isError);
+  statusEl.classList.toggle("success", isSuccess);
 }
 
 function isAddressOnly(prediction) {
@@ -218,6 +220,7 @@ function renderPicked(b) {
 input.addEventListener("input", () => {
   clearTimeout(debounceTimer);
   reportBtn.disabled = true;
+  reportBtn.textContent = "Get my report";
   window.selectedBusiness = null;
   const query = input.value.trim();
   if (query.length < MIN_CHARS) {
@@ -257,6 +260,7 @@ document.getElementById("clearBtn").addEventListener("click", () => {
   input.value = "";
   pickedEl.hidden = true;
   reportBtn.disabled = true;
+  reportBtn.textContent = "Get my report";
   window.selectedBusiness = null;
   input.focus();
 });
@@ -265,10 +269,65 @@ document.getElementById("cantFind").addEventListener("click", () => {
   setStatus("Manual entry and phone number search come next in the build.");
 });
 
-reportBtn.addEventListener("click", () => {
-  console.log("selectedBusiness", window.selectedBusiness);
-  setStatus("Business captured. The questions step gets built next.");
-});
+let submitting = false;
+
+async function requestReport() {
+  const business = window.selectedBusiness;
+  if (!business || submitting) return;
+
+  if (!REPORT_WEBHOOK_URL) {
+    setStatus("Report requests aren't connected yet (missing webhook URL).", true);
+    return;
+  }
+
+  submitting = true;
+  reportBtn.disabled = true;
+  const originalLabel = reportBtn.textContent;
+  reportBtn.textContent = "Sending...";
+  setStatus("Sending your business details...");
+
+  try {
+    const res = await fetch(REPORT_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        company_fax: document.getElementById("companyFax").value,
+        business: {
+          placeId: business.placeId,
+          name: business.name,
+          address: business.address,
+          serviceAreaOnly: business.serviceAreaOnly,
+          phone: business.phone,
+          website: business.website,
+          rating: business.rating,
+          reviewCount: business.reviewCount,
+          primaryType: business.primaryType,
+          mapsUrl: business.mapsUrl,
+          lat: business.lat,
+          lng: business.lng,
+        },
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || `Request failed (${res.status})`);
+    }
+
+    window.reportSubmissionId = data.submissionId;
+    setStatus("Got it. We're building your report now.", false, true);
+    reportBtn.textContent = "Report requested";
+  } catch (err) {
+    console.error(err);
+    setStatus("Something went wrong sending your request. Please try again.", true);
+    reportBtn.textContent = originalLabel;
+    reportBtn.disabled = false;
+  } finally {
+    submitting = false;
+  }
+}
+
+reportBtn.addEventListener("click", requestReport);
 
 if (!API_KEY || API_KEY.startsWith("PASTE_")) {
   setStatus("No Google Maps API key yet. Add it to config.js locally or the GOOGLE_MAPS_API_KEY secret on GitHub.", true);
