@@ -275,8 +275,11 @@ async function requestReport() {
   const business = window.selectedBusiness;
   if (!business || submitting) return;
 
+  // Show the scanning screen immediately; the report request runs alongside it.
+  window.DialBridgeScan?.start(business);
+
   if (!REPORT_WEBHOOK_URL) {
-    setStatus("Report requests aren't connected yet (missing webhook URL).", true);
+    console.warn("Report webhook URL missing; scan runs but no report request is sent.");
     return;
   }
 
@@ -284,7 +287,6 @@ async function requestReport() {
   reportBtn.disabled = true;
   const originalLabel = reportBtn.textContent;
   reportBtn.textContent = "Sending...";
-  setStatus("Sending your business details...");
 
   try {
     const res = await fetch(REPORT_WEBHOOK_URL, {
@@ -315,11 +317,9 @@ async function requestReport() {
     }
 
     window.reportSubmissionId = data.submissionId;
-    setStatus("Got it. We're building your report now.", false, true);
     reportBtn.textContent = "Report requested";
   } catch (err) {
-    console.error(err);
-    setStatus("Something went wrong sending your request. Please try again.", true);
+    console.error("Report request failed", err);
     reportBtn.textContent = originalLabel;
     reportBtn.disabled = false;
   } finally {

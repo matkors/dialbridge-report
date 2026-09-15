@@ -79,7 +79,42 @@
     </section>
   </main>
 
+  <!-- ============ LOADING SCREEN: runs after "Get my report" ============ -->
+  <section id="scan" class="scan" hidden aria-labelledby="scanTitle">
+    <header class="scan-head">
+      <p class="eyebrow">Free Lost Job Report</p>
+      <h1 id="scanTitle">Scanning your business</h1>
+    </header>
+
+    <div class="scan-grid">
+      <div class="scan-panel scan-checklist">
+        <ol id="scanSteps" class="scan-steps"></ol>
+        <div id="scanProgress" class="scan-progress" role="progressbar" aria-label="Scan progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="scan-progress-track"><div id="scanProgressFill" class="scan-progress-fill"></div></div>
+          <p id="scanProgressLabel" class="scan-progress-label">Step 1 of 6</p>
+        </div>
+      </div>
+
+      <div class="scan-panel scan-visual">
+        <div class="scan-sweep" aria-hidden="true"></div>
+        <div id="scanLive" class="scan-live"></div>
+      </div>
+    </div>
+
+    <p id="scanAnnounce" class="visually-hidden" aria-live="polite"></p>
+
+    <section id="scanDone" class="scan-done" hidden>
+      <h2 id="scanDoneTitle"></h2>
+      <ul id="scanFindings" class="findings"></ul>
+      <p class="muted">Your full report is being put together now.</p>
+      <button id="scanRestart" class="link" type="button">Check a different business</button>
+    </section>
+
+    <p class="scan-credit">Business info, reviews, photos and map from Google.</p>
+  </section>
+
   <script src="config.js"></script>
+  <script src="scan.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
