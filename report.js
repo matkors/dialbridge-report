@@ -5,11 +5,15 @@
   "use strict";
 
   const STATUS_URL = () => window.DIALBRIDGE_CONFIG?.N8N_REPORT_STATUS_URL || "";
+  const STATIC_MAP_URL = "https://maps.googleapis.com/maps/api/staticmap";
   const POLL_MS = 4000;
   const MAX_MS = 12 * 60 * 1000; // audits with a slow review scan can take several minutes
 
   const $ = (id) => document.getElementById(id);
   const h = (...args) => window.DialBridgeScan.h(...args);
+  const img = (...args) => window.DialBridgeScan.img(...args);
+  const apiKey = () => window.DIALBRIDGE_CONFIG?.GOOGLE_MAPS_API_KEY || "";
+  const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   let polling = false;
 
@@ -23,7 +27,11 @@
     lead_follow_up: "Lead follow-up",
   };
 
-  const SEVERITY_TONE = { high: "bad", medium: "warn", low: "good" };
+  const SEVERITY = {
+    high: { tone: "bad", label: "Costing you jobs" },
+    medium: { tone: "warn", label: "Slowing you down" },
+    low: { tone: "good", label: "Worth a look" },
+  };
 
   // The audit ships jargon category names; say them the way a contractor would.
   const GRADE_LABELS = {
@@ -36,6 +44,11 @@
     "Google Business Profile": "Google profile",
   };
 
+  // Pin colours match the legend: top 3, pushed down, nowhere to be found.
+  const PIN_GOOD = "0x1f7a4d";
+  const PIN_WARN = "0xe8702a";
+  const PIN_BAD = "0xa33a22";
+
   function setStatus(text, tone = "") {
     const el = $("reportStatus");
     if (!el) return;
@@ -44,84 +57,171 @@
     el.hidden = !text;
   }
 
-  function scoreTone(score) {
-    if (typeof score !== "number") return "warn";
-    return score >= 80 ? "good" : score >= 50 ? "warn" : "bad";
-  }
-
   function num(value) {
     return typeof value === "number" && Number.isFinite(value) ? value : null;
   }
 
+  function scoreTone(score) {
+    if (score === null) return "warn";
+    return score >= 80 ? "good" : score >= 50 ? "warn" : "bad";
+  }
+
+  function rankTone(rank) {
+    if (!rank || rank > 10) return "bad";
+    return rank <= 3 ? "good" : "warn";
+  }
+
+  function scoreRing(score, caption, size = "lg") {
+    const value = num(score);
+    return h("div", { class: `ring ring-${size} tone-${scoreTone(value)}`, style: `--pct:${value ?? 0}` },
+      h("span", { class: "ring-inner" }, [
+        h("strong", { text: value === null ? "?" : String(value) }),
+        h("small", { text: caption }),
+      ]));
+  }
+
   // ============ SECTIONS ============
 
-  function renderHeadline(summary, report) {
-    const score = num(report?.overallScore);
-    return h("header", { class: "report-head" }, [
-      h("div", { class: `score-ring tone-${scoreTone(score)}`, style: `--pct:${score ?? 0}` },
-        h("span", {}, [h("strong", { text: score ?? "?" }), h("small", { text: "out of 100" })])),
-      h("div", { class: "report-head-text" }, [
-        h("h2", { text: summary?.headline || "Here's where you're losing jobs online" }),
-        summary?.summary ? h("p", { text: summary.summary }) : null,
+  function statChips(report) {
+    const rv = report?.reviews || {};
+    const rk = report?.ranking || {};
+    const ls = report?.listings || {};
+    const web = report?.website || {};
+    const chips = [
+      num(rv.googleRating) !== null
+        ? { tone: rv.googleRating >= 4.5 ? "good" : "warn", value: `${rv.googleRating}★`, label: `${rv.googleReviewCount ?? 0} Google reviews` }
+        : null,
+      Array.isArray(rk.ranks) && rk.ranks.length
+        ? { tone: rk.pointsInTop3 >= rk.ranks.length / 2 ? "good" : "bad", value: `${rk.pointsInTop3}/${rk.ranks.length}`, label: "spots in the top 3" }
+        : null,
+      num(ls.checked)
+        ? { tone: ls.missing > ls.found ? "bad" : "good", value: `${ls.found}/${ls.checked}`, label: "directories list you" }
+        : null,
+      num(web.mobileScore) !== null
+        ? { tone: web.mobileScore >= 50 ? "good" : "bad", value: String(web.mobileScore), label: "phone speed score" }
+        : null,
+    ].filter(Boolean);
+    if (!chips.length) return null;
+    return h("ul", { class: "stat-row" }, chips.map((c) =>
+      h("li", { class: `stat tone-${c.tone}` }, [
+        h("strong", { text: c.value }),
+        h("span", { text: c.label }),
+      ])
+    ));
+  }
+
+  function renderHero(summary, report) {
+    const p = report?.profile || {};
+    return h("header", { class: "report-hero" }, [
+      h("div", { class: "report-hero-top" }, [
+        scoreRing(report?.overallScore, "out of 100"),
+        h("div", { class: "report-hero-text" }, [
+          h("p", { class: "eyebrow", text: [p.name, p.category].filter(Boolean).join(" · ") }),
+          h("h2", { text: summary?.headline || "Here's where you're losing jobs online" }),
+          summary?.summary ? h("p", { class: "lead", text: summary.summary }) : null,
+        ]),
       ]),
+      statChips(report),
     ]);
   }
 
-  function renderGrades(report) {
-    const grades = (report?.grades || []).filter((g) => !/overall/i.test(g.name || "") && num(g.score) !== null);
-    if (!grades.length) return null;
-    return h("section", { class: "report-block" }, [
-      h("h3", { text: "Your scores" }),
-      h("ul", { class: "grade-list" }, grades.map((g) =>
-        h("li", { class: `grade tone-${g.level === "success" ? "good" : g.level === "warning" ? "warn" : "bad"}` }, [
-          h("span", { class: "grade-name", text: GRADE_LABELS[g.name] || g.name }),
-          h("span", { class: "grade-bar" }, h("span", { class: "grade-fill", style: `width:${Math.max(2, Math.min(100, g.score))}%` })),
-          h("span", { class: "grade-score", text: String(g.score) }),
-        ])
-      )),
+  // A real Google map with a pin per grid point, the way the audit shows it.
+  function mapImage(ranking) {
+    const points = (ranking?.points || []).filter((p) => num(p.lat) !== null && num(p.lng) !== null);
+    if (!points.length || !apiKey()) return null;
+
+    const params = ["size=640x420", "scale=2", "maptype=roadmap", "format=png"];
+    if (ranking.center && num(ranking.center.lat) !== null) {
+      params.push(`markers=${encodeURIComponent(`color:0x0f1b2d|label:H|${ranking.center.lat},${ranking.center.lng}`)}`);
+    }
+    for (const point of points) {
+      const rank = num(point.rank);
+      const color = rankTone(rank) === "good" ? PIN_GOOD : rankTone(rank) === "warn" ? PIN_WARN : PIN_BAD;
+      // Static map labels take a single character, so anything past 9 shows as X.
+      const label = rank && rank <= 9 ? String(rank) : "X";
+      params.push(`markers=${encodeURIComponent(`color:${color}|label:${label}|${point.lat},${point.lng}`)}`);
+    }
+    params.push(`key=${encodeURIComponent(apiKey())}`);
+    return img(`${STATIC_MAP_URL}?${params.join("&")}`, {
+      class: "report-map",
+      alt: `Map of your Google ranking around ${ranking.keyword || "your area"}`,
+      loading: "lazy",
+    });
+  }
+
+  function renderRanking(report) {
+    const r = report?.ranking;
+    if (!r || !Array.isArray(r.ranks) || !r.ranks.length) return null;
+    const map = mapImage(r);
+    const competitors = r.topCompetitors || [];
+    return h("section", { class: "card card-wide" }, [
+      h("div", { class: "card-head" }, [
+        h("h3", { text: `Where you show up for "${r.keyword}"` }),
+        num(r.averageRank) !== null ? h("span", { class: `pill tone-${rankTone(Math.round(r.averageRank))}`, text: `Average position ${r.averageRank}` }) : null,
+      ]),
+      map
+        ? h("div", { class: "map-wrap" }, [
+            map,
+            h("ul", { class: "map-legend" }, [
+              h("li", { class: "tone-good", text: "Top 3, customers see you" }),
+              h("li", { class: "tone-warn", text: "4 to 10, below the fold" }),
+              h("li", { class: "tone-bad", text: "Not showing up" }),
+            ]),
+          ])
+        : h("div", { class: "rank-grid", "aria-hidden": "true" }, r.ranks.map((rank) =>
+            h("span", { class: `rank-cell tone-${rankTone(rank)}`, text: rank ? String(rank) : "20+" })
+          )),
+      h("p", { class: "muted", text: `Each pin is a spot where a homeowner searches. The number is your position on Google Maps there. You are in the top 3 at ${r.pointsInTop3} of ${r.ranks.length} spots.` }),
+      competitors.length
+        ? h("div", { class: "table-wrap" }, h("table", { class: "cmp" }, [
+            h("thead", {}, h("tr", {}, [h("th", { text: "Beating you nearby" }), h("th", { text: "Rating" }), h("th", { text: "Reviews" })])),
+            h("tbody", {}, competitors.map((c) =>
+              h("tr", {}, [
+                h("td", { text: c.name || "" }),
+                h("td", { text: num(c.rating) !== null ? `${c.rating.toFixed(1)}★` : "None" }),
+                h("td", { class: "mono", text: String(c.reviewCount ?? 0) }),
+              ])
+            )),
+          ]))
+        : null,
     ]);
   }
 
   function renderFindings(summary) {
     const findings = summary?.findings || [];
     if (!findings.length) return null;
-    return h("section", { class: "report-block" }, [
-      h("h3", { text: "What's costing you jobs" }),
-      h("ol", { class: "report-findings" }, findings.map((f) =>
-        h("li", { class: `report-finding tone-${SEVERITY_TONE[f.severity] || "warn"}` }, [
-          h("p", { class: "report-finding-head" }, [
-            h("strong", { text: f.title || "" }),
-            f.area ? h("span", { class: "report-area", text: AREA_LABELS[f.area] || String(f.area).replace(/_/g, " ") }) : null,
+    return h("section", { class: "card card-wide" }, [
+      h("div", { class: "card-head" }, [h("h3", { text: "What's costing you jobs" })]),
+      h("ol", { class: "findings-list" }, findings.map((f, i) => {
+        const severity = SEVERITY[f.severity] || SEVERITY.medium;
+        return h("li", { class: `finding-card tone-${severity.tone}` }, [
+          h("span", { class: "finding-num", "aria-hidden": "true", text: String(i + 1) }),
+          h("div", { class: "finding-main" }, [
+            h("div", { class: "finding-head" }, [
+              h("strong", { text: f.title || "" }),
+              h("span", { class: `pill tone-${severity.tone}`, text: severity.label }),
+            ]),
+            f.area ? h("p", { class: "finding-area", text: AREA_LABELS[f.area] || String(f.area).replace(/_/g, " ") }) : null,
+            f.detail ? h("p", { text: f.detail }) : null,
+            f.fix ? h("p", { class: "finding-fix" }, [h("span", { text: "What fixes it: " }), f.fix]) : null,
           ]),
-          f.detail ? h("p", { text: f.detail }) : null,
-          f.fix ? h("p", { class: "report-fix", text: `Fix: ${f.fix}` }) : null,
-        ])
-      )),
+        ]);
+      })),
     ]);
   }
 
-  function renderRanking(report) {
-    const r = report?.ranking;
-    if (!r || !Array.isArray(r.ranks) || !r.ranks.length) return null;
-    const competitors = r.topCompetitors || [];
-    return h("section", { class: "report-block" }, [
-      h("h3", { text: `Where you show up for "${r.keyword}"` }),
-      h("div", { class: "rank-grid", "aria-hidden": "true" }, r.ranks.map((rank) =>
-        h("span", { class: `rank-cell tone-${!rank || rank > 10 ? "bad" : rank <= 3 ? "good" : "warn"}`, text: rank ? String(rank) : "20+" })
+  function renderGrades(report) {
+    const grades = (report?.grades || []).filter((g) => !/overall/i.test(g.name || "") && num(g.score) !== null);
+    if (!grades.length) return null;
+    return h("section", { class: "card card-wide" }, [
+      h("div", { class: "card-head" }, [h("h3", { text: "Your scores" })]),
+      h("ul", { class: "grade-list" }, grades.map((g) =>
+        h("li", { class: `grade tone-${g.level === "success" ? "good" : g.level === "warning" ? "warn" : "bad"}` }, [
+          h("span", { class: "grade-name", text: GRADE_LABELS[g.name] || g.name }),
+          h("span", { class: "grade-bar" }, h("span", { class: "grade-fill", style: `width:${Math.max(2, Math.min(100, g.score))}%` })),
+          h("span", { class: "grade-score mono", text: String(g.score) }),
+        ])
       )),
-      h("p", { class: "muted", text: `Your position on Google Maps at ${r.gridPoints} points around your business. You are in the top 3 at ${r.pointsInTop3} of them.` }),
-      competitors.length
-        ? h("table", { class: "cmp" }, [
-            h("thead", {}, h("tr", {}, [h("th", { text: "Competing nearby" }), h("th", { text: "Rating" }), h("th", { text: "Reviews" })])),
-            h("tbody", {}, competitors.map((c) =>
-              h("tr", {}, [
-                h("td", { text: c.name || "" }),
-                h("td", { text: num(c.rating) !== null ? `${c.rating.toFixed(1)}★` : "None" }),
-                h("td", { text: String(c.reviewCount ?? 0) }),
-              ])
-            )),
-          ])
-        : null,
     ]);
   }
 
@@ -129,17 +229,20 @@
     const rv = report?.reviews;
     if (!rv || num(rv.googleReviewCount) === null) return null;
     const items = [
-      { ok: true, text: `${rv.googleRating ?? "?"}★ from ${rv.googleReviewCount} Google reviews` },
       num(rv.unansweredCount) !== null
         ? { ok: rv.unansweredCount === 0, text: rv.unansweredCount === 0 ? "Every review has a reply" : `${rv.unansweredCount} reviews with no reply from you` }
         : null,
+      num(rv.replyRatePercent) !== null ? { ok: rv.replyRatePercent >= 80, text: `You reply to ${rv.replyRatePercent}% of reviews` } : null,
       rv.lastReviewAt ? { ok: true, text: `Last review came in on ${rv.lastReviewAt}` } : null,
       num(rv.facebookReviewCount) !== null
         ? { ok: rv.facebookReviewCount > 0, text: rv.facebookReviewCount > 0 ? `${rv.facebookReviewCount} Facebook reviews` : "No reviews on Facebook" }
         : null,
     ].filter(Boolean);
-    return h("section", { class: "report-block" }, [
-      h("h3", { text: "Your reputation" }),
+    return h("section", { class: "card" }, [
+      h("div", { class: "card-head" }, [
+        h("h3", { text: "Your reputation" }),
+        h("span", { class: `pill tone-${rv.googleRating >= 4.5 ? "good" : "warn"}`, text: `${rv.googleRating ?? "?"}★ from ${rv.googleReviewCount} reviews` }),
+      ]),
       h("ul", { class: "checks" }, items.map((c) => h("li", { class: c.ok ? "ok" : "bad", text: c.text }))),
     ]);
   }
@@ -147,11 +250,19 @@
   function renderListings(report) {
     const l = report?.listings;
     if (!l || !num(l.checked)) return null;
-    return h("section", { class: "report-block" }, [
-      h("h3", { text: "Where your business is listed" }),
-      h("p", { class: `badge badge-${l.missing > l.found ? "bad" : "warn"}`, text: `Found on ${l.found} of ${l.checked} directories, missing from ${l.missing}` }),
-      (l.missingOn || []).length ? h("p", { class: "muted", text: `Missing on: ${l.missingOn.join(", ")}` }) : null,
-      (l.partialOn || []).length ? h("p", { class: "muted", text: `Wrong or incomplete on: ${l.partialOn.join(", ")}` }) : null,
+    const pct = Math.round((l.found / l.checked) * 100);
+    return h("section", { class: "card" }, [
+      h("div", { class: "card-head" }, [
+        h("h3", { text: "Where your business is listed" }),
+        h("span", { class: `pill tone-${l.missing > l.found ? "bad" : "good"}`, text: `${l.found} of ${l.checked}` }),
+      ]),
+      h("span", { class: "meter" }, h("span", { class: `meter-fill tone-${l.missing > l.found ? "bad" : "good"}`, style: `width:${Math.max(2, pct)}%` })),
+      (l.missingOn || []).length
+        ? h("div", { class: "tag-row" }, l.missingOn.slice(0, 10).map((name) => h("span", { class: "tag tone-bad", text: name.toLowerCase() })))
+        : null,
+      (l.partialOn || []).length
+        ? h("p", { class: "muted", text: `Wrong or incomplete on: ${l.partialOn.join(", ").toLowerCase()}` })
+        : null,
     ]);
   }
 
@@ -159,63 +270,85 @@
     const w = report?.website;
     if (!w) return null;
     if (!w.found || !w.url) {
-      return h("section", { class: "report-block" }, [
-        h("h3", { text: "Your website" }),
-        h("p", { class: "badge badge-bad", text: "No working website found" }),
+      return h("section", { class: "card" }, [
+        h("div", { class: "card-head" }, [h("h3", { text: "Your website" }), h("span", { class: "pill tone-bad", text: "None found" })]),
+        h("p", { class: "muted", text: "Homeowners who can't find a website usually call the next company on the list." }),
       ]);
     }
     const checks = [
-      num(w.mobileScore) !== null ? { ok: w.mobileScore >= 50, text: `Phone speed score ${w.mobileScore} out of 100${w.mobileLoadTime ? `, main content in ${w.mobileLoadTime}` : ""}` } : null,
       w.https === null || w.https === undefined ? null : { ok: w.https, text: w.https ? "Secure (HTTPS)" : "Not secure, browsers warn visitors" },
       w.googleAnalytics === null || w.googleAnalytics === undefined ? null : { ok: w.googleAnalytics, text: w.googleAnalytics ? "Visitor tracking is set up" : "No visitor tracking, you can't see where leads come from" },
       w.facebookPixel === null || w.facebookPixel === undefined ? null : { ok: w.facebookPixel, text: w.facebookPixel ? "Facebook ad tracking is set up" : "No Facebook ad tracking" },
       w.chatWidget === null || w.chatWidget === undefined ? null : { ok: w.chatWidget, text: w.chatWidget ? "Visitors can message you from the site" : "No way to message you from the site" },
     ].filter(Boolean);
-    return h("section", { class: "report-block" }, [
-      h("h3", { text: "Your website" }),
-      h("p", { class: "live-domain", text: w.url.replace(/^https?:\/\//i, "").replace(/\/$/, "") }),
-      h("ul", { class: "checks" }, checks.map((c) => h("li", { class: c.ok ? "ok" : "bad", text: c.text }))),
+    return h("section", { class: "card" }, [
+      h("div", { class: "card-head" }, [
+        h("h3", { text: "Your website" }),
+        w.mobileLoadTime ? h("span", { class: `pill tone-${num(w.mobileScore) >= 50 ? "good" : "bad"}`, text: `Loads in ${w.mobileLoadTime}` }) : null,
+      ]),
+      h("div", { class: "web-row" }, [
+        scoreRing(w.mobileScore, "on a phone", "sm"),
+        h("div", {}, [
+          h("p", { class: "live-domain", text: w.url.replace(/^https?:\/\//i, "").replace(/\/$/, "") }),
+          h("ul", { class: "checks" }, checks.map((c) => h("li", { class: c.ok ? "ok" : "bad", text: c.text }))),
+        ]),
+      ]),
     ]);
   }
 
   function renderStrengths(summary) {
     const strengths = summary?.strengths || [];
     if (!strengths.length) return null;
-    return h("section", { class: "report-block" }, [
-      h("h3", { text: "What's already working" }),
+    return h("section", { class: "card" }, [
+      h("div", { class: "card-head" }, [h("h3", { text: "What's already working" })]),
       h("ul", { class: "checks" }, strengths.map((s) => h("li", { class: "ok", text: s }))),
     ]);
   }
 
   function renderNextStep(summary) {
     if (!summary?.nextStep && !summary?.answersInsight) return null;
-    return h("section", { class: "report-block report-next" }, [
+    return h("section", { class: "card card-wide card-cta" }, [
+      h("h3", { text: "What to do next" }),
       summary.answersInsight ? h("p", { text: summary.answersInsight }) : null,
-      summary.nextStep ? h("p", { class: "report-cta", text: summary.nextStep }) : null,
+      summary.nextStep ? h("p", { class: "cta-line", text: summary.nextStep }) : null,
     ]);
   }
+
+  // ============ RENDER ============
 
   function render(payload) {
     const { report, summary } = payload;
     const body = $("reportBody");
     if (!body) return;
+
+    // The scan was the waiting room. Once the report is here, get it out of the way.
+    document.querySelector(".scan-grid")?.setAttribute("hidden", "");
+    const scanDone = $("scanDone");
+    if (scanDone) scanDone.hidden = true;
+    const title = $("scanTitle");
+    if (title) title.textContent = report?.profile?.name ? `Lost Job Report for ${report.profile.name}` : "Your Lost Job Report";
+
     body.replaceChildren(
       ...[
-        renderHeadline(summary, report),
+        renderHero(summary, report),
         renderFindings(summary),
-        renderGrades(report),
         renderRanking(report),
-        renderReviews(report),
-        renderListings(report),
-        renderWebsite(report),
-        renderStrengths(summary),
+        h("div", { class: "card-grid" }, [
+          renderReviews(report),
+          renderWebsite(report),
+          renderListings(report),
+          renderStrengths(summary),
+        ].filter(Boolean)),
+        renderGrades(report),
         renderNextStep(summary),
+        h("p", { class: "report-restart" }, h("button", { class: "link", type: "button", id: "reportRestart", text: "Check a different business" })),
       ].filter(Boolean)
     );
     body.hidden = false;
     setStatus("");
     $("report").hidden = false;
-    body.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    $("reportRestart")?.addEventListener("click", () => window.DialBridgeScan.reset());
+    $("scan")?.scrollIntoView({ behavior: REDUCED_MOTION ? "auto" : "smooth", block: "start" });
   }
 
   // ============ POLLING ============
@@ -268,6 +401,7 @@
       body.replaceChildren();
       body.hidden = true;
     }
+    document.querySelector(".scan-grid")?.removeAttribute("hidden");
     setStatus("");
   }
 
