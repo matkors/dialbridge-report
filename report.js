@@ -243,6 +243,20 @@
   function renderReviews(report) {
     const rv = report?.reviews;
     if (!rv || num(rv.googleReviewCount) === null) return null;
+    // Published before the review scan finished: show what Google gives us and say so,
+    // rather than an empty card or a wrong "no reviews" claim.
+    if (rv.pending) {
+      const local = window.scanResult?.profile;
+      const recent = (local?.reviews || []).slice(0, 2);
+      return h("section", { class: "card" }, [
+        h("div", { class: "card-head" }, [
+          h("h3", { text: "Your reputation" }),
+          h("span", { class: `pill tone-${rv.googleRating >= 4.5 ? "good" : "warn"}`, text: `${rv.googleRating ?? "?"}★ from ${rv.googleReviewCount} reviews` }),
+        ]),
+        ...recent.map((r) => h("p", { class: "muted", text: `"${r.text.slice(0, 140)}" ${r.author}, ${r.when}` })),
+        h("p", { class: "muted", text: "We're still reading through every review. The full breakdown, including which ones you never replied to, comes with your report." }),
+      ]);
+    }
     const items = [
       num(rv.unansweredCount) !== null
         ? { ok: rv.unansweredCount === 0, text: rv.unansweredCount === 0 ? "Every review has a reply" : `${rv.unansweredCount} reviews with no reply from you` }
