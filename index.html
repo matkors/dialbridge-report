@@ -30,7 +30,8 @@
         <input
           id="bizInput"
           type="text"
-          placeholder="Start typing your business name"
+          placeholder="Business name and city"
+          aria-describedby="searchHint"
           autocomplete="off"
           spellcheck="false"
           role="combobox"
@@ -46,6 +47,8 @@
         <p class="powered">Powered by Google</p>
       </div>
       </div>
+
+      <p id="searchHint" class="hint">Include your city for best results, e.g. Atlantic Shore Morganville</p>
 
       <button id="cantFind" class="link" type="button">Can't find your business?</button>
     </div>
