@@ -10,6 +10,14 @@ python -m http.server 5500
 
 Open http://localhost:5500
 
+## How the report gets to the page
+
+1. `app.js` sends the picked business to the intake webhook and gets a `submissionId` back.
+2. `scan.js` runs the live scan in the browser while the lead waits.
+3. n8n creates the GHL contact and tags it `audit-request`; the GHL workflow runs Generate Marketing Audit Report and posts the share link to "DialBridge - Audit Report Builder (GHL)".
+4. That workflow reads the report from `services.leadconnectorhq.com/prospecting/report/share` (public, no auth, keyed by the 24-character id in the share link), re-checks every 20s until every section is done, condenses it, writes the summary with OpenAI, and saves it to the data table.
+5. `report.js` polls the status endpoint with the `submissionId` and draws the report under the scan as soon as it is ready.
+
 ## Google Maps API key setup
 
 1. Go to https://console.cloud.google.com and create a project (e.g. `dialbridge-report`). Turn on billing.
@@ -37,6 +45,7 @@ Every push to `main` runs `.github/workflows/deploy.yml`, which writes `config.j
 
 - `GOOGLE_MAPS_API_KEY`: Places API (New) browser key
 - `N8N_REPORT_WEBHOOK_URL`: n8n workflow "DialBridge - Report Request Intake" (validates the submission and saves it to the `dialbridge_report_submissions` data table)
+- `N8N_REPORT_STATUS_URL`: n8n workflow "DialBridge - Report Status (page)" (GET with `?submissionId=`, returns the finished report for that submission only)
 
 Both values are visible to anyone who opens the live page, since the browser has to use them. The Google key is locked to this site by referrer restriction; the n8n webhook only accepts this site's origin, rejects bots via a hidden `company_fax` field, and validates every field.
 

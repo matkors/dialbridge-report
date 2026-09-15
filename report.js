@@ -25,6 +25,17 @@
 
   const SEVERITY_TONE = { high: "bad", medium: "warn", low: "good" };
 
+  // The audit ships jargon category names; say them the way a contractor would.
+  const GRADE_LABELS = {
+    "Techno Stack": "Tracking and tools",
+    "Business Details": "Business info accuracy",
+    "SEO Analysis": "Search setup",
+    "Listings": "Business listings",
+    "Online Reputation": "Reviews and reputation",
+    "Website Performance": "Website speed",
+    "Google Business Profile": "Google profile",
+  };
+
   function setStatus(text, tone = "") {
     const el = $("reportStatus");
     if (!el) return;
@@ -63,7 +74,7 @@
       h("h3", { text: "Your scores" }),
       h("ul", { class: "grade-list" }, grades.map((g) =>
         h("li", { class: `grade tone-${g.level === "success" ? "good" : g.level === "warning" ? "warn" : "bad"}` }, [
-          h("span", { class: "grade-name", text: g.name }),
+          h("span", { class: "grade-name", text: GRADE_LABELS[g.name] || g.name }),
           h("span", { class: "grade-bar" }, h("span", { class: "grade-fill", style: `width:${Math.max(2, Math.min(100, g.score))}%` })),
           h("span", { class: "grade-score", text: String(g.score) }),
         ])
