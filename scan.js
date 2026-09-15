@@ -142,7 +142,45 @@
     "places.id", "places.displayName", "places.rating", "places.userRatingCount", "places.location",
   ].join(",");
 
+  // Categories too vague to find real competitors ("Services" returns hospitals and hardware stores).
+  const GENERIC_TYPES = new Set([
+    "service", "point_of_interest", "establishment", "store", "manufacturer", "corporate_office",
+    "business_center", "consultant", "",
+  ]);
+
+  // Trades we can recognise from a business name when Google's category is vague.
+  const TRADE_TERMS = [
+    "junk removal", "junk hauling", "dumpster rental", "demolition", "tree service", "tree removal",
+    "stump grinding", "landscaping", "lawn care", "hardscaping", "roofing", "gutter", "siding",
+    "plumbing", "drain cleaning", "septic", "hvac", "heating", "air conditioning", "electrical",
+    "electrician", "solar", "painting", "pressure washing", "power washing", "window cleaning",
+    "carpet cleaning", "house cleaning", "cleaning", "pest control", "exterminator", "garage door",
+    "fencing", "fence", "deck", "concrete", "paving", "asphalt", "masonry", "remodeling", "renovation",
+    "flooring", "tile", "cabinet", "countertop", "handyman", "general contractor", "contractor",
+    "moving", "movers", "restoration", "water damage", "mold", "pool", "irrigation", "locksmith",
+    "appliance repair", "insulation", "foundation", "waterproofing", "chimney", "drywall",
+  ];
+
+  // What to search for: a specific Google category if there is one, otherwise the trade in the name.
+  function tradeOf(profile) {
+    if (!GENERIC_TYPES.has(profile.primaryType)) {
+      return profile.category || profile.primaryType.replace(/_/g, " ");
+    }
+    const name = profile.name.toLowerCase();
+    const term = TRADE_TERMS.find((t) => new RegExp(`\\b${t}`).test(name));
+    if (term) return term;
+
+    // Last resort: the business name minus its city, state and legal suffixes.
+    const place = cityOf(profile.address).toLowerCase().split(/[\s,]+/).filter(Boolean);
+    const words = name
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w && !place.includes(w) && !["llc", "inc", "co", "corp", "company", "the", "and", "of", "ai"].includes(w));
+    return words.length ? words.join(" ") : "";
+  }
+
   function toCompetitors(places, selfId) {
+    // Keep Google's relevance order; sorting by review count floats big unrelated brands to the top.
     return (places || [])
       .filter((c) => c.id && c.id !== selfId && typeof c.rating === "number")
       .map((c) => ({
@@ -152,13 +190,12 @@
         reviewCount: c.userRatingCount || 0,
         location: c.location ? { lat: c.location.latitude, lng: c.location.longitude } : null,
       }))
-      .sort((a, b) => b.reviewCount - a.reviewCount)
       .slice(0, 5);
   }
 
   async function fetchCompetitors(profile) {
-    // Businesses with a storefront: search around their pin for the same category.
-    if (profile.location && profile.primaryType) {
+    // Storefront with a specific category: search around their pin for the same category.
+    if (profile.location && !GENERIC_TYPES.has(profile.primaryType)) {
       try {
         const data = await placesRequest("/places:searchNearby", {
           method: "POST",
@@ -179,8 +216,9 @@
       }
     }
 
-    // Service-area businesses have no pin, so search "<category> near <city>" instead.
-    const what = profile.category || profile.primaryType.replace(/_/g, " ") || "local services";
+    // Otherwise search "<trade> near <city>" (service-area businesses have no pin at all).
+    const what = tradeOf(profile);
+    if (!what) return [];
     const where = cityOf(profile.address);
     const body = {
       textQuery: where ? `${what} near ${where}` : what,
