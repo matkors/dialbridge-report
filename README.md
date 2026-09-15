@@ -13,13 +13,11 @@ Open http://localhost:5500
 ## Google Maps API key setup
 
 1. Go to https://console.cloud.google.com and create a project (e.g. `dialbridge-report`). Turn on billing.
-2. **APIs & Services > Library**, enable both:
-   - **Maps JavaScript API**
-   - **Places API (New)**
+2. **APIs & Services > Library**, enable **Places API (New)**. (The page calls the Places web API directly so it can include service-area businesses; the Maps JavaScript API isn't used.)
 3. **APIs & Services > Credentials > Create credentials > API key**.
 4. Edit the key:
    - **Application restrictions:** Websites. Add `http://localhost:5500/*` (add your real domain later).
-   - **API restrictions:** Restrict key to Maps JavaScript API and Places API (New).
+   - **API restrictions:** Restrict key to Places API (New).
 5. Copy `config.example.js` to `config.js` and paste the key. `config.js` is gitignored.
 6. **Billing > Budgets & alerts:** add an alert (e.g. $25).
 7. **Places API (New) > Quotas:** set a daily cap so bots can't run up a bill.

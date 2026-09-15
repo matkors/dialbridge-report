@@ -1,5 +1,7 @@
-// Business search using Google Places (New) through the Maps JavaScript API.
-// The key lives in config.js (gitignored). See README.md for setup.
+// Business search using the Google Places API (New) web service, called from the browser.
+// We call the REST API directly (not the Maps JavaScript library) because only the REST API
+// can include service-area businesses, and most contractors are service-area businesses.
+// The key lives in config.js (written at deploy from a GitHub secret). See README.md.
 
 const input = document.getElementById("bizInput");
 const resultsBox = document.getElementById("bizResults");
@@ -8,15 +10,40 @@ const statusEl = document.getElementById("status");
 const reportBtn = document.getElementById("reportBtn");
 const pickedEl = document.getElementById("picked");
 
+const API_KEY = window.DIALBRIDGE_CONFIG?.GOOGLE_MAPS_API_KEY || "";
+const PLACES_URL = "https://places.googleapis.com/v1";
 const MIN_CHARS = 3;
 const DEBOUNCE_MS = 250;
 
-let places = null;          // google.maps.places library once loaded
-let sessionToken = null;    // groups one search + one details lookup into a billing session
+// Place Details fields. Phone, website, rating and review count bill as Place Details Enterprise.
+const DETAIL_FIELDS = [
+  "id",
+  "displayName",
+  "formattedAddress",
+  "shortFormattedAddress",
+  "nationalPhoneNumber",
+  "websiteUri",
+  "rating",
+  "userRatingCount",
+  "googleMapsUri",
+  "location",
+  "primaryType",
+  "pureServiceAreaBusiness",
+].join(",");
+
+// Streets, cities and zip codes aren't businesses, so keep them out of the dropdown.
+const ADDRESS_TYPES = new Set([
+  "route", "street_address", "street_number", "intersection", "premise", "subpremise",
+  "locality", "sublocality", "neighborhood", "postal_code", "political", "country",
+  "administrative_area_level_1", "administrative_area_level_2", "administrative_area_level_3",
+  "geocode",
+]);
+
+let sessionToken = crypto.randomUUID(); // groups one search + one details lookup into a billing session
 let suggestions = [];
 let activeIndex = -1;
 let debounceTimer = null;
-let latestRequest = 0;      // ignore responses that arrive out of order
+let latestRequest = 0; // ignore responses that arrive out of order
 
 window.selectedBusiness = null;
 
@@ -25,39 +52,27 @@ function setStatus(message, isError = false) {
   statusEl.classList.toggle("error", isError);
 }
 
-function loadGoogleMaps() {
-  const key = window.DIALBRIDGE_CONFIG?.GOOGLE_MAPS_API_KEY;
-  if (!key || key.startsWith("PASTE_")) {
-    setStatus("No Google Maps API key yet. Copy config.example.js to config.js and add your key (see README).", true);
-    input.disabled = true;
-    return Promise.reject(new Error("missing key"));
-  }
-
-  return new Promise((resolve, reject) => {
-    window.__dialbridgeMapsReady = resolve;
-    // Surfaces key problems (invalid key, API not enabled, referrer not allowed).
-    window.gm_authFailure = () => {
-      setStatus("Google rejected the API key. Check that it's valid, the Places API (New) and Maps JavaScript API are enabled, and this page's address is allowed.", true);
-    };
-    const script = document.createElement("script");
-    script.src =
-      "https://maps.googleapis.com/maps/api/js" +
-      `?key=${encodeURIComponent(key)}` +
-      "&loading=async&libraries=places&v=weekly&callback=__dialbridgeMapsReady";
-    script.async = true;
-    script.onerror = () => reject(new Error("Could not load Google Maps"));
-    document.head.appendChild(script);
-  });
+function isAddressOnly(prediction) {
+  const types = prediction.types || [];
+  return types.length > 0 && types.every((t) => ADDRESS_TYPES.has(t));
 }
 
-async function init() {
-  try {
-    await loadGoogleMaps();
-    places = await google.maps.importLibrary("places");
-    sessionToken = new places.AutocompleteSessionToken();
-  } catch (err) {
-    if (err.message !== "missing key") setStatus("Couldn't load Google Maps. Check your connection and API key.", true);
+async function placesRequest(path, { method = "GET", body, fieldMask } = {}) {
+  const headers = { "X-Goog-Api-Key": API_KEY };
+  if (body) headers["Content-Type"] = "application/json";
+  if (fieldMask) headers["X-Goog-FieldMask"] = fieldMask;
+
+  const res = await fetch(`${PLACES_URL}${path}`, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.error) {
+    const message = data.error?.message || `Google returned ${res.status}`;
+    throw new Error(message);
   }
+  return data;
 }
 
 function openList() {
@@ -68,6 +83,7 @@ function openList() {
 function closeList() {
   resultsBox.hidden = true;
   input.setAttribute("aria-expanded", "false");
+  input.removeAttribute("aria-activedescendant");
   activeIndex = -1;
 }
 
@@ -99,47 +115,39 @@ function renderSuggestions() {
   else closeList();
 }
 
-// Streets, cities and zip codes aren't businesses, so keep them out of the dropdown.
-const ADDRESS_TYPES = new Set([
-  "route", "street_address", "street_number", "intersection", "premise", "subpremise",
-  "locality", "sublocality", "neighborhood", "postal_code", "political", "country",
-  "administrative_area_level_1", "administrative_area_level_2", "administrative_area_level_3",
-  "geocode",
-]);
-
-function isAddressOnly(prediction) {
-  const types = prediction.types || [];
-  return types.length > 0 && types.every((t) => ADDRESS_TYPES.has(t));
-}
-
 async function fetchSuggestions(query) {
-  if (!places) return;
   const requestId = ++latestRequest;
 
   try {
-    const { suggestions: raw } = await places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
-      input: query,
-      sessionToken,
-      includedRegionCodes: ["us"],
-      // Most contractors hide their address and only list a service area.
-      // Google leaves those businesses out unless this is on.
-      includePureServiceAreaBusinesses: true,
+    const data = await placesRequest("/places:autocomplete", {
+      method: "POST",
+      body: {
+        input: query,
+        sessionToken,
+        includedRegionCodes: ["us"],
+        // Most contractors hide their address and only list a service area.
+        // Google leaves those businesses out unless this is on.
+        includePureServiceAreaBusinesses: true,
+      },
     });
     if (requestId !== latestRequest) return; // a newer keystroke already fired
 
-    suggestions = (raw || [])
-      .filter((s) => s.placePrediction && !isAddressOnly(s.placePrediction))
-      .map((s) => ({
-        prediction: s.placePrediction,
-        mainText: s.placePrediction.mainText?.text || s.placePrediction.text?.text || "",
-        secondaryText: s.placePrediction.secondaryText?.text || "",
+    suggestions = (data.suggestions || [])
+      .map((s) => s.placePrediction)
+      .filter((p) => p && !isAddressOnly(p))
+      .map((p) => ({
+        placeId: p.placeId,
+        mainText: p.structuredFormat?.mainText?.text || p.text?.text || "",
+        secondaryText: p.structuredFormat?.secondaryText?.text || "",
       }));
+
     activeIndex = -1;
     renderSuggestions();
     setStatus(suggestions.length ? "" : "No matches yet. Try adding your city.");
   } catch (err) {
+    if (requestId !== latestRequest) return;
     console.error(err);
-    setStatus("Search failed. Check the browser console for the Google error.", true);
+    setStatus(`Search failed: ${err.message}`, true);
   }
 }
 
@@ -152,33 +160,24 @@ async function selectSuggestion(index) {
   setStatus("Looking up business details...");
 
   try {
-    const place = chosen.prediction.toPlace();
-    // These fields bill as Place Details Enterprise (phone, website, rating, review count).
-    await place.fetchFields({
-      fields: [
-        "id",
-        "displayName",
-        "formattedAddress",
-        "nationalPhoneNumber",
-        "websiteURI",
-        "rating",
-        "userRatingCount",
-        "googleMapsURI",
-        "location",
-      ],
-    });
+    const place = await placesRequest(
+      `/places/${encodeURIComponent(chosen.placeId)}?sessionToken=${encodeURIComponent(sessionToken)}`,
+      { fieldMask: DETAIL_FIELDS }
+    );
 
     window.selectedBusiness = {
       placeId: place.id,
-      name: place.displayName,
-      address: place.formattedAddress,
+      name: place.displayName?.text || chosen.mainText,
+      address: place.formattedAddress || chosen.secondaryText || null,
+      serviceAreaOnly: Boolean(place.pureServiceAreaBusiness),
       phone: place.nationalPhoneNumber || null,
-      website: place.websiteURI || null,
+      website: place.websiteUri || null,
       rating: place.rating ?? null,
       reviewCount: place.userRatingCount ?? null,
-      mapsUrl: place.googleMapsURI || null,
-      lat: place.location?.lat() ?? null,
-      lng: place.location?.lng() ?? null,
+      primaryType: place.primaryType || null,
+      mapsUrl: place.googleMapsUri || null,
+      lat: place.location?.latitude ?? null,
+      lng: place.location?.longitude ?? null,
     };
 
     renderPicked(window.selectedBusiness);
@@ -186,13 +185,13 @@ async function selectSuggestion(index) {
     setStatus("");
   } catch (err) {
     console.error(err);
-    setStatus("Couldn't load that business's details. Check the browser console.", true);
+    setStatus(`Couldn't load that business's details: ${err.message}`, true);
   } finally {
-    sessionToken = new places.AutocompleteSessionToken(); // next search starts a new session
+    sessionToken = crypto.randomUUID(); // next search starts a new session
   }
 }
 
-function linkOrDash(url, label) {
+function linkOrText(url, label) {
   if (!url) return document.createTextNode("Not listed");
   const a = document.createElement("a");
   a.href = url;
@@ -204,12 +203,14 @@ function linkOrDash(url, label) {
 
 function renderPicked(b) {
   document.getElementById("pName").textContent = b.name || "";
-  document.getElementById("pAddress").textContent = b.address || "Not listed";
+  document.getElementById("pAddress").textContent = b.address
+    ? `${b.address}${b.serviceAreaOnly ? " (service area, address hidden)" : ""}`
+    : "Not listed";
   document.getElementById("pPhone").textContent = b.phone || "Not listed";
-  document.getElementById("pWebsite").replaceChildren(linkOrDash(b.website));
+  document.getElementById("pWebsite").replaceChildren(linkOrText(b.website));
   document.getElementById("pRating").textContent =
     b.rating != null ? `${b.rating} stars from ${b.reviewCount ?? 0} reviews` : "No reviews yet";
-  document.getElementById("pMaps").replaceChildren(linkOrDash(b.mapsUrl, "Open listing"));
+  document.getElementById("pMaps").replaceChildren(linkOrText(b.mapsUrl, "Open listing"));
   document.getElementById("pId").textContent = b.placeId || "";
   pickedEl.hidden = false;
 }
@@ -220,8 +221,10 @@ input.addEventListener("input", () => {
   window.selectedBusiness = null;
   const query = input.value.trim();
   if (query.length < MIN_CHARS) {
+    latestRequest++; // cancel any in-flight response
     suggestions = [];
     closeList();
+    setStatus("");
     return;
   }
   debounceTimer = setTimeout(() => fetchSuggestions(query), DEBOUNCE_MS);
@@ -240,8 +243,10 @@ input.addEventListener("keydown", (e) => {
   } else if (e.key === "Enter" && activeIndex >= 0) {
     e.preventDefault();
     selectSuggestion(activeIndex);
+    return;
   } else if (e.key === "Escape") {
     closeList();
+    return;
   }
   if (activeIndex >= 0) input.setAttribute("aria-activedescendant", `opt-${activeIndex}`);
 });
@@ -265,4 +270,7 @@ reportBtn.addEventListener("click", () => {
   setStatus("Business captured. The questions step gets built next.");
 });
 
-init();
+if (!API_KEY || API_KEY.startsWith("PASTE_")) {
+  setStatus("No Google Maps API key yet. Add it to config.js locally or the GOOGLE_MAPS_API_KEY secret on GitHub.", true);
+  input.disabled = true;
+}
