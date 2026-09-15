@@ -99,6 +99,19 @@ function renderSuggestions() {
   else closeList();
 }
 
+// Streets, cities and zip codes aren't businesses, so keep them out of the dropdown.
+const ADDRESS_TYPES = new Set([
+  "route", "street_address", "street_number", "intersection", "premise", "subpremise",
+  "locality", "sublocality", "neighborhood", "postal_code", "political", "country",
+  "administrative_area_level_1", "administrative_area_level_2", "administrative_area_level_3",
+  "geocode",
+]);
+
+function isAddressOnly(prediction) {
+  const types = prediction.types || [];
+  return types.length > 0 && types.every((t) => ADDRESS_TYPES.has(t));
+}
+
 async function fetchSuggestions(query) {
   if (!places) return;
   const requestId = ++latestRequest;
@@ -108,11 +121,14 @@ async function fetchSuggestions(query) {
       input: query,
       sessionToken,
       includedRegionCodes: ["us"],
+      // Most contractors hide their address and only list a service area.
+      // Google leaves those businesses out unless this is on.
+      includePureServiceAreaBusinesses: true,
     });
     if (requestId !== latestRequest) return; // a newer keystroke already fired
 
     suggestions = (raw || [])
-      .filter((s) => s.placePrediction)
+      .filter((s) => s.placePrediction && !isAddressOnly(s.placePrediction))
       .map((s) => ({
         prediction: s.placePrediction,
         mainText: s.placePrediction.mainText?.text || s.placePrediction.text?.text || "",
