@@ -80,6 +80,21 @@
       ]));
   }
 
+  // The browser already ran its own phone speed test during the scan. If GHL's website
+  // section is switched off (it is slow and we duplicate it), fill the gaps from ours.
+  function withLocalScan(report) {
+    const local = window.scanResult?.website;
+    if (!report || !local || !local.hasWebsite) return report;
+    const w = report.website || (report.website = {});
+    if (!w.url && local.url) w.url = local.url;
+    if (w.found !== true) w.found = true;
+    if (num(w.mobileScore) === null && num(local.speedScore) !== null) w.mobileScore = local.speedScore;
+    if (!w.mobileLoadTime && local.loadTime) w.mobileLoadTime = local.loadTime;
+    if (w.https === null || w.https === undefined) w.https = local.https;
+    if (w.mobileFriendly === null || w.mobileFriendly === undefined) w.mobileFriendly = local.mobileFriendly;
+    return report;
+  }
+
   // ============ SECTIONS ============
 
   function statChips(report) {
@@ -277,6 +292,7 @@
     }
     const checks = [
       w.https === null || w.https === undefined ? null : { ok: w.https, text: w.https ? "Secure (HTTPS)" : "Not secure, browsers warn visitors" },
+      w.mobileFriendly === null || w.mobileFriendly === undefined ? null : { ok: w.mobileFriendly, text: w.mobileFriendly ? "Fits a phone screen" : "Doesn't fit a phone screen" },
       w.googleAnalytics === null || w.googleAnalytics === undefined ? null : { ok: w.googleAnalytics, text: w.googleAnalytics ? "Visitor tracking is set up" : "No visitor tracking, you can't see where leads come from" },
       w.facebookPixel === null || w.facebookPixel === undefined ? null : { ok: w.facebookPixel, text: w.facebookPixel ? "Facebook ad tracking is set up" : "No Facebook ad tracking" },
       w.chatWidget === null || w.chatWidget === undefined ? null : { ok: w.chatWidget, text: w.chatWidget ? "Visitors can message you from the site" : "No way to message you from the site" },
@@ -317,7 +333,8 @@
   // ============ RENDER ============
 
   function render(payload) {
-    const { report, summary } = payload;
+    const { summary } = payload;
+    const report = withLocalScan(payload.report);
     const body = $("reportBody");
     if (!body) return;
 
