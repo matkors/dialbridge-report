@@ -33,8 +33,13 @@ This is a browser key, so anyone who loads the deployed page can see it. That's 
 
 Live at https://matviykorsunskiy.me/dialbridge-report/ via GitHub Pages (public repo, since Pages can't host private repos on the free plan).
 
-Every push to `main` runs `.github/workflows/deploy.yml`, which writes `config.js` from the repo secret `GOOGLE_MAPS_API_KEY` at deploy time. The key is never committed.
+Every push to `main` runs `.github/workflows/deploy.yml`, which writes `config.js` at deploy time from two repo secrets. Neither is ever committed:
 
-- Set or change the key: `gh secret set GOOGLE_MAPS_API_KEY --repo matkors/dialbridge-report`
+- `GOOGLE_MAPS_API_KEY`: Places API (New) browser key
+- `N8N_REPORT_WEBHOOK_URL`: n8n workflow "DialBridge - Report Request Intake" (validates the submission and saves it to the `dialbridge_report_submissions` data table)
+
+Both values are visible to anyone who opens the live page, since the browser has to use them. The Google key is locked to this site by referrer restriction; the n8n webhook only accepts this site's origin, rejects bots via a hidden `company_fax` field, and validates every field.
+
+- Set or change a secret: `gh secret set GOOGLE_MAPS_API_KEY --repo matkors/dialbridge-report` (same for `N8N_REPORT_WEBHOOK_URL`)
 - Redeploy without a code change: `gh workflow run deploy.yml --repo matkors/dialbridge-report`
 - The key's website restrictions must include `https://matviykorsunskiy.me/dialbridge-report/*`
