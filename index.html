@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DialBridge Lost Job Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand">DialBridge</span>
+    <span class="tag">Experiment build</span>
+  </header>
+
+  <main class="hero">
+    <p class="eyebrow">Free report for local contractors</p>
+    <h1>See how many jobs you're losing online.</h1>
+    <p class="sub">Find your business below. We'll check how you show up on Google, how your reviews stack up against competitors, and where leads slip through.</p>
+
+    <div class="search" id="search">
+      <label for="bizInput" class="visually-hidden">Business name</label>
+      <div class="combo">
+      <div class="search-box">
+        <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+        <input
+          id="bizInput"
+          type="text"
+          placeholder="Start typing your business name"
+          autocomplete="off"
+          spellcheck="false"
+          role="combobox"
+          aria-expanded="false"
+          aria-controls="bizResults"
+          aria-autocomplete="list"
+        />
+        <button id="reportBtn" class="cta" type="button" disabled>Get my report</button>
+      </div>
+
+      <div id="bizResults" class="results" role="listbox" hidden>
+        <ul id="bizList"></ul>
+        <p class="powered">Powered by Google</p>
+      </div>
+      </div>
+
+      <button id="cantFind" class="link" type="button">Can't find your business?</button>
+    </div>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+
+    <section id="picked" class="picked" hidden>
+      <div class="picked-head">
+        <p class="eyebrow">Selected business</p>
+        <button id="clearBtn" class="link" type="button">Change</button>
+      </div>
+      <h2 id="pName"></h2>
+      <dl class="facts">
+        <div><dt>Address</dt><dd id="pAddress"></dd></div>
+        <div><dt>Phone</dt><dd id="pPhone"></dd></div>
+        <div><dt>Website</dt><dd id="pWebsite"></dd></div>
+        <div><dt>Google rating</dt><dd id="pRating"></dd></div>
+        <div><dt>Google Maps</dt><dd id="pMaps"></dd></div>
+        <div><dt>Place ID</dt><dd id="pId" class="mono"></dd></div>
+      </dl>
+      <p class="note">Experiment view. Next step in the real flow: 2 to 3 questions, then the blurred report.</p>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
