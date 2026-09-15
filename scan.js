@@ -493,6 +493,12 @@
     else if (w.checked && w.speedScore !== null && w.speedScore < 50) {
       out.push({ tone: "bad", text: `Your website scored ${w.speedScore} out of 100 for speed on a phone.` });
     }
+    if (w.checked && w.https === false) {
+      out.push({ tone: "bad", text: "Browsers label your website \"Not secure\" because it has no HTTPS." });
+    }
+    if (w.checked && w.mobileFriendly === false) {
+      out.push({ tone: "bad", text: "Your website isn't set up to fit a phone screen." });
+    }
     if (!p.phone) out.push({ tone: "bad", text: "There's no phone number on your Google profile." });
     if (p.photos.length < 5) {
       out.push({ tone: "warn", text: p.photos.length ? `Your profile only has ${p.photos.length} photos.` : "Your profile has no photos." });
