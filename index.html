@@ -111,11 +111,19 @@
       <button id="scanRestart" class="link" type="button">Check a different business</button>
     </section>
 
+    <!-- Full report, filled in as soon as the deeper audit comes back. -->
+    <section id="report" class="report" hidden aria-labelledby="reportHeading">
+      <h2 id="reportHeading" class="visually-hidden">Your full report</h2>
+      <p id="reportStatus" class="report-status" role="status" aria-live="polite" hidden></p>
+      <div id="reportBody" class="report-body" hidden></div>
+    </section>
+
     <p class="scan-credit">Business info, reviews, photos and map from Google.</p>
   </section>
 
   <script src="config.js"></script>
   <script src="scan.js"></script>
+  <script src="report.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

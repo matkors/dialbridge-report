@@ -543,3 +543,92 @@ h1 {
 @keyframes scan-pulse { 0%, 100% { transform: scale(0.7); opacity: 0.6; } 50% { transform: scale(1); opacity: 1; } }
 @keyframes scan-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @keyframes scan-sweep { 0% { top: -120px; } 60%, 100% { top: 100%; } }
+
+/* ============ FULL REPORT (polled from n8n after the scan) ============ */
+.report { margin-top: 22px; }
+.report-status {
+  margin: 0 0 14px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.report-status.is-working::before {
+  content: "";
+  display: inline-block;
+  width: 12px; height: 12px;
+  margin-right: 8px;
+  vertical-align: -1px;
+  border: 2px solid var(--rule);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: scan-spin 0.9s linear infinite;
+}
+.report-status.is-bad { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+.report-body { display: grid; gap: 16px; animation: scan-fade 0.4s ease both; }
+
+.report-head {
+  display: flex; flex-wrap: wrap; gap: 20px; align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-top: 4px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 22px 26px;
+}
+.report-head-text { flex: 1 1 260px; }
+.report-head h2 { margin: 0 0 8px; font-size: clamp(1.2rem, 3vw, 1.55rem); letter-spacing: -0.02em; text-wrap: balance; }
+.report-head p { margin: 0; color: var(--ink-2); }
+
+.report-block {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+}
+.report-block h3 { margin: 0 0 12px; font-size: 1rem; letter-spacing: -0.01em; }
+.report-block .muted { font-size: 0.85rem; }
+
+.grade-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.grade { display: grid; grid-template-columns: minmax(110px, 1fr) 2fr auto; gap: 12px; align-items: center; font-size: 0.9rem; }
+.grade-name { font-weight: 600; }
+.grade-bar { height: 8px; border-radius: 99px; background: var(--rule); overflow: hidden; }
+.grade-fill { display: block; height: 100%; border-radius: 99px; background: var(--ink-3); }
+.grade.tone-good .grade-fill { background: var(--good); }
+.grade.tone-warn .grade-fill { background: var(--warn); }
+.grade.tone-bad .grade-fill { background: var(--bad); }
+.grade-score { font-family: "IBM Plex Mono", monospace; font-size: 0.85rem; color: var(--ink-2); }
+
+.report-findings { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; counter-reset: finding; }
+.report-finding { padding: 14px 16px; border-radius: 12px; border-left: 4px solid var(--rule); background: var(--paper); }
+.report-finding.tone-bad { border-left-color: var(--bad); }
+.report-finding.tone-warn { border-left-color: var(--warn); }
+.report-finding.tone-good { border-left-color: var(--good); }
+.report-finding p { margin: 0 0 6px; font-size: 0.92rem; color: var(--ink-2); }
+.report-finding p:last-child { margin-bottom: 0; }
+.report-finding-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.report-finding-head strong { color: var(--ink); font-size: 1rem; }
+.report-area { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
+.report-fix { font-weight: 600; color: var(--ink); }
+
+.rank-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 56px)); gap: 6px; margin-bottom: 12px; }
+.rank-cell {
+  display: grid; place-items: center;
+  aspect-ratio: 1; border-radius: 8px;
+  font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 0.9rem;
+}
+.rank-cell.tone-good { background: var(--good-soft); color: var(--good); }
+.rank-cell.tone-warn { background: var(--warn-soft); color: var(--warn); }
+.rank-cell.tone-bad { background: var(--bad-soft); color: var(--bad); }
+
+.report-next { border-top: 4px solid var(--accent); }
+.report-cta { font-weight: 700; color: var(--ink); font-size: 1rem; }
+
+@media (max-width: 560px) {
+  .report-block { padding: 16px 18px; }
+  .report-head { padding: 18px; }
+  .grade { grid-template-columns: 1fr auto; }
+  .grade-bar { grid-column: 1 / -1; }
+}

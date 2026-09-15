@@ -613,6 +613,7 @@
 
   function reset() {
     if (running) return;
+    window.DialBridgeReport?.reset();
     $("scan").hidden = true;
     document.querySelector("main.hero").hidden = false;
     document.getElementById("clearBtn")?.click();
@@ -623,5 +624,6 @@
     $("scanRestart")?.addEventListener("click", reset);
   });
 
-  window.DialBridgeScan = { start, reset };
+  // h is shared with report.js so the full report is built with the same safe, text-only DOM helper.
+  window.DialBridgeScan = { start, reset, h, img };
 })();
