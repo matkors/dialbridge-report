@@ -288,7 +288,7 @@
       ]),
       h("div", { class: "web-row" }, [
         scoreRing(w.mobileScore, "on a phone", "sm"),
-        h("div", {}, [
+        h("div", { class: "web-copy" }, [
           h("p", { class: "live-domain", text: w.url.replace(/^https?:\/\//i, "").replace(/\/$/, "") }),
           h("ul", { class: "checks" }, checks.map((c) => h("li", { class: c.ok ? "ok" : "bad", text: c.text }))),
         ]),

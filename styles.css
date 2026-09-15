@@ -268,6 +268,7 @@ h1 {
 .scan-head { text-align: center; margin-bottom: 28px; }
 .scan-head h1 { font-size: clamp(1.7rem, 4.5vw, 2.6rem); }
 
+.scan-grid[hidden] { display: none !important; }
 .scan-grid {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
@@ -628,7 +629,7 @@ h1 {
   border-radius: var(--radius);
   padding: 22px 24px;
 }
-.card-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); align-items: start; }
+.card-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(430px, 1fr)); align-items: start; }
 .card-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 .card-head h3 { margin: 0; font-size: 1.05rem; letter-spacing: -0.015em; }
 .card .muted { font-size: 0.85rem; }
@@ -681,7 +682,7 @@ h1 {
 .map-wrap { margin-bottom: 14px; }
 .report-map {
   display: block; width: 100%;
-  aspect-ratio: 16 / 10;
+  aspect-ratio: 32 / 21;
   object-fit: cover;
   border-radius: 12px;
   border: 1px solid var(--rule);
@@ -735,7 +736,7 @@ h1 {
 }
 .tag.tone-bad { background: var(--bad-soft); color: var(--bad); }
 .web-row { display: flex; flex-wrap: wrap; gap: 18px; align-items: center; }
-.web-row > div { flex: 1 1 200px; min-width: 0; }
+.web-copy { flex: 1 1 200px; min-width: 0; }
 .web-row .live-domain { margin: 0 0 8px; font-size: 0.95rem; }
 
 /* call to action */
