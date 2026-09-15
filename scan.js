@@ -248,23 +248,33 @@
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 45000);
     try {
-      const res = await fetch(`${PSI_URL}?${params}`, { signal: controller.signal });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || data.error) throw new Error(data.error?.message || `PageSpeed returned ${res.status}`);
+      let data = {};
+      // Lighthouse occasionally fails a run with a 500; one retry usually succeeds.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const res = await fetch(`${PSI_URL}?${params}`, { signal: controller.signal });
+        data = await res.json().catch(() => ({}));
+        if (res.ok && !data.error) break;
+        if (attempt === 1 || res.status < 500) {
+          throw new Error(data.error?.message || `PageSpeed returned ${res.status}`);
+        }
+      }
 
       const lighthouse = data.lighthouseResult || {};
       const audits = lighthouse.audits || {};
       const performance = lighthouse.categories?.performance?.score;
       const finalUrl = lighthouse.finalDisplayedUrl || lighthouse.finalUrl || site;
+      // Lighthouse 13 renamed the "viewport" audit to "viewport-insight"; accept either.
+      const viewportAudit = audits["viewport-insight"] || audits.viewport;
+      const scoreOf = (audit) => (audit && typeof audit.score === "number" ? audit.score === 1 : null);
       return {
         hasWebsite: true,
         checked: true,
         url: site,
         speedScore: typeof performance === "number" ? Math.round(performance * 100) : null,
         loadTime: audits["largest-contentful-paint"]?.displayValue || "",
-        mobileFriendly: audits.viewport ? audits.viewport.score === 1 : null,
+        mobileFriendly: scoreOf(viewportAudit),
         https: /^https:/i.test(finalUrl),
-        hasTitle: audits["document-title"] ? audits["document-title"].score === 1 : null,
+        hasTitle: scoreOf(audits["document-title"]),
       };
     } catch (err) {
       console.warn("Website speed test unavailable", err);
