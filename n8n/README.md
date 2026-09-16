@@ -67,3 +67,24 @@ sending, because GHL may resolve the recipient from the contact when it dispatch
 and we would be racing it. A lead who asks for a code and then walks away leaves their
 mobile in the main field until they come back and finish; the data table holds both numbers
 either way.
+
+## GHL's audit is retired (2026-09-16)
+
+`Audit Report Builder (GHL)` (NV082ePpGt0zarIL) is **unpublished**. Nothing the lead ever
+sees came from it once the ranking map became ours, so it was five minutes of polling per
+lead for data that reached nobody. Verified with a submission that has no `reportData` at
+all: the email still builds and sends in 3.4 seconds off our own grid.
+
+Also turn off the GHL-side automation that runs "Generate Marketing Audit Report" and posts
+the share link to `dialbridge-report/ghl-audit-done-r7x3k9`, otherwise GHL keeps calling a
+webhook that is no longer listening.
+
+What this gives up, and it is only one thing: **review replies**. Google's public API never
+exposes an owner's reply, so GHL's reputation scan was the only source of a reply rate or an
+unanswered count. It has not been shown to a lead since the email went map-only, so nothing
+visible is lost today. Getting it back means the Apify Google Maps Reviews actor
+(`responseFromOwnerText`), which can run on the email path since it takes 30 to 90 seconds.
+
+Side effect to tidy at some point: the intake sets the GHL contact's Report Status field to
+"Requested" and the builder was what set it to "Ready", so contacts now sit at "Requested"
+forever. One HTTP node after `Mark Email Sent` would fix it.
