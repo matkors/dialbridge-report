@@ -60,6 +60,8 @@
     el.hidden = !text;
   }
 
+  const dollars = (n) => "$" + Number(n).toLocaleString("en-US");
+
   function num(value) {
     return typeof value === "number" && Number.isFinite(value) ? value : null;
   }
@@ -192,6 +194,87 @@
             : `${percent} of them at risk from what you told us about calls and quotes, which works out to roughly one job every ${Math.max(2, Math.round(1 / leak.lostJobs))} months` }),
         ]),
       ]),
+    ]);
+  }
+
+
+  // Google hands back a real photo of the site on a phone as part of the speed test. A
+  // contractor who sees their own site in a phone frame gets it faster than any score.
+  function renderPhoneShot(report) {
+    const w = report?.website;
+    if (!w || !w.screenshot) return null;
+    const checks = [
+      w.tinyTapTargets
+        ? { ok: false, text: typeof w.tinyTapTargets === "number" ? `${w.tinyTapTargets} buttons or links are too small to tap` : "Buttons and links are too small to tap" }
+        : null,
+      w.tinyText === true ? { ok: false, text: "Text is too small to read without zooming" } : null,
+      w.poorContrast
+        ? { ok: false, text: typeof w.poorContrast === "number" ? `${w.poorContrast} places where text blends into the background` : "Text blends into the background" }
+        : null,
+      num(w.accessibilityScore) !== null ? { ok: w.accessibilityScore >= 80, text: `Ease of use scores ${w.accessibilityScore} out of 100` } : null,
+    ].filter(Boolean);
+
+    return h("section", { class: "card card-wide" }, [
+      h("div", { class: "card-head" }, [
+        h("h3", { text: "This is your website on a phone" }),
+        h("span", { class: "card-hint", text: "Taken just now" }),
+      ]),
+      h("div", { class: "shot-row" }, [
+        h("div", { class: "phone-frame" }, img(w.screenshot, { class: "phone-shot", alt: "Your website as it appears on a phone" })),
+        h("div", { class: "shot-copy" }, [
+          h("p", { class: "muted", text: "This is the first thing a homeowner sees after they find you. Speed is only half of it. If it is hard to read or hard to tap, they leave and call the next company." }),
+          checks.length ? h("ul", { class: "checks" }, checks.map((c) => h("li", { class: c.ok ? "ok" : "bad", text: c.text }))) : null,
+        ].filter(Boolean)),
+      ]),
+    ]);
+  }
+
+  // Where we explain the offer by explaining their problem. No price, no pitch language,
+  // just the shape of the fix, built from the findings they actually have.
+  function renderBlueprint(report, summary) {
+    const leak = report?.leak;
+    const findings = summary?.findings || [];
+    const has = (area) => findings.some((f) => f.area === area);
+    const response = num(report?.responseScore);
+
+    const steps = [
+      has("lead_follow_up") || (response !== null && response < 80)
+        ? { n: "1", title: "Catch every call, day or night", body: "A missed call gets a text back in seconds, and the conversation keeps going until the job is booked. Nothing sits waiting for you to climb off a roof." }
+        : null,
+      has("reviews") || has("map_ranking")
+        ? { n: "2", title: "Turn finished jobs into reviews", body: "Every customer gets asked by text right after the work is done. More reviews lift where you sit on the map, and the map is where the calls come from." }
+        : null,
+      has("website") || report?.website?.found === false
+        ? { n: "3", title: "A site that loads fast and asks for the job", body: "Opens quickly on a phone, your number one tap away, and a form that reaches you the second it is sent." }
+        : null,
+      has("listings") || has("google_profile")
+        ? { n: "4", title: "One set of business details everywhere", body: "Your profile and every listing say the same thing, so Google trusts you and customers reach the right number." }
+        : null,
+    ].filter(Boolean);
+
+    const shown = steps.length ? steps : [
+      { n: "1", title: "Catch every call, day or night", body: "A missed call gets a text back in seconds, and the conversation keeps going until the job is booked." },
+      { n: "2", title: "Turn finished jobs into reviews", body: "Every customer gets asked by text right after the work is done." },
+    ];
+
+    const lead = leak && leak.perMonth
+      ? `Every line above is work somebody has to do daily: answer the phone, chase the quote, ask for the review, keep the listings straight. A person to do that costs more than the ${dollars(leak.perMonth)} a month it is costing you now. This is the same work, done by a system that does not sleep or quit.`
+      : "Every line above is work somebody has to do daily: answer the phone, chase the quote, ask for the review, keep the listings straight. This is that work, done by a system instead of another salary.";
+
+    return h("section", { class: "card card-wide card-blueprint" }, [
+      h("p", { class: "eyebrow", text: "Growth Plan Blueprint" }),
+      h("h3", { text: "How this gets fixed without hiring anyone" }),
+      h("p", { class: "blueprint-lead", text: lead }),
+      h("ol", { class: "blueprint-steps" }, shown.map((step) =>
+        h("li", { class: "blueprint-step" }, [
+          h("span", { class: "blueprint-num", "aria-hidden": "true", text: step.n }),
+          h("div", {}, [
+            h("p", { class: "blueprint-title", text: step.title }),
+            h("p", { class: "blueprint-body", text: step.body }),
+          ]),
+        ])
+      )),
+      h("p", { class: "blueprint-close", text: "You keep everything we build. The site, the profile, the number, the reviews. Yours whether we keep working together or not." }),
     ]);
   }
 
@@ -361,7 +444,6 @@
             ]),
             f.area ? h("p", { class: "finding-area", text: AREA_LABELS[f.area] || String(f.area).replace(/_/g, " ") }) : null,
             f.detail ? h("p", { text: f.detail }) : null,
-            f.fix ? h("p", { class: "finding-fix" }, [h("span", { text: "We handle it: " }), f.fix]) : null,
           ]),
         ]);
       })),
@@ -462,81 +544,15 @@
     ]);
   }
 
-  function renderNextStep(summary) {
-    if (!summary?.nextStep && !summary?.answersInsight) return null;
+  function renderNextStep(report) {
+    const leak = report?.leak;
     return h("section", { class: "card card-wide card-cta" }, [
-      h("h3", { text: "What to do next" }),
-      summary.answersInsight ? h("p", { text: summary.answersInsight }) : null,
-      summary.nextStep ? h("p", { class: "cta-line", text: summary.nextStep }) : null,
-    ]);
-  }
-
-
-  // The ranking map is the reason to hand over an email, so it is never built or shown here.
-  // We describe it, take the email, and GHL emails the full report with the map in it.
-  function renderMapGate() {
-    const form = h("form", { class: "gate-form", novalidate: "" }, [
-      h("label", { class: "visually-hidden", for: "gateEmail", text: "Email address" }),
-      h("input", { id: "gateEmail", type: "email", name: "email", placeholder: "you@yourcompany.com", autocomplete: "email", required: "" }),
-      h("button", { class: "cta", type: "submit", text: "Email me the map" }),
-    ]);
-    const note = h("p", { class: "gate-note", role: "status", "aria-live": "polite" });
-
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const input = form.querySelector("#gateEmail");
-      const email = input.value.trim();
-      const button = form.querySelector("button");
-      if (!/^[^@\s]+@[^@\s.]+\.[a-z]{2,}$/i.test(email)) {
-        note.textContent = "That email doesn't look right.";
-        note.className = "gate-note is-bad";
-        input.focus();
-        return;
-      }
-      if (!EMAIL_URL() || !window.reportSubmissionId) {
-        note.textContent = "We can't send it right now. Try again in a minute.";
-        note.className = "gate-note is-bad";
-        return;
-      }
-      button.disabled = true;
-      button.textContent = "Sending...";
-      try {
-        const res = await fetch(EMAIL_URL(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            submissionId: window.reportSubmissionId,
-            email,
-            answers: window.leadAnswers || {},
-            company_fax: document.getElementById("companyFax")?.value || "",
-          }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data.ok) throw new Error(data.error || `Request failed (${res.status})`);
-        form.replaceChildren();
-        note.textContent = `On its way to ${email}. Check your inbox in a few minutes for the map and the rest of your report.`;
-        note.className = "gate-note is-good";
-      } catch (err) {
-        console.warn("Email request failed", err);
-        note.textContent = "That didn't go through. Try again.";
-        note.className = "gate-note is-bad";
-        button.disabled = false;
-        button.textContent = "Email me the map";
-      }
-    });
-
-    return h("section", { class: "card card-wide card-gate" }, [
-      h("div", { class: "gate-visual", "aria-hidden": "true" }, [
-        h("div", { class: "gate-grid" }, Array.from({ length: 9 }, () => h("span", { class: "gate-cell" }))),
-        h("span", { class: "gate-lock", text: "Locked" }),
-      ]),
-      h("div", { class: "gate-copy" }, [
-        h("h3", { text: "Where you rank on Google Maps, block by block" }),
-        h("p", { text: "We check your position from nine points around your service area and map it, so you can see the streets where customers never see you. It comes with your full report, including every directory that has your business listed wrong." }),
-        form,
-        note,
-        h("p", { class: "gate-fine", text: "One email with your report. No spam." }),
-      ]),
+      h("h3", { text: "Want us to walk you through it?" }),
+      h("p", { text: leak && leak.perMonth
+        ? `Fifteen minutes on the phone and we will show you which of these we would fix first, and what it takes to stop the ${dollars(leak.perMonth)} a month.`
+        : "Fifteen minutes on the phone and we will show you which of these we would fix first, and what it takes." }),
+      h("a", { class: "cta cta-link", href: "https://www.dialbridge.ai", target: "_blank", rel: "noopener", text: "Book a 15 minute call" }),
+      h("p", { class: "cta-fine", text: "No pitch deck. We will have this report open and go through it with you." }),
     ]);
   }
 
@@ -561,6 +577,7 @@
         renderJourney(report),
         renderFindings(summary),
         renderNumbers(report),
+        renderPhoneShot(report),
         report?.ranking ? renderRanking(report) : renderMapGate(),
         renderGrades(report),
         h("div", { class: "card-grid" }, [
@@ -569,7 +586,8 @@
           renderListings(report),
         ].filter(Boolean)),
         renderStrengths(summary),
-        renderNextStep(summary),
+        renderBlueprint(report, summary),
+        renderNextStep(report),
       ].filter(Boolean)
     );
     body.hidden = false;

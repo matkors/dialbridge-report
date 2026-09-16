@@ -279,6 +279,19 @@
           fix: "We rebuild it to load fast on a phone, where nearly all your traffic comes from.",
         });
       }
+      const usability = [];
+      if (website.tinyTapTargets) usability.push("buttons and links too small to tap");
+      if (website.tinyText) usability.push("text too small to read");
+      if (website.poorContrast) usability.push("text that blends into the background");
+      if (usability.length) {
+        out.push({
+          area: "website",
+          severity: "medium",
+          title: "Your website is hard to use on a phone",
+          detail: `We found ${usability.join(", ")}. It can load fast and still be a struggle for someone standing in their driveway trying to call you.`,
+          fix: "We rebuild the site so it reads and taps cleanly on a phone.",
+        });
+      }
       if (website.https === false) {
         out.push({
           area: "website",
@@ -468,6 +481,12 @@
         seoScore: num(website.seoScore),
         https: website.https ?? null,
         mobileFriendly: website.mobileFriendly ?? null,
+        screenshot: website.screenshot || "",
+        accessibilityScore: num(website.accessibilityScore),
+        bestPracticesScore: num(website.bestPracticesScore),
+        tinyTapTargets: website.tinyTapTargets ?? null,
+        tinyText: website.tinyText ?? null,
+        poorContrast: website.poorContrast ?? null,
       },
       answers,
     };

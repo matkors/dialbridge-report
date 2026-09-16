@@ -244,6 +244,8 @@
     const params = new URLSearchParams({ url: site, strategy });
     params.append("category", "performance");
     params.append("category", "seo");
+    params.append("category", "accessibility");
+    params.append("category", "best-practices");
     if (apiKey()) params.set("key", apiKey());
 
     let data = {};
@@ -284,6 +286,17 @@
       const scoreOf = (audit) => (audit && typeof audit.score === "number" ? audit.score === 1 : null);
       const desktopLighthouse = desktop?.lighthouseResult || {};
       const desktopPerformance = desktopLighthouse.categories?.performance?.score;
+
+      // Lighthouse renames audits between versions, so accept either id.
+      const audit = (...ids) => ids.map((id) => audits[id]).find(Boolean);
+      const failed = (a) => (a && typeof a.score === "number" ? a.score < 0.9 : null);
+      const itemCount = (a) => (a?.details?.items?.length ?? null);
+      const shot = audits["final-screenshot"]?.details?.data || "";
+
+      const tapTargets = audit("target-size", "tap-targets");
+      const fontSize = audit("font-size", "legible-font-sizes");
+      const contrast = audit("color-contrast");
+
       return {
         hasWebsite: true,
         checked: true,
@@ -296,6 +309,15 @@
         mobileFriendly: scoreOf(viewportAudit),
         https: /^https:/i.test(finalUrl),
         hasTitle: scoreOf(audits["document-title"]),
+        // How the site actually comes across on a phone, not just how fast it is.
+        screenshot: /^data:image\//.test(shot) ? shot : "",
+        accessibilityScore: typeof lighthouse.categories?.accessibility?.score === "number"
+          ? Math.round(lighthouse.categories.accessibility.score * 100) : null,
+        bestPracticesScore: typeof lighthouse.categories?.["best-practices"]?.score === "number"
+          ? Math.round(lighthouse.categories["best-practices"].score * 100) : null,
+        tinyTapTargets: failed(tapTargets) ? itemCount(tapTargets) ?? true : false,
+        tinyText: failed(fontSize) === null ? null : failed(fontSize),
+        poorContrast: failed(contrast) ? itemCount(contrast) ?? true : false,
       };
     } catch (err) {
       console.warn("Website speed test unavailable", err);

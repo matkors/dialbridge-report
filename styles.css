@@ -969,3 +969,41 @@ body.is-locked { overflow: hidden; }
 .hero-leak-math { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
 .hero-leak-math li { position: relative; padding-left: 14px; font-size: 0.83rem; color: var(--ink-2); line-height: 1.5; }
 .hero-leak-math li::before { content: ""; position: absolute; left: 0; top: 0.55em; width: 5px; height: 5px; border-radius: 50%; background: var(--bad); }
+
+/* their site in a phone frame, straight from the speed test */
+.shot-row { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.phone-frame {
+  flex: none;
+  width: 190px;
+  padding: 10px 8px 14px;
+  border-radius: 22px;
+  background: var(--ink);
+  box-shadow: var(--shadow);
+}
+.phone-shot { display: block; width: 100%; border-radius: 14px; background: #fff; }
+.shot-copy { flex: 1 1 260px; min-width: 0; }
+.shot-copy .checks { margin-top: 12px; }
+
+/* growth plan blueprint: the offer, explained through their own findings */
+.card-blueprint { border-top: 4px solid var(--accent); background: linear-gradient(180deg, #fff, var(--paper)); }
+.card-blueprint h3 { margin: 4px 0 10px; font-size: clamp(1.15rem, 2.8vw, 1.45rem); letter-spacing: -0.02em; }
+.blueprint-lead { margin: 0 0 20px; color: var(--ink-2); font-size: 0.97rem; line-height: 1.6; }
+.blueprint-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+.blueprint-step { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; }
+.blueprint-num {
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--accent-soft); color: var(--accent-ink);
+  font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 0.9rem;
+}
+.blueprint-title { margin: 3px 0 4px; font-weight: 700; font-size: 1rem; }
+.blueprint-body { margin: 0; font-size: 0.92rem; color: var(--ink-2); line-height: 1.55; }
+.blueprint-close { margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--rule); font-size: 0.9rem; color: var(--ink-2); }
+
+.cta-link { display: inline-block; text-decoration: none; margin-top: 4px; }
+.cta-fine { margin: 12px 0 0 !important; font-size: 0.8rem; color: rgba(255, 255, 255, 0.6) !important; }
+
+@media (max-width: 560px) {
+  .phone-frame { width: 150px; }
+}
