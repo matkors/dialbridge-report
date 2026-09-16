@@ -627,7 +627,13 @@
     });
     const websiteReady = profileReady.then(async (p) => {
       const [site, extra] = await Promise.all([fetchWebsite(p.website), fetchSiteCheck(p.website)]);
-      return extra ? { ...site, ...extra } : site;
+      if (!extra || !extra.checked) return site;
+      // A tappable number that isn't the one on Google is worse than no number at all.
+      const googleDigits = String(p.phone || "").replace(/\D/g, "").slice(-10);
+      const callNumberMatchesGoogle = (extra.telNumbers || []).length && googleDigits
+        ? extra.telNumbers.some((t) => t === googleDigits)
+        : null;
+      return { ...site, ...extra, callNumberMatchesGoogle };
     });
 
     const results = {
