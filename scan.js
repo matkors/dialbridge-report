@@ -133,6 +133,7 @@
         authorPhoto: safeUrl(r.authorAttribution?.photoUri),
         rating: Math.max(0, Math.min(5, r.rating || 0)),
         when: r.relativePublishTimeDescription || "",
+        publishedAt: r.publishTime || "",
         text: r.text?.text || r.originalText?.text || "",
       })),
       summary: p.editorialSummary?.text || "",

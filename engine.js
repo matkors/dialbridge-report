@@ -173,18 +173,45 @@
     return clamp(100 - (total / worst) * 100);
   }
 
-  // Their own job value, low end of the bracket, so the number is defensible.
-  function leakMath(answers) {
-    const low = Number(answers?.jobValueLow);
-    if (!Number.isFinite(low) || low <= 0) return null;
-    const missing = leakLevel(answers.afterHours) || leakLevel(answers.quoteFollowUp);
-    if (!missing) return null;
-    const perMonth = low * 4; // one lost job a week, deliberately conservative
-    return { jobValue: low, oneAWeek: perMonth };
+  // How many jobs a month they are doing, worked out from how fast reviews actually arrive
+  // on their profile. Their data, not our guess. Needs at least two dated reviews.
+  function jobsPerMonth(profile) {
+    const REVIEWS_PER_JOB = 10; // roughly one customer in ten leaves a review
+    const dates = (profile?.reviews || [])
+      .map((r) => Date.parse(r.publishedAt))
+      .filter(Number.isFinite)
+      .sort((a, b) => b - a);
+    if (dates.length < 2) return null;
+    const spanDays = (dates[0] - dates[dates.length - 1]) / 86400000;
+    if (spanDays < 7) return null; // too short a window to mean anything
+    const reviewsPerMonth = ((dates.length - 1) / spanDays) * 30;
+    const jobs = Math.round(reviewsPerMonth * REVIEWS_PER_JOB);
+    if (!Number.isFinite(jobs) || jobs < 1) return null;
+    return Math.min(jobs, 400); // a sanity ceiling on a small sample
   }
 
-  function leakLevel(value) {
-    return ["voicemail", "rings_out", "callback_later", "nothing", "when_remember", "call_once"].includes(value);
+  // What share of those jobs their own answers put at risk. Every rate is stated on the
+  // page next to the result, so they can argue with the assumption instead of the total.
+  const LEAK_RATES = {
+    afterHours: { voicemail: 0.08, rings_out: 0.12, callback_later: 0.06 },
+    quoteFollowUp: { nothing: 0.08, when_remember: 0.05, call_once: 0.02 },
+  };
+
+  function leakMath(answers, profile) {
+    const jobValue = Number(answers?.jobValueLow);
+    if (!Number.isFinite(jobValue) || jobValue <= 0) return null;
+
+    const rate = Math.min(
+      0.2,
+      (LEAK_RATES.afterHours[answers?.afterHours] || 0) + (LEAK_RATES.quoteFollowUp[answers?.quoteFollowUp] || 0)
+    );
+    if (!rate) return null;
+
+    const jobs = jobsPerMonth(profile);
+    if (!jobs) return { jobValue, rate, jobs: null, perMonth: null };
+
+    const perMonth = Math.round((jobs * jobValue * rate) / 100) * 100;
+    return { jobValue, rate, jobs, perMonth, lostJobs: Math.round(jobs * rate * 10) / 10 };
   }
 
   const dollars = (n) => "$" + Math.round(n).toLocaleString("en-US");
@@ -302,7 +329,7 @@
 
     // What they told us about handling leads. These come first: a business can be perfect on
     // Google and still lose the call, and this is the part they can feel.
-    const leak = leakMath(answers);
+    const leak = leakMath(answers, profile);
     const AFTER_HOURS = {
       voicemail: "You told us those calls go to voicemail.",
       rings_out: "You told us those calls ring out with no voicemail at all.",
@@ -313,7 +340,7 @@
         area: "lead_follow_up",
         severity: "high",
         title: "The calls you already earned are going unanswered",
-        detail: `${AFTER_HOURS[answers.afterHours]} Homeowners with a problem today call the next company on the list instead of waiting.${leak ? ` A job is worth about ${dollars(leak.jobValue)} to you, so one of those a week is around ${dollars(leak.oneAWeek)} a month.` : ""}`,
+        detail: `${AFTER_HOURS[answers.afterHours]} Homeowners with a problem today call the next company on the list instead of waiting.${leak ? ` Every one you lose is about ${dollars(leak.jobValue)} of work.` : ""}`,
         fix: "Every call gets answered or texted back in seconds, day or night, and the conversation keeps going until it's booked.",
       });
     }
@@ -328,7 +355,7 @@
         area: "lead_follow_up",
         severity: answers.quoteFollowUp === "call_once" ? "medium" : "high",
         title: "Quotes go quiet and stay quiet",
-        detail: `${FOLLOW_UP[answers.quoteFollowUp]} Most quotes are won by whoever follows up, not whoever quoted first or cheapest.${leak ? ` At ${dollars(leak.jobValue)} a job, recovering one a week is about ${dollars(leak.oneAWeek)} a month.` : ""}`,
+        detail: `${FOLLOW_UP[answers.quoteFollowUp]} Most quotes are won by whoever follows up, not whoever quoted first or cheapest.${leak ? ` At ${dollars(leak.jobValue)} a job, every quote you let go cold is that much gone.` : ""}`,
         fix: "We follow up every quote for you by text and email until they answer one way or the other.",
       });
     }
@@ -413,7 +440,7 @@
       overallScore,
       foundScore,
       responseScore,
-      leak: leakMath(answers),
+      leak: leakMath(answers, profile),
       grades,
       profile: {
         name: profile.name,

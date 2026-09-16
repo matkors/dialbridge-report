@@ -966,3 +966,6 @@ body.is-locked { overflow: hidden; }
   .journey-arrow { display: none; }
   .hero-leak { gap: 12px; }
 }
+.hero-leak-math { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.hero-leak-math li { position: relative; padding-left: 14px; font-size: 0.83rem; color: var(--ink-2); line-height: 1.5; }
+.hero-leak-math li::before { content: ""; position: absolute; left: 0; top: 0.55em; width: 5px; height: 5px; border-radius: 50%; background: var(--bad); }

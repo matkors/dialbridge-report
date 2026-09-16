@@ -143,13 +143,11 @@
           h("div", { class: "hero-ring" }, [
             scoreRing(report?.foundScore ?? report?.overallScore, "out of 100"),
             h("p", { class: "hero-ring-label", text: "Getting found" }),
-            h("p", { class: "hero-ring-sub", text: "How you show up on Google" }),
           ]),
           response !== null
             ? h("div", { class: "hero-ring" }, [
                 scoreRing(response, "out of 100"),
                 h("p", { class: "hero-ring-label", text: "Catching the lead" }),
-                h("p", { class: "hero-ring-sub", text: "What happens when they call" }),
               ])
             : null,
         ].filter(Boolean)),
@@ -159,18 +157,43 @@
           summary?.summary ? h("p", { class: "lead", text: summary.summary }) : null,
         ]),
       ]),
-      report?.leak
-        ? h("div", { class: "hero-leak" }, [
-            h("p", { class: "hero-leak-value", text: `$${Number(report.leak.oneAWeek).toLocaleString("en-US")}` }),
-            h("div", {}, [
-              h("p", { class: "hero-leak-label", text: "a month, walking out the door" }),
-              h("p", { class: "hero-leak-note", text: `Counting just one lost call or quote a week, at the $${Number(report.leak.jobValue).toLocaleString("en-US")} a job you told us about. Your real number is probably higher.` }),
-            ]),
-          ])
-        : null,
+      renderLeak(report?.leak),
     ].filter(Boolean));
   }
 
+
+
+  // The money line shows its own arithmetic: their job pace, their job value, and the
+  // share their own answers put at risk. Nothing here is a number we made up.
+  function renderLeak(leak) {
+    if (!leak) return null;
+    const money = (n) => `$${Number(n).toLocaleString("en-US")}`;
+    const percent = `${Math.round(leak.rate * 100)}%`;
+
+    if (!leak.perMonth) {
+      return h("div", { class: "hero-leak" }, [
+        h("p", { class: "hero-leak-value", text: money(leak.jobValue) }),
+        h("div", {}, [
+          h("p", { class: "hero-leak-label", text: "gone with every lead you miss" }),
+          h("p", { class: "hero-leak-note", text: "That is the job value you gave us. We could not work out your job pace from your reviews, so we are not going to guess at a monthly figure." }),
+        ]),
+      ]);
+    }
+
+    return h("div", { class: "hero-leak" }, [
+      h("p", { class: "hero-leak-value", text: money(leak.perMonth) }),
+      h("div", {}, [
+        h("p", { class: "hero-leak-label", text: "a month, on your own numbers" }),
+        h("ul", { class: "hero-leak-math" }, [
+          h("li", { text: `About ${leak.jobs} jobs a month, going by how fast reviews land on your profile` }),
+          h("li", { text: `${money(leak.jobValue)} a job, the figure you gave us` }),
+          h("li", { text: leak.lostJobs >= 1
+            ? `${percent} of them at risk from what you told us about calls and quotes, which is about ${leak.lostJobs} ${leak.lostJobs === 1 ? "job" : "jobs"} a month`
+            : `${percent} of them at risk from what you told us about calls and quotes, which works out to roughly one job every ${Math.max(2, Math.round(1 / leak.lostJobs))} months` }),
+        ]),
+      ]),
+    ]);
+  }
 
   // The whole report in one glance: three stages of getting a job, and which one breaks.
   // A contractor reads this before any number and knows what we are about to tell them.
