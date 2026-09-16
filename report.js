@@ -624,6 +624,14 @@
             email,
             answers: window.leadAnswers || {},
             consent: EMAIL_CONSENT,
+            // The scan already paid Google for these, with names and review counts. Sending
+            // them along means the emailed map can name who is beating them without buying
+            // the same information a second time.
+            competitors: (window.scanResult?.competitors || []).slice(0, 5).map((c) => ({
+              name: c.name || "",
+              rating: typeof c.rating === "number" ? c.rating : null,
+              reviewCount: c.reviewCount || 0,
+            })),
             company_fax: document.getElementById("companyFax")?.value || "",
           }),
         });

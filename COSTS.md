@@ -7,11 +7,11 @@ Every number below is per **one business**, start to finish.
 
 | | Per audit | Free each month |
 |---|---|---|
-| Google Maps Platform | **$0.099** | first ~1,000 audits |
+| Google Maps Platform | **$0.064** | first ~1,000 audits |
 | GHL (one text, one email) | **$0.012** | nothing, it is pass-through |
 | n8n | 6 executions | 2,500 on Starter, so ~416 audits |
 | PageSpeed Insights | $0 | 25,000 calls a day |
-| **Total** | **~$0.11** | **$0 for the first ~1,000 a month** |
+| **Total** | **~$0.076** | **$0 for the first ~1,000 a month** |
 
 A "full" audit means someone searches their business, gets the report, unlocks it with a
 texted code, and asks for the ranking map. Somebody who only scans and leaves costs
@@ -31,12 +31,11 @@ depending on the field mask. Tiers go Essentials (IDs Only) → Essentials → P
 | Nearby Search | competitors, during the scan | 1 | Nearby Search **Enterprise** | $35.00 | 1,000 | $0.035 |
 | Static Maps | competitor map on the scan screen | 1 | Static Maps | $2.00 | 10,000 | $0.002 |
 | PageSpeed Insights | phone + desktop speed test | 2 | not a Maps SKU | $0 | 25,000/day | $0 |
-| Text Search | ranking grid, centre point | 1 | Text Search **Enterprise** | $35.00 | 1,000 | $0.035 |
-| Text Search | ranking grid, other 8 points | 8 | Text Search **Essentials (IDs Only)** | **$0** | unlimited | $0 |
+| Text Search | the whole ranking grid | 9 | Text Search **Essentials (IDs Only)** | **$0** | unlimited | $0 |
 | Static Maps | the emailed ranking map | 1 | Static Maps | $2.00 | 10,000 | $0.002 |
 | Geocoding | only when the business has no pin | 0 or 1 | Geocoding | $5.00 | 10,000 | $0 or $0.005 |
 
-**Google total: $0.099 per audit**, or $0.104 for a pure service-area business, which has
+**Google total: $0.064 per audit**, or $0.069 for a pure service-area business, which has
 no pin on Google Maps and needs its town geocoded to give the ranking grid a centre.
 **Geocoding API has to be enabled on the project and added to the server key's
 restrictions**, or those businesses get no map at all.
@@ -51,13 +50,12 @@ they become $2.83 per 1,000.
 Since March 2025 there is no shared $200 credit. Each SKU has its own monthly allowance:
 **10,000 calls for Essentials, 5,000 for Pro, 1,000 for Enterprise.**
 
-Three Enterprise SKUs get used once per audit each, so all three run out together:
+Two Enterprise SKUs get used once per audit each, so both run out together:
 
 - Place Details Enterprise + Atmosphere: 1 per audit → 1,000 audits
 - Nearby Search Enterprise: 1 per audit → 1,000 audits
-- Text Search Enterprise: 1 per emailed map → 1,000 maps
 
-So the first **~1,000 audits a month cost nothing**, and everything after that is ~$0.10.
+So the first **~1,000 audits a month cost nothing**, and everything after that is ~$0.06.
 
 ## GHL, per audit
 
@@ -142,7 +140,7 @@ in a list, so it needs nothing but place ids. Eight points now ask for `places.i
 which is Text Search Essentials (IDs Only) at **$0.00, unlimited**. Only the centre point
 asks for names, which is all the rival table in the email needs.
 
-Together: **$0.419 → $0.099 per audit, a 76% cut**, and the free tier went from covering
+Together with the third saving below: **$0.419 -> $0.064 per audit, an 85% cut**, and the free tier went from covering
 ~111 emailed maps a month to ~1,000 full audits. Verified: ranks came back
 `[7,6,6,8,4,5,8,6,6]` before and after, average 6.2, rival table still naming five
 competitors with their review counts.
@@ -153,3 +151,13 @@ competitors with their review counts.
 - [Place data fields and their SKU tiers](https://developers.google.com/maps/documentation/places/web-service/data-fields)
 - [API usage details by SKU](https://developers.google.com/maps/billing-and-pricing/sku-details)
 - [Reporting and monitoring](https://developers.google.com/maps/reporting-and-monitoring/reporting)
+
+## A third saving, found on the same day
+
+Pinning the rival table to one named grid point turned out to be fragile as well as
+billable: a single search point can come back with one result and no rivals, which is
+exactly what happened to a real lead's email. The page already pays for a Nearby Search
+with names and review counts during the scan and then threw it away, so that list is now
+stored and reused. Every grid point asks for ids only, so **the whole grid is free**, and
+the rival table is better for it, being ranked by popularity across a 25km radius rather
+than by whatever one point returned.
