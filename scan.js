@@ -627,7 +627,6 @@
     $("scanAnnounce").textContent = "Scan complete";
     const findings = findingsFor(results.profile, results.competitors, results.website);
     window.scanResult = { ...results, findings };
-    showDone(results.profile, findings);
     running = false;
 
     // Build the report right here from what we already pulled from Google. No waiting on
@@ -646,8 +645,10 @@
         submissionId: window.reportSubmissionId || null,
       });
       if (built) window.DialBridgeReport?.showLocal(built);
+      else showDone(results.profile, findings);
     } catch (err) {
       console.warn("Could not build the report", err);
+      showDone(results.profile, findings);
     }
   }
 

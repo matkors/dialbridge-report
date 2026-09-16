@@ -388,7 +388,7 @@
       "Google profile": profileScore(profile),
       "Catching the lead": leadResponseScore(answers),
     };
-    const weights = { "Google Maps ranking": 0.35, "Reviews and reputation": 0.35, Website: 0.3, "Google profile": 0.3 };
+    const weights = { "Google Maps ranking": 0.35, "Reviews and reputation": 0.35, "Website setup": 0.3, "Google profile": 0.3 };
     let total = 0;
     let used = 0;
     const grades = [];
