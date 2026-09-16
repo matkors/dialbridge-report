@@ -77,14 +77,18 @@
     if (!q) {
       card.replaceChildren(
         h("p", { class: "q-progress", text: "Thanks" }),
-        h("h2", { class: "q-title", id: "qHeading", text: "That's everything. Starting your report." })
+        h("h2", { class: "q-title", id: "qHeading", text: "Got it. Building your report around those answers." })
       );
       setTimeout(finish, 900);
       return;
     }
 
     card.replaceChildren(
+      ...[
       h("p", { class: "q-progress", text: progressLabel() }),
+      index === 0
+        ? h("p", { class: "q-intro", text: "Three quick taps and your report gets built around your answers." })
+        : null,
       h("h2", { class: "q-title", id: "qHeading", text: q.question }),
       h("div", { class: "q-options" }, q.options.map((option) => {
         const button = h("button", { class: "q-option", type: "button", text: option.label });
@@ -97,10 +101,8 @@
         });
         return button;
       })),
-      h("p", { class: "q-note", text: "Nobody sees these but us, and they change what your report says." }),
-      h("button", { class: "link q-skip", type: "button", text: "Skip and just show me the report" })
-    );
-    card.querySelector(".q-skip")?.addEventListener("click", finish);
+      h("p", { class: "q-note", text: "Your answers get built into the report. Google can show us how you turn up in search, only you can tell us what happens to the calls it sends you." })
+    ].filter(Boolean));
     card.querySelector(".q-option")?.focus();
   }
 

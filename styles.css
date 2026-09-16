@@ -881,4 +881,4 @@ h1 {
 }
 .q-overlay .questions { margin: auto; width: 100%; max-width: 560px; }
 body.is-locked { overflow: hidden; }
-.q-skip { display: block; margin: 14px auto 0; font-size: 0.85rem; }
+.q-intro { margin: 0 0 14px; font-size: 0.92rem; color: var(--ink-2); }
