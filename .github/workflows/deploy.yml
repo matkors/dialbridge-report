@@ -26,6 +26,8 @@ jobs:
           N8N_REPORT_WEBHOOK_URL: ${{ secrets.N8N_REPORT_WEBHOOK_URL }}
           N8N_REPORT_EMAIL_URL: ${{ secrets.N8N_REPORT_EMAIL_URL }}
           N8N_SITE_CHECK_URL: ${{ secrets.N8N_SITE_CHECK_URL }}
+          N8N_UNLOCK_SEND_URL: ${{ secrets.N8N_UNLOCK_SEND_URL }}
+          N8N_UNLOCK_VERIFY_URL: ${{ secrets.N8N_UNLOCK_VERIFY_URL }}
         run: |
           mkdir -p _site
           cp index.html app.js engine.js scan.js questions.js report.js styles.css _site/

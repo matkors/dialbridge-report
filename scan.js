@@ -14,7 +14,8 @@
   const MIN_STEP_MS = REDUCED_MOTION ? 1200 : 3800; // each step stays up at least this long
   const DATA_CAP_MS = 9000; // never let one slow API hold a step longer than this
   const WEBSITE_CAP_MS = 11000; // the speed test keeps running in the background if it is slower
-  const WEBSITE_FINAL_CAP_MS = 30000; // but the report waits for it before it is built
+  const WEBSITE_FINAL_CAP_MS = 12000; // and the report gives it this long at the end, no more
+  const DESKTOP_CAP_MS = 9000; // the phone test is what the report uses, so desktop never holds it up
 
   const STEPS = [
     { key: "profile", label: (name) => `Finding ${name} on Google` },
@@ -290,12 +291,15 @@
     const timer = setTimeout(() => controller.abort(), 60000);
     try {
       // Both runs at once: a phone test and a computer test cost the same wall clock as one.
+      // The phone score is the one the report is built on. Desktop is a nice extra, so it
+      // gets its own short leash: a slow desktop run can't sit on the whole report.
+      const desktopRun = pageSpeed(site, "desktop", controller.signal).catch((err) => {
+        console.warn("Desktop speed test unavailable", err);
+        return null;
+      });
       const [data, desktop] = await Promise.all([
         pageSpeed(site, "mobile", controller.signal),
-        pageSpeed(site, "desktop", controller.signal).catch((err) => {
-          console.warn("Desktop speed test unavailable", err);
-          return null;
-        }),
+        Promise.race([desktopRun, new Promise((resolve) => setTimeout(() => resolve(null), DESKTOP_CAP_MS))]),
       ]);
 
       const lighthouse = data.lighthouseResult || {};
@@ -685,8 +689,11 @@
     // Build the report right here from what we already pulled from Google. No waiting on
     // anyone: the deeper audit and the ranking map go out by email instead.
     try {
-      // If the speed test was still running when its step ended, wait for it here.
+      // If the speed test was still running when its step ended, wait for it here, but say
+      // so on screen. A silent gap after "Scan complete" reads as a broken page.
       if (results.profile.website && !results.website.checked) {
+        $("scanAnnounce").textContent = "Finishing the website test";
+        showLive("Finishing the website test", waiting("Waiting on the last of the speed test, then your report opens..."));
         results.website = await withCap(websiteReady, WEBSITE_FINAL_CAP_MS, results.website);
         window.scanResult.website = results.website;
       }

@@ -277,15 +277,8 @@ function requestReport() {
 
   // Ask the three questions first. Everything we read from Google is about getting found;
   // these answers are the only way to price what happens to a lead after it arrives.
-  // Answers from earlier in this session count: a refresh must not ask again.
-  if (!window.leadAnswers) {
-    try {
-      const saved = JSON.parse(sessionStorage.getItem("dialbridge_answers") || "null");
-      if (saved && Object.keys(saved).length) window.leadAnswers = saved;
-    } catch (err) {
-      /* private window */
-    }
-  }
+  // Every new scan asks again: the answers belong to the business being scanned, and a
+  // refresh restores the finished report instead of coming back through here.
   if (window.DialBridgeQuestions && !window.leadAnswers) {
     window.DialBridgeQuestions.start(() => runReport(business));
     return;
