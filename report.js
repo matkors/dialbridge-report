@@ -8,6 +8,8 @@
   // for the day we want to merge the emailed audit's listings back into the page.
   const STATUS_URL = () => window.DIALBRIDGE_CONFIG?.N8N_REPORT_STATUS_URL || "";
   const EMAIL_URL = () => window.DIALBRIDGE_CONFIG?.N8N_REPORT_EMAIL_URL || "";
+  const UNLOCK_SEND_URL = () => window.DIALBRIDGE_CONFIG?.N8N_UNLOCK_SEND_URL || "";
+  const UNLOCK_VERIFY_URL = () => window.DIALBRIDGE_CONFIG?.N8N_UNLOCK_VERIFY_URL || "";
   const STATIC_MAP_URL = "https://maps.googleapis.com/maps/api/staticmap";
   const POLL_MS = 4000;
   const MAX_MS = 12 * 60 * 1000; // audits with a slow review scan can take several minutes
@@ -250,7 +252,7 @@
       has("reviews") || has("map_ranking")
         ? { n: "2", title: "Turn finished jobs into reviews", body: "Every customer gets asked by text right after the work is done. More reviews lift where you sit on the map, and the map is where the calls come from." }
         : null,
-      has("website") || report?.website?.found === false
+      has("website") && report?.website?.found !== false
         ? { n: "3", title: "A site that loads fast and asks for the job", body: "Opens quickly on a phone, your number one tap away, and a form that reaches you the second it is sent." }
         : null,
       has("listings") || has("google_profile")
@@ -649,6 +651,123 @@
     ]);
   }
 
+
+  // Everything below the headline numbers is held back until they tell us who they are and
+  // prove the phone is theirs. The code is generated and checked server side; the page only
+  // ever sees whether it was right.
+  function renderPhoneGate(onUnlock) {
+    const note = h("p", { class: "gate-note", role: "status", "aria-live": "polite" });
+    const nameInput = h("input", { id: "unlockName", type: "text", placeholder: "Your name", autocomplete: "name", required: "" });
+    const phoneInput = h("input", { id: "unlockPhone", type: "tel", placeholder: "Your mobile number", autocomplete: "tel", required: "" });
+    const sendButton = h("button", { class: "cta", type: "submit", text: "Text me the code" });
+    const form = h("form", { class: "unlock-form", novalidate: "" }, [nameInput, phoneInput, sendButton]);
+
+    function codeStep() {
+      const codeInput = h("input", { id: "unlockCode", type: "text", inputmode: "numeric", maxlength: "6", placeholder: "6 digit code", autocomplete: "one-time-code", required: "" });
+      const verifyButton = h("button", { class: "cta", type: "submit", text: "Unlock my report" });
+      const codeForm = h("form", { class: "unlock-form", novalidate: "" }, [codeInput, verifyButton]);
+
+      codeForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const code = codeInput.value.replace(/\D/g, "");
+        if (code.length !== 6) {
+          note.textContent = "That code is six digits.";
+          note.className = "gate-note is-bad";
+          return;
+        }
+        verifyButton.disabled = true;
+        verifyButton.textContent = "Checking...";
+        try {
+          const res = await fetch(UNLOCK_VERIFY_URL(), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ submissionId: window.reportSubmissionId, code }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (data.ok && data.unlocked) {
+            try { sessionStorage.setItem("dialbridge_unlocked", window.reportSubmissionId); } catch (err) { /* private window */ }
+            onUnlock(data.firstName || "");
+            return;
+          }
+          const messages = {
+            wrong_code: "That code doesn't match. Check the text and try again.",
+            expired: "That code has expired. Start again and we'll text a new one.",
+            too_many_attempts: "Too many tries. Reply to the text and I'll send your report over myself.",
+            no_code: "We don't have a code for you yet.",
+          };
+          note.textContent = messages[data.error] || "That didn't work. Try again.";
+          note.className = "gate-note is-bad";
+        } catch (err) {
+          console.warn("Verify failed", err);
+          note.textContent = "That didn't work. Try again.";
+          note.className = "gate-note is-bad";
+        }
+        verifyButton.disabled = false;
+        verifyButton.textContent = "Unlock my report";
+      });
+
+      form.replaceWith(codeForm);
+      codeInput.focus();
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const name = nameInput.value.trim();
+      const phone = phoneInput.value.replace(/\D/g, "");
+      if (name.length < 2) {
+        note.textContent = "Your name, so I know who I'm talking to.";
+        note.className = "gate-note is-bad";
+        nameInput.focus();
+        return;
+      }
+      if (phone.length < 10) {
+        note.textContent = "A mobile number we can text the code to.";
+        note.className = "gate-note is-bad";
+        phoneInput.focus();
+        return;
+      }
+      if (!UNLOCK_SEND_URL() || !window.reportSubmissionId) {
+        note.textContent = "We can't send a code right now. Try again in a minute.";
+        note.className = "gate-note is-bad";
+        return;
+      }
+      sendButton.disabled = true;
+      sendButton.textContent = "Sending...";
+      try {
+        const res = await fetch(UNLOCK_SEND_URL(), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            submissionId: window.reportSubmissionId,
+            name,
+            phone: phoneInput.value,
+            company_fax: document.getElementById("companyFax")?.value || "",
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || "send_failed");
+        note.textContent = `Code sent to ${phoneInput.value.trim()}. It's good for ten minutes.`;
+        note.className = "gate-note is-good";
+        codeStep();
+      } catch (err) {
+        console.warn("Unlock send failed", err);
+        note.textContent = "We couldn't text that number. Check it and try again.";
+        note.className = "gate-note is-bad";
+        sendButton.disabled = false;
+        sendButton.textContent = "Text me the code";
+      }
+    });
+
+    return h("section", { class: "card card-wide card-unlock" }, [
+      h("p", { class: "eyebrow", text: "The rest of your report" }),
+      h("h3", { text: "Where the jobs are going, and what fixes it" }),
+      h("p", { class: "unlock-lead", text: "The full report names every gap we found, what each one is costing you, and the order I would fix them in. Tell me who you are and I will text you a code to open it." }),
+      form,
+      note,
+      h("p", { class: "gate-fine", text: "One text with a code. No calls unless you ask for one." }),
+    ]);
+  }
+
   // ============ RENDER ============
 
   function render(payload) {
@@ -664,26 +783,57 @@
     const title = $("scanTitle");
     if (title) title.textContent = report?.profile?.name ? `Lost Job Report for ${report.profile.name}` : "Your Lost Job Report";
 
-    body.replaceChildren(
-      ...[
-        renderHero(summary, report),
-        renderJourney(report),
-        renderFindings(summary),
-        renderNumbers(report),
-        renderPhoneShot(report),
-        report?.ranking ? renderRanking(report) : renderMapGate(),
-        renderGrades(report),
-        h("div", { class: "card-grid" }, [
-          renderWebsite(report),
-          renderReviews(report),
-          renderListings(report),
-        ].filter(Boolean)),
-        renderStrengths(summary),
-        renderBlueprint(report, summary),
-        renderNextStep(report),
-        renderDownload(report),
-      ].filter(Boolean)
-    );
+    // What anyone gets: the two scores, the money line, and which stage breaks.
+    const free = [
+      renderHero(summary, report),
+      renderJourney(report),
+    ].filter(Boolean);
+
+    // What costs a verified phone number: every finding, the detail, and the plan.
+    const gated = [
+      renderFindings(summary),
+      renderNumbers(report),
+      renderPhoneShot(report),
+      report?.ranking ? renderRanking(report) : renderMapGate(),
+      renderGrades(report),
+      h("div", { class: "card-grid" }, [
+        renderWebsite(report),
+        renderReviews(report),
+        renderListings(report),
+      ].filter(Boolean)),
+      renderStrengths(summary),
+      renderBlueprint(report, summary),
+      renderNextStep(report),
+      renderDownload(report),
+    ].filter(Boolean);
+
+    const locked = h("div", { class: "locked-wrap" }, gated);
+    let alreadyUnlocked = false;
+    try {
+      alreadyUnlocked = sessionStorage.getItem("dialbridge_unlocked") === window.reportSubmissionId;
+    } catch (err) {
+      alreadyUnlocked = false;
+    }
+    const gateReady = Boolean(UNLOCK_SEND_URL() && UNLOCK_VERIFY_URL() && window.reportSubmissionId);
+
+    function unlock(firstName) {
+      locked.classList.remove("is-locked");
+      const card = body.querySelector(".card-unlock");
+      if (card) {
+        card.replaceChildren(
+          h("p", { class: "eyebrow", text: firstName ? `Thanks ${firstName}` : "Thanks" }),
+          h("h3", { text: "Your full report is open below." })
+        );
+        setTimeout(() => card.remove(), 2600);
+      }
+    }
+
+    if (gateReady && !alreadyUnlocked) {
+      locked.classList.add("is-locked");
+      body.replaceChildren(...free, renderPhoneGate(unlock), locked);
+    } else {
+      body.replaceChildren(...free, locked);
+    }
     body.hidden = false;
     setStatus("");
     $("report").hidden = false;
