@@ -865,3 +865,20 @@ h1 {
   color: var(--ink);
 }
 .hero-leak strong { color: var(--bad); }
+
+/* the questions are a popup on the landing page, before the scan */
+.q-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(15, 27, 45, 0.55);
+  backdrop-filter: blur(3px);
+  animation: scan-fade 0.2s ease both;
+  overflow-y: auto;
+}
+.q-overlay .questions { margin: auto; width: 100%; max-width: 560px; }
+body.is-locked { overflow: hidden; }
+.q-skip { display: block; margin: 14px auto 0; font-size: 0.85rem; }

@@ -1,4 +1,5 @@
-// The three questions, asked while the scan runs so the wait does work for us.
+// The three questions, asked as a popup the moment they ask for the report, before the
+// scan starts.
 // Everything we can measure from Google is about getting found. These two behaviours plus a
 // job value are the only way to price what happens to a lead after it arrives, which is the
 // gap we actually sell. Answers go into the report and ride along to n8n with the email.
@@ -42,7 +43,27 @@
   ];
 
   let index = 0;
+  let onDone = null;
   const answers = {};
+
+  function close() {
+    const overlay = $("questionsOverlay");
+    if (overlay) overlay.hidden = true;
+    document.body.classList.remove("is-locked");
+  }
+
+  function finish() {
+    window.leadAnswers = { ...answers };
+    try {
+      sessionStorage.setItem("dialbridge_answers", JSON.stringify(answers));
+    } catch (err) {
+      /* private windows block storage; the in-memory copy still works */
+    }
+    close();
+    const callback = onDone;
+    onDone = null;
+    if (callback) callback(window.leadAnswers);
+  }
 
   function progressLabel() {
     return `Question ${Math.min(index + 1, QUESTIONS.length)} of ${QUESTIONS.length}`;
@@ -56,23 +77,15 @@
     if (!q) {
       card.replaceChildren(
         h("p", { class: "q-progress", text: "Thanks" }),
-        h("h2", { class: "q-title", text: "That's everything we needed." }),
-        h("p", { class: "q-note", text: "We're folding your answers into the report now." })
+        h("h2", { class: "q-title", id: "qHeading", text: "That's everything. Starting your report." })
       );
-      window.leadAnswers = { ...answers };
-      // Persist for the page's report and for the email step to send onward.
-      try {
-        sessionStorage.setItem("dialbridge_answers", JSON.stringify(answers));
-      } catch (err) {
-        /* private windows block storage; the in-memory copy still works */
-      }
-      setTimeout(() => { card.hidden = true; }, 2200);
+      setTimeout(finish, 900);
       return;
     }
 
     card.replaceChildren(
       h("p", { class: "q-progress", text: progressLabel() }),
-      h("h2", { class: "q-title", text: q.question }),
+      h("h2", { class: "q-title", id: "qHeading", text: q.question }),
       h("div", { class: "q-options" }, q.options.map((option) => {
         const button = h("button", { class: "q-option", type: "button", text: option.label });
         button.addEventListener("click", () => {
@@ -84,15 +97,26 @@
         });
         return button;
       })),
-      h("p", { class: "q-note", text: "Nobody sees these but us, and they change what your report says." })
+      h("p", { class: "q-note", text: "Nobody sees these but us, and they change what your report says." }),
+      h("button", { class: "link q-skip", type: "button", text: "Skip and just show me the report" })
     );
+    card.querySelector(".q-skip")?.addEventListener("click", finish);
+    card.querySelector(".q-option")?.focus();
   }
 
-  function start() {
+  // Called by the report button. The scan waits for the callback so the answers are in
+  // hand before anything is scored.
+  function start(done) {
+    const overlay = $("questionsOverlay");
     const card = $("questions");
-    if (!card) return;
+    if (!overlay || !card) {
+      if (done) done({});
+      return;
+    }
     index = 0;
-    card.hidden = false;
+    onDone = done || null;
+    overlay.hidden = false;
+    document.body.classList.add("is-locked");
     render();
   }
 
@@ -100,11 +124,10 @@
     index = 0;
     for (const key of Object.keys(answers)) delete answers[key];
     window.leadAnswers = null;
+    onDone = null;
+    close();
     const card = $("questions");
-    if (card) {
-      card.hidden = true;
-      card.replaceChildren();
-    }
+    if (card) card.replaceChildren();
   }
 
   window.DialBridgeQuestions = { start, reset, QUESTIONS };

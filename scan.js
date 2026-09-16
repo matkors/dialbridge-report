@@ -550,7 +550,6 @@
     $("scan").hidden = false;
     $("scanTitle").textContent = `Scanning ${business.name}`;
     resetSteps(business.name);
-    window.DialBridgeQuestions?.start();
     $("scanLive").replaceChildren(waiting("Connecting to Google..."));
     window.scrollTo({ top: 0, behavior: REDUCED_MOTION ? "auto" : "smooth" });
 

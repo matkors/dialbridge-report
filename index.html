@@ -102,10 +102,6 @@
       </div>
     </div>
 
-    <!-- Asked while the scan runs. These answers are the only way to price what happens
-         to a lead after it arrives, and they change what the report says. -->
-    <section id="questions" class="questions" hidden aria-live="polite"></section>
-
     <p id="scanAnnounce" class="visually-hidden" aria-live="polite"></p>
 
     <section id="scanDone" class="scan-done" hidden>
@@ -124,6 +120,12 @@
 
     <p class="scan-credit">Business info, reviews, photos and map from Google.</p>
   </section>
+
+  <!-- Asked before the scan starts. These answers are the only way to price what happens
+       to a lead after it arrives, and they change what the report says. -->
+  <div id="questionsOverlay" class="q-overlay" hidden>
+    <section id="questions" class="questions" role="dialog" aria-modal="true" aria-labelledby="qHeading"></section>
+  </div>
 
   <script src="config.js"></script>
   <script src="engine.js"></script>

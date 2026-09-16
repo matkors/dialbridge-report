@@ -271,10 +271,20 @@ document.getElementById("cantFind").addEventListener("click", () => {
 
 let submitting = false;
 
-async function requestReport() {
+function requestReport() {
   const business = window.selectedBusiness;
   if (!business || submitting) return;
 
+  // Ask the three questions first. Everything we read from Google is about getting found;
+  // these answers are the only way to price what happens to a lead after it arrives.
+  if (window.DialBridgeQuestions && !window.leadAnswers) {
+    window.DialBridgeQuestions.start(() => runReport(business));
+    return;
+  }
+  runReport(business);
+}
+
+async function runReport(business) {
   // Show the scanning screen immediately; the report request runs alongside it.
   window.DialBridgeScan?.start(business);
 
@@ -294,6 +304,7 @@ async function requestReport() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         company_fax: document.getElementById("companyFax").value,
+        answers: window.leadAnswers || {},
         business: {
           placeId: business.placeId,
           name: business.name,
