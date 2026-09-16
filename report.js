@@ -768,6 +768,82 @@
     ]);
   }
 
+
+  const SAVED_KEY = "dialbridge_report";
+
+  // A refresh should not throw them back to the search box. The finished report is kept for
+  // the tab's session and drawn straight away on load. Sessions only, so it never follows
+  // them to another visit, and never onto another device.
+  function saveState(payload) {
+    if (!payload || !payload.report) return;
+    const state = {
+      submissionId: window.reportSubmissionId || null,
+      report: payload.report,
+      summary: payload.summary || null,
+      answers: window.leadAnswers || null,
+      scan: {
+        website: window.scanResult?.website || null,
+        profile: window.scanResult?.profile ? { reviews: window.scanResult.profile.reviews || [] } : null,
+      },
+      savedAt: Date.now(),
+    };
+    try {
+      sessionStorage.setItem(SAVED_KEY, JSON.stringify(state));
+    } catch (err) {
+      // The phone screenshot is the only big thing in here; drop it and keep the report.
+      try {
+        if (state.scan.website) state.scan.website = { ...state.scan.website, screenshot: "" };
+        if (state.report.website) state.report.website = { ...state.report.website, screenshot: "" };
+        sessionStorage.setItem(SAVED_KEY, JSON.stringify(state));
+      } catch (err2) {
+        console.warn("Could not keep the report for a refresh", err2);
+      }
+    }
+  }
+
+  function clearState() {
+    try {
+      sessionStorage.removeItem(SAVED_KEY);
+      sessionStorage.removeItem("dialbridge_unlocked");
+      sessionStorage.removeItem("dialbridge_answers");
+    } catch (err) {
+      /* private window */
+    }
+  }
+
+  function restoreState() {
+    // ?fresh=1 is the way back to the search box, for us more than for them.
+    if (/[?&]fresh=1/.test(window.location.search)) {
+      clearState();
+      return false;
+    }
+    let state = null;
+    try {
+      state = JSON.parse(sessionStorage.getItem(SAVED_KEY) || "null");
+    } catch (err) {
+      state = null;
+    }
+    if (!state || !state.report) return false;
+
+    window.reportSubmissionId = state.submissionId || null;
+    window.leadAnswers = state.answers || null;
+    window.scanResult = {
+      website: state.scan?.website || null,
+      profile: state.scan?.profile || null,
+    };
+
+    const hero = document.querySelector("main.hero");
+    if (hero) hero.hidden = true;
+    const scan = $("scan");
+    if (scan) scan.hidden = false;
+    document.querySelector(".scan-grid")?.setAttribute("hidden", "");
+    const done = $("scanDone");
+    if (done) done.hidden = true;
+
+    render({ report: state.report, summary: state.summary });
+    return true;
+  }
+
   // ============ RENDER ============
 
   function render(payload) {
@@ -837,6 +913,7 @@
     body.hidden = false;
     setStatus("");
     $("report").hidden = false;
+    saveState(payload);
     $("scan")?.scrollIntoView({ behavior: REDUCED_MOTION ? "auto" : "smooth", block: "start" });
   }
 
@@ -883,6 +960,7 @@
 
   function reset() {
     polling = false;
+    clearState();
     const section = $("report");
     if (section) section.hidden = true;
     const body = $("reportBody");
@@ -901,5 +979,7 @@
     render(built);
   }
 
-  window.DialBridgeReport = { start, reset, render, showLocal };
+  document.addEventListener("DOMContentLoaded", restoreState);
+
+  window.DialBridgeReport = { start, reset, render, showLocal, clearState };
 })();
