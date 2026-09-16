@@ -9,10 +9,20 @@
 // searches around the business give the same answer in well under a second, and they land
 // within a position or two of GHL's grid.
 //
-// Requires an n8n variable GOOGLE_MAPS_API_KEY (Settings -> Variables) holding a SERVER
-// key: no application restriction, restricted to Places API (New) and Maps Static API.
-// The browser key the page uses is locked to a referrer and is refused server-side with
-// "Requests from referer <empty> are blocked."
+// Auth: an n8n credential of type "Query Auth" named "Google Maps Server Key", with
+// parameter name `key` and the server key as its value. NOT an n8n Variable: Variables are
+// a Pro-plan feature and the section does not exist on Starter. Query Auth works because
+// Places API (New) accepts ?key= as well as the X-Goog-Api-Key header, so one credential
+// serves both the grid and the static map, and the key never touches item data or a Code
+// node. The parameter name is literally `key`, with no equals sign; n8n adds that itself.
+//
+// The key must be a SERVER key: no application restriction, restricted to Places API (New)
+// and Maps Static API. The browser key the page uses is locked to a referrer and is refused
+// server-side with "Requests from referer <empty> are blocked".
+//
+// The map image is fetched here and uploaded to GHL's media library, which returns a public
+// CDN url on assets.cdn.filesafe.space that mail clients load with no auth. The email points
+// at that, so no Google key is ever sitting in somebody's inbox waiting to be lifted."
 
 // ============ Plan Rank Grid ============
 // Nine points in a 3 x 3 grid, 3km apart, centred on the business. Each one becomes a

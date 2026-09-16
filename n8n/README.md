@@ -32,10 +32,23 @@ Maps ranking grid from the Places API. GHL's own heatmap needs a keyword set on 
 wait five minutes and then go out without it. Nine text searches around the business answer
 the same question in under a second.
 
-It needs an n8n variable `GOOGLE_MAPS_API_KEY` (Settings, Variables) holding a **server**
-key: no application restriction, restricted to Places API (New) and Maps Static API. The
-browser key the page uses is locked to a referrer and is refused server-side with
-`Requests from referer <empty> are blocked`. That server key must never reach the page.
+Auth is an n8n credential of type **Query Auth** named "Google Maps Server Key", parameter
+name `key`, value the server key. Not an n8n Variable: Variables are a Pro-plan feature and
+the section is absent on Starter. Query Auth works because Places API (New) accepts `?key=`
+as well as the header, so one credential covers the grid and the static map and the key
+never lands in item data or a Code node. The parameter name is `key` with no equals sign,
+since n8n adds that itself; `key=` produces `?key==...` and Google answers "Method doesn't
+allow unregistered callers".
+
+The key must be a **server** key: no application restriction, restricted to Places API (New)
+and Maps Static API. The browser key the page uses is referrer locked and is refused
+server-side with `Requests from referer <empty> are blocked`. That server key must never
+reach the page.
+
+The map image is fetched in n8n and uploaded to GHL's media library
+(`POST /medias/upload-file`, multipart, returns `{fileId, url}`). That url is a public CDN
+link on `assets.cdn.filesafe.space` which mail clients fetch with no auth, verified. The
+email points at it rather than at Google, so no key ever sits in a recipient's inbox.
 
 ## GHL will only text a number already on the contact
 
