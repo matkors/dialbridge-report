@@ -15,7 +15,10 @@ const data = ready.report || {};
 const s = ready.summary || {};
 const esc = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const n = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
-const KEY = 'GOOGLE_STATIC_MAPS_KEY'; // same browser key the page uses
+// A SERVER key from an n8n variable. Not the page's key: that one is locked to a referrer
+// and Google refuses it with "Requests from referer <empty> are blocked".
+let KEY = '';
+try { KEY = ($vars && ($vars.GOOGLE_MAPS_API_KEY || $vars.GOOGLE_STATIC_MAPS_KEY)) || ''; } catch (e) { KEY = ''; }
 
 const INK = '#0f1b2d', INK2 = '#44526a', ACCENT = '#e8702a';
 const GOOD = '#1f7a4d', WARN = '#b8860b', BAD = '#a33a22', RULE = '#dde2e8';
@@ -26,7 +29,22 @@ const r = data.ranking || {}, ls = data.listings || {}, w = data.website || {}, 
 function mapUrl() {
   const points = (r.points || []).filter((p) => n(p.lat) !== null && n(p.lng) !== null);
   if (!points.length) return '';
-  const parts = ['size=640x420', 'scale=2', 'maptype=roadmap', 'format=png'];
+  const parts = ['size=640x460', 'scale=2', 'maptype=roadmap', 'format=png'];
+
+  // Static Maps fits the viewport exactly to the markers, and a pin is drawn above the
+  // point it marks, so the bottom row gets cut off by the frame. Two invisible corners
+  // past the edges give the pins room without moving the business off centre.
+  const lats = points.map((p) => p.lat);
+  const lngs = points.map((p) => p.lng);
+  const minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats);
+  const minLng = Math.min.apply(null, lngs), maxLng = Math.max.apply(null, lngs);
+  const padLat = Math.max((maxLat - minLat) * 0.22, 0.004);
+  const padLng = Math.max((maxLng - minLng) * 0.22, 0.004);
+  parts.push('visible=' + [
+    (minLat - padLat).toFixed(6) + ',' + (minLng - padLng).toFixed(6),
+    (maxLat + padLat).toFixed(6) + ',' + (maxLng + padLng).toFixed(6)
+  ].join('|'));
+
   if (r.center && n(r.center.lat) !== null) {
     parts.push('markers=' + encodeURIComponent(`color:0x0f1b2d|label:H|${r.center.lat},${r.center.lng}`));
   }
