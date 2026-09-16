@@ -4,6 +4,8 @@
 (() => {
   "use strict";
 
+  // The page builds its own report now. The status endpoint stays in n8n, switched off,
+  // for the day we want to merge the emailed audit's listings back into the page.
   const STATUS_URL = () => window.DIALBRIDGE_CONFIG?.N8N_REPORT_STATUS_URL || "";
   const EMAIL_URL = () => window.DIALBRIDGE_CONFIG?.N8N_REPORT_EMAIL_URL || "";
   const STATIC_MAP_URL = "https://maps.googleapis.com/maps/api/staticmap";

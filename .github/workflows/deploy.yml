@@ -24,7 +24,6 @@ jobs:
         env:
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
           N8N_REPORT_WEBHOOK_URL: ${{ secrets.N8N_REPORT_WEBHOOK_URL }}
-          N8N_REPORT_STATUS_URL: ${{ secrets.N8N_REPORT_STATUS_URL }}
           N8N_REPORT_EMAIL_URL: ${{ secrets.N8N_REPORT_EMAIL_URL }}
         run: |
           mkdir -p _site
