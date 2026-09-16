@@ -318,8 +318,8 @@ async function requestReport() {
 
     window.reportSubmissionId = data.submissionId;
     reportBtn.textContent = "Report requested";
-    // The deeper audit runs in GHL and n8n; the page polls for it and draws it under the scan.
-    window.DialBridgeReport?.start(data.submissionId);
+    // The page builds and shows its own report from Google. The deeper audit keeps running
+    // in GHL and gets emailed once the lead gives us their address.
   } catch (err) {
     console.error("Report request failed", err);
     reportBtn.textContent = originalLabel;

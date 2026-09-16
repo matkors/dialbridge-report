@@ -755,3 +755,49 @@ h1 {
   .grade-bar { grid-column: 1 / -1; }
   .stat-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* locked ranking map: the reason to give us an email */
+.card-gate {
+  display: flex; flex-wrap: wrap; gap: 24px; align-items: center;
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--accent);
+  background: linear-gradient(180deg, #fff, var(--paper));
+}
+.gate-visual {
+  position: relative; flex: none;
+  width: 190px; height: 190px;
+  display: grid; place-items: center;
+  border-radius: 14px;
+  background: #eef1ee;
+  overflow: hidden;
+}
+.gate-grid { display: grid; grid-template-columns: repeat(3, 40px); gap: 10px; filter: blur(3px); opacity: 0.75; }
+.gate-cell { height: 40px; border-radius: 8px; background: var(--rule); }
+.gate-cell:nth-child(2n) { background: var(--warn-soft); }
+.gate-cell:nth-child(3n) { background: var(--bad-soft); }
+.gate-cell:nth-child(5) { background: var(--good-soft); }
+.gate-lock {
+  position: absolute;
+  padding: 6px 14px;
+  border-radius: 99px;
+  background: var(--ink); color: #fff;
+  font-size: 0.7rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.gate-copy { flex: 1 1 300px; min-width: 0; }
+.gate-copy h3 { margin: 0 0 8px; font-size: 1.15rem; letter-spacing: -0.02em; }
+.gate-copy p { margin: 0 0 14px; color: var(--ink-2); font-size: 0.93rem; }
+.gate-form { display: flex; flex-wrap: wrap; gap: 10px; }
+.gate-form input {
+  flex: 1 1 220px; min-width: 0;
+  padding: 13px 15px;
+  border: 1px solid var(--rule); border-radius: 10px;
+  background: var(--surface);
+  font: inherit; font-size: 0.95rem; color: var(--ink);
+}
+.gate-form input:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+.gate-form .cta { flex: none; }
+.gate-note { margin: 12px 0 0; font-size: 0.9rem; font-weight: 600; }
+.gate-note.is-good { color: var(--good); }
+.gate-note.is-bad { color: var(--bad); }
+.gate-fine { margin: 10px 0 0 !important; font-size: 0.78rem !important; color: var(--ink-3) !important; }

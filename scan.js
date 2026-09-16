@@ -609,6 +609,20 @@
     window.scanResult = { ...results, findings };
     showDone(results.profile, findings);
     running = false;
+
+    // Build the report right here from what we already pulled from Google. No waiting on
+    // anyone: the deeper audit and the ranking map go out by email instead.
+    try {
+      const built = window.DialBridgeEngine?.buildReport({
+        profile: results.profile,
+        competitors: results.competitors,
+        website: results.website,
+        submissionId: window.reportSubmissionId || null,
+      });
+      if (built) window.DialBridgeReport?.showLocal(built);
+    } catch (err) {
+      console.warn("Could not build the report", err);
+    }
   }
 
   function reset() {

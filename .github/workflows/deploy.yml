@@ -25,14 +25,15 @@ jobs:
           GOOGLE_MAPS_API_KEY: ${{ secrets.GOOGLE_MAPS_API_KEY }}
           N8N_REPORT_WEBHOOK_URL: ${{ secrets.N8N_REPORT_WEBHOOK_URL }}
           N8N_REPORT_STATUS_URL: ${{ secrets.N8N_REPORT_STATUS_URL }}
+          N8N_REPORT_EMAIL_URL: ${{ secrets.N8N_REPORT_EMAIL_URL }}
         run: |
           mkdir -p _site
-          cp index.html app.js scan.js report.js styles.css _site/
-          printf 'window.DIALBRIDGE_CONFIG = { GOOGLE_MAPS_API_KEY: "%s", N8N_REPORT_WEBHOOK_URL: "%s", N8N_REPORT_STATUS_URL: "%s" };\n' "$GOOGLE_MAPS_API_KEY" "$N8N_REPORT_WEBHOOK_URL" "$N8N_REPORT_STATUS_URL" > _site/config.js
+          cp index.html app.js engine.js scan.js report.js styles.css _site/
+          printf 'window.DIALBRIDGE_CONFIG = { GOOGLE_MAPS_API_KEY: "%s", N8N_REPORT_WEBHOOK_URL: "%s", N8N_REPORT_STATUS_URL: "%s", N8N_REPORT_EMAIL_URL: "%s" };\n' "$GOOGLE_MAPS_API_KEY" "$N8N_REPORT_WEBHOOK_URL" "$N8N_REPORT_STATUS_URL" "$N8N_REPORT_EMAIL_URL" > _site/config.js
           touch _site/.nojekyll
           # Cache-bust: point the page at this commit's files so browsers never run stale JS/CSS.
           V="${GITHUB_SHA::8}-${GITHUB_RUN_NUMBER}"
-          sed -i "s|src=\"app.js\"|src=\"app.js?v=$V\"|; s|src=\"scan.js\"|src=\"scan.js?v=$V\"|; s|src=\"report.js\"|src=\"report.js?v=$V\"|; s|src=\"config.js\"|src=\"config.js?v=$V\"|; s|href=\"styles.css\"|href=\"styles.css?v=$V\"|" _site/index.html
+          sed -i "s|src=\"app.js\"|src=\"app.js?v=$V\"|; s|src=\"engine.js\"|src=\"engine.js?v=$V\"|; s|src=\"scan.js\"|src=\"scan.js?v=$V\"|; s|src=\"report.js\"|src=\"report.js?v=$V\"|; s|src=\"config.js\"|src=\"config.js?v=$V\"|; s|href=\"styles.css\"|href=\"styles.css?v=$V\"|" _site/index.html
 
       - uses: actions/upload-pages-artifact@v3
         with:
