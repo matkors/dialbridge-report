@@ -207,7 +207,7 @@
       });
     }
 
-    if (!website.hasWebsite) {
+    if (!website.found) {
       out.push({
         area: "website",
         severity: "high",
@@ -215,13 +215,13 @@
         detail: "Homeowners who can't find a website usually call the next company on the list, even when your reviews are better.",
         fix: "We build and host the site, and it is yours to keep.",
       });
-    } else if (website.checked) {
-      if (num(website.speedScore) !== null && website.speedScore < 50) {
+    } else {
+      if (num(website.mobileScore) !== null && website.mobileScore < 50) {
         out.push({
           area: "website",
           severity: "high",
-          title: `Your website scores ${website.speedScore} out of 100 on a phone`,
-          detail: `It takes ${website.loadTime || "several seconds"} for the main content to show up. Most people leave before that.`,
+          title: `Your website scores ${website.mobileScore} out of 100 on a phone`,
+          detail: `It takes ${website.mobileLoadTime || "several seconds"} for the main content to show up. Most people leave before that.`,
           fix: "We rebuild it to load fast on a phone, where nearly all your traffic comes from.",
         });
       }
@@ -254,11 +254,11 @@
         fix: "We fix the profile and add a tracked number so every call is answered and logged.",
       });
     }
-    if ((profile.photos?.length || 0) < 5) {
+    if (profile.photoCount < 5) {
       out.push({
         area: "google_profile",
         severity: "medium",
-        title: profile.photos?.length ? `Only ${profile.photos.length} photos on your profile` : "No photos on your profile",
+        title: profile.photoCount ? `Only ${profile.photoCount} photos on your profile` : "No photos on your profile",
         detail: "Profiles with real job photos get picked over ones without them, and Google shows them more often.",
         fix: "We keep fresh job photos going up on your profile every month.",
       });
@@ -301,17 +301,18 @@
   function strengthsFor(data) {
     const { profile, ranking, website } = data;
     const out = [];
-    if (num(profile.rating) !== null && profile.rating >= 4.7 && (profile.reviewCount || 0) >= 10) {
-      out.push(`A ${profile.rating} star rating from ${profile.reviewCount} reviews, which is better than most of your competition.`);
+    const reviews = data.reviews || {};
+    if (num(reviews.googleRating) !== null && reviews.googleRating >= 4.7 && (reviews.googleReviewCount || 0) >= 10) {
+      out.push(`A ${reviews.googleRating} star rating from ${reviews.googleReviewCount} reviews, which is better than most of your competition.`);
     }
     if (ranking && ranking.pointsInTop3 >= ranking.gridPoints / 2) {
       out.push(`You already show in the top 3 at ${ranking.pointsInTop3} of ${ranking.gridPoints} spots on the map.`);
     }
-    if (website.checked && num(website.speedScore) !== null && website.speedScore >= 80) {
-      out.push(`Your website scores ${website.speedScore} out of 100 for speed on a phone.`);
+    if (num(website.mobileScore) !== null && website.mobileScore >= 80) {
+      out.push(`Your website scores ${website.mobileScore} out of 100 for speed on a phone.`);
     }
-    if ((profile.photos?.length || 0) >= 10) out.push("Your profile has a full set of photos.");
-    if (profile.hasHours && profile.phone && profile.website) out.push("Your hours, phone number and website are all on your Google listing.");
+    if (profile.photoCount >= 10) out.push("Your profile has a full set of photos.");
+    if (profile.hasHours && profile.phone && website.found) out.push("Your hours, phone number and website are all on your Google listing.");
     return out.slice(0, 3);
   }
 
@@ -377,6 +378,9 @@
         found: Boolean(website.hasWebsite),
         mobileScore: num(website.speedScore),
         mobileLoadTime: website.loadTime || "",
+        desktopScore: num(website.desktopScore),
+        desktopLoadTime: website.desktopLoadTime || "",
+        seoScore: num(website.seoScore),
         https: website.https ?? null,
         mobileFriendly: website.mobileFriendly ?? null,
       },

@@ -62,6 +62,12 @@
     return typeof value === "number" && Number.isFinite(value) ? value : null;
   }
 
+  // Google often hands back a listing URL stuffed with tracking parameters. Show the domain.
+  function domainOf(url) {
+    const bare = String(url || "").replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+    return bare.split(/[?#]/)[0].split("/")[0];
+  }
+
   function scoreTone(score) {
     if (score === null) return "warn";
     return score >= 80 ? "good" : score >= 50 ? "warn" : "bad";
@@ -258,7 +264,14 @@
         h("p", { class: "muted", text: "We're still reading through every review. The full breakdown, including which ones you never replied to, comes with your report." }),
       ]);
     }
+    const leader = (report.competitors || [])[0];
     const items = [
+      num(rv.googleRating) !== null
+        ? { ok: rv.googleRating >= 4.5, text: `${rv.googleRating} stars from ${rv.googleReviewCount} Google reviews` }
+        : null,
+      leader && num(leader.reviewCount) !== null
+        ? { ok: (rv.googleReviewCount || 0) >= leader.reviewCount, text: `${leader.name} has ${leader.reviewCount} reviews` }
+        : null,
       num(rv.unansweredCount) !== null
         ? { ok: rv.unansweredCount === 0, text: rv.unansweredCount === 0 ? "Every review has a reply" : `${rv.unansweredCount} reviews with no reply from you` }
         : null,
@@ -274,6 +287,9 @@
         h("span", { class: `pill tone-${rv.googleRating >= 4.5 ? "good" : "warn"}`, text: `${rv.googleRating ?? "?"}★ from ${rv.googleReviewCount} reviews` }),
       ]),
       h("ul", { class: "checks" }, items.map((c) => h("li", { class: c.ok ? "ok" : "bad", text: c.text }))),
+      ...(rv.recent || []).slice(0, 2).map((r) =>
+        h("p", { class: "muted", text: `"${String(r.text || "").slice(0, 130)}" ${r.author || ""}${r.when ? `, ${r.when}` : ""}` })
+      ),
     ]);
   }
 
@@ -318,9 +334,18 @@
         w.mobileLoadTime ? h("span", { class: `pill tone-${num(w.mobileScore) >= 50 ? "good" : "bad"}`, text: `Loads in ${w.mobileLoadTime}` }) : null,
       ]),
       h("div", { class: "web-row" }, [
-        scoreRing(w.mobileScore, "on a phone", "sm"),
+        h("div", { class: "web-rings" }, [
+          scoreRing(w.mobileScore, "on a phone", "sm"),
+          num(w.desktopScore) !== null ? scoreRing(w.desktopScore, "on a computer", "sm") : null,
+        ].filter(Boolean)),
         h("div", { class: "web-copy" }, [
-          h("p", { class: "live-domain", text: w.url.replace(/^https?:\/\//i, "").replace(/\/$/, "") }),
+          h("p", { class: "live-domain", text: domainOf(w.url) }),
+          w.mobileLoadTime || w.desktopLoadTime
+            ? h("p", { class: "muted", text: [
+                w.mobileLoadTime ? `Phone: main content in ${w.mobileLoadTime}` : "",
+                w.desktopLoadTime ? `Computer: ${w.desktopLoadTime}` : "",
+              ].filter(Boolean).join(" · ") })
+            : null,
           h("ul", { class: "checks" }, checks.map((c) => h("li", { class: c.ok ? "ok" : "bad", text: c.text }))),
         ]),
       ]),

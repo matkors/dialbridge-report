@@ -801,3 +801,4 @@ h1 {
 .gate-note.is-good { color: var(--good); }
 .gate-note.is-bad { color: var(--bad); }
 .gate-fine { margin: 10px 0 0 !important; font-size: 0.78rem !important; color: var(--ink-3) !important; }
+.web-rings { display: flex; flex-wrap: wrap; gap: 12px; }

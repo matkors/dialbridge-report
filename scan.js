@@ -236,28 +236,40 @@
 
   // Google PageSpeed Insights: a real mobile Lighthouse run. Needs the PageSpeed Insights API
   // enabled on the key; if it isn't, the step says the test will be in the full report.
-  async function fetchWebsite(url) {
-    const site = safeUrl(url, { allowHttp: true });
-    if (!site) return { hasWebsite: false };
-
-    const params = new URLSearchParams({ url: site, strategy: "mobile" });
+  async function pageSpeed(site, strategy, signal) {
+    const params = new URLSearchParams({ url: site, strategy });
     params.append("category", "performance");
     params.append("category", "seo");
     if (apiKey()) params.set("key", apiKey());
 
+    let data = {};
+    // Lighthouse occasionally fails a run with a 500; one retry usually succeeds.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await fetch(`${PSI_URL}?${params}`, { signal });
+      data = await res.json().catch(() => ({}));
+      if (res.ok && !data.error) return data;
+      if (attempt === 1 || res.status < 500) {
+        throw new Error(data.error?.message || `PageSpeed returned ${res.status}`);
+      }
+    }
+    return data;
+  }
+
+  async function fetchWebsite(url) {
+    const site = safeUrl(url, { allowHttp: true });
+    if (!site) return { hasWebsite: false };
+
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 45000);
     try {
-      let data = {};
-      // Lighthouse occasionally fails a run with a 500; one retry usually succeeds.
-      for (let attempt = 0; attempt < 2; attempt++) {
-        const res = await fetch(`${PSI_URL}?${params}`, { signal: controller.signal });
-        data = await res.json().catch(() => ({}));
-        if (res.ok && !data.error) break;
-        if (attempt === 1 || res.status < 500) {
-          throw new Error(data.error?.message || `PageSpeed returned ${res.status}`);
-        }
-      }
+      // Both runs at once: a phone test and a computer test cost the same wall clock as one.
+      const [data, desktop] = await Promise.all([
+        pageSpeed(site, "mobile", controller.signal),
+        pageSpeed(site, "desktop", controller.signal).catch((err) => {
+          console.warn("Desktop speed test unavailable", err);
+          return null;
+        }),
+      ]);
 
       const lighthouse = data.lighthouseResult || {};
       const audits = lighthouse.audits || {};
@@ -266,12 +278,17 @@
       // Lighthouse 13 renamed the "viewport" audit to "viewport-insight"; accept either.
       const viewportAudit = audits["viewport-insight"] || audits.viewport;
       const scoreOf = (audit) => (audit && typeof audit.score === "number" ? audit.score === 1 : null);
+      const desktopLighthouse = desktop?.lighthouseResult || {};
+      const desktopPerformance = desktopLighthouse.categories?.performance?.score;
       return {
         hasWebsite: true,
         checked: true,
         url: site,
         speedScore: typeof performance === "number" ? Math.round(performance * 100) : null,
         loadTime: audits["largest-contentful-paint"]?.displayValue || "",
+        desktopScore: typeof desktopPerformance === "number" ? Math.round(desktopPerformance * 100) : null,
+        desktopLoadTime: desktopLighthouse.audits?.["largest-contentful-paint"]?.displayValue || "",
+        seoScore: typeof lighthouse.categories?.seo?.score === "number" ? Math.round(lighthouse.categories.seo.score * 100) : null,
         mobileFriendly: scoreOf(viewportAudit),
         https: /^https:/i.test(finalUrl),
         hasTitle: scoreOf(audits["document-title"]),
