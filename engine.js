@@ -292,6 +292,47 @@
           fix: "We rebuild the site so it reads and taps cleanly on a phone.",
         });
       }
+      // Nobody has touched this site in years, and it shows.
+      if (num(website.yearsStale) !== null && website.yearsStale >= 2) {
+        out.push({
+          area: "website",
+          severity: "medium",
+          title: `Your website still says ${website.copyrightYear}`,
+          detail: `The footer has not been updated in ${website.yearsStale} years. Homeowners read that as a business that might not be around any more, and so does Google.`,
+          fix: "We keep the site current, with this year's work on it.",
+        });
+      }
+
+      // A phone number you cannot tap is a phone number you do not get called on.
+      if (website.clickToCall === false) {
+        out.push({
+          area: "website",
+          severity: "high",
+          title: "Your number is not tappable on a phone",
+          detail: "Someone on their phone has to memorise your number and dial it by hand. Most of them give up and call the next company instead.",
+          fix: "We put a tap to call button on every screen of the site.",
+        });
+      } else if (website.callNumberMatchesGoogle === false) {
+        out.push({
+          area: "website",
+          severity: "high",
+          title: "Your website and Google list different numbers",
+          detail: "The number people can tap on your site is not the one on your Google listing. One of them is sending calls somewhere you are not answering.",
+          fix: "We make every number match, and track which one the call came from.",
+        });
+      }
+
+      // No form, no email, no chat: the phone is the only door, and it is not always open.
+      if (website.hasForm === false && website.hasEmailLink === false && website.chatWidget === false) {
+        out.push({
+          area: "website",
+          severity: "medium",
+          title: "The phone is the only way to reach you",
+          detail: "There is no form, no email link and no chat on the site. Anyone who cannot talk right now has no way to leave you the job.",
+          fix: "We add a short form and a message option that reach you instantly.",
+        });
+      }
+
       if (website.https === false) {
         out.push({
           area: "website",
@@ -343,6 +384,19 @@
     // What they told us about handling leads. These come first: a business can be perfect on
     // Google and still lose the call, and this is the part they can feel.
     const leak = leakMath(answers, profile);
+    // Paying for clicks that land on voicemail is the most expensive thing here.
+    const leaking = ["voicemail", "rings_out", "callback_later"].includes(answers?.afterHours)
+      || ["nothing", "when_remember"].includes(answers?.quoteFollowUp);
+    if (website.adsRunning && leaking) {
+      out.push({
+        area: "lead_follow_up",
+        severity: "high",
+        title: "You're paying for clicks that hit voicemail",
+        detail: "We found ad tracking on your site, so money is going out to bring people in, and what you told us says some of those calls are not getting answered. That is the most expensive leak on this page.",
+        fix: "We catch every one of those calls first, so the ad spend you already commit to starts landing.",
+      });
+    }
+
     const AFTER_HOURS = {
       voicemail: "You told us those calls go to voicemail.",
       rings_out: "You told us those calls ring out with no voicemail at all.",
@@ -485,6 +539,13 @@
         accessibilityScore: num(website.accessibilityScore),
         bestPracticesScore: num(website.bestPracticesScore),
         tinyTapTargets: website.tinyTapTargets ?? null,
+        copyrightYear: num(website.copyrightYear),
+        yearsStale: num(website.yearsStale),
+        clickToCall: website.clickToCall ?? null,
+        callNumberMatchesGoogle: website.callNumberMatchesGoogle ?? null,
+        hasForm: website.hasForm ?? null,
+        hasEmailLink: website.hasEmailLink ?? null,
+        adsRunning: website.adsRunning ?? null,
         tinyText: website.tinyText ?? null,
         poorContrast: website.poorContrast ?? null,
       },

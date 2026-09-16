@@ -261,6 +261,27 @@
     return data;
   }
 
+  // Some checks need the page source, which a browser cannot read cross-origin. When the
+  // n8n site check is configured, it fetches the page and answers in about a second.
+  // Without it the report simply leaves those findings out.
+  async function fetchSiteCheck(url) {
+    const endpoint = window.DIALBRIDGE_CONFIG?.N8N_SITE_CHECK_URL || "";
+    if (!endpoint || !url) return null;
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data && typeof data === "object" ? data : null;
+    } catch (err) {
+      console.warn("Site check unavailable", err);
+      return null;
+    }
+  }
+
   async function fetchWebsite(url) {
     const site = safeUrl(url, { allowHttp: true });
     if (!site) return { hasWebsite: false };
@@ -604,7 +625,10 @@
       console.warn("Competitor lookup failed", err);
       return [];
     });
-    const websiteReady = profileReady.then((p) => fetchWebsite(p.website));
+    const websiteReady = profileReady.then(async (p) => {
+      const [site, extra] = await Promise.all([fetchWebsite(p.website), fetchSiteCheck(p.website)]);
+      return extra ? { ...site, ...extra } : site;
+    });
 
     const results = {
       profile: baseline,
