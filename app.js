@@ -269,6 +269,14 @@ document.getElementById("cantFind").addEventListener("click", () => {
   setStatus("Manual entry and phone number search come next in the build.");
 });
 
+// The logo goes home, the way it does on every other site, and there is an explicit way
+// out beside it for anyone who does not think to try the logo.
+function goHome() {
+  window.DialBridgeScan?.reset();
+}
+document.getElementById("homeBrand")?.addEventListener("click", goHome);
+document.getElementById("homeBack")?.addEventListener("click", goHome);
+
 let submitting = false;
 
 function requestReport() {

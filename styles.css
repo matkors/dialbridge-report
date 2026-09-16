@@ -36,7 +36,45 @@ body {
   align-items: center;
   padding: 18px 24px;
 }
-.brand { font-weight: 800; letter-spacing: -0.01em; font-size: 18px; }
+.topbar-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+
+/* The logo is a button because it goes home, the way a logo should. */
+.brand {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  font-size: 18px;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  color: var(--ink);
+  cursor: pointer;
+}
+.brand:hover { color: var(--accent-ink); }
+.brand:focus-visible,
+.home-back:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 6px; }
+
+.home-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 13px 6px 11px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 0.82rem;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.home-back:hover { border-color: var(--accent); color: var(--accent-ink); }
+.home-back-arrow { font-size: 1rem; line-height: 1; }
+
+@media (max-width: 460px) {
+  .home-back-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .home-back { padding: 7px 11px; }
+}
 .tag {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 11px;
@@ -1023,6 +1061,7 @@ body.is-locked { overflow: hidden; }
 
   /* Nothing that belongs to the screen version goes on paper. */
   .topbar,
+  .topbar-left,
   .scan-grid,
   .scan-head .eyebrow,
   .scan-credit,

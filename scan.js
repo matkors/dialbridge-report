@@ -32,6 +32,9 @@
   const withCap = (promise, ms, fallback) => Promise.race([promise, wait(ms).then(() => fallback)]);
 
   let running = false;
+  // Set when they leave the scan. The steps already in flight cannot be recalled, so they
+  // check this and stop rather than drawing a report over the page they went back to.
+  let cancelled = false;
 
   // ============ SMALL HELPERS ============
 
@@ -592,6 +595,8 @@
   async function start(business) {
     if (running || !business?.placeId) return;
     running = true;
+    cancelled = false;
+    showBack(true);
 
     document.querySelector("main.hero").hidden = true;
     $("scanDone").hidden = true;
@@ -647,6 +652,7 @@
     };
 
     for (let i = 0; i < STEPS.length; i++) {
+      if (cancelled) return;
       const step = STEPS[i];
       const minimum = wait(MIN_STEP_MS);
       setProgress(i);
@@ -680,6 +686,7 @@
       setStepState(step.key, "done");
     }
 
+    if (cancelled) return;
     setProgress(STEPS.length);
     $("scanAnnounce").textContent = "Scan complete";
     const findings = findingsFor(results.profile, results.competitors, results.website);
@@ -697,6 +704,7 @@
         results.website = await withCap(websiteReady, WEBSITE_FINAL_CAP_MS, results.website);
         window.scanResult.website = results.website;
       }
+      if (cancelled) return;
       const built = window.DialBridgeEngine?.buildReport({
         profile: results.profile,
         competitors: results.competitors,
@@ -712,16 +720,26 @@
     }
   }
 
+  function showBack(on) {
+    const back = document.getElementById("homeBack");
+    if (back) back.hidden = !on;
+  }
+
   function reset() {
-    if (running) return;
+    // No running guard here: a way out that stops working halfway through a scan is not a
+    // way out. The scan sees cancelled and gives up on its own.
+    cancelled = true;
+    running = false;
     window.DialBridgeReport?.reset();
     window.DialBridgeQuestions?.reset();
     $("scan").hidden = true;
     document.querySelector("main.hero").hidden = false;
     document.getElementById("clearBtn")?.click();
+    showBack(false);
     window.scrollTo({ top: 0 });
+    document.getElementById("bizInput")?.focus();
   }
 
   // h is shared with report.js so the full report is built with the same safe, text-only DOM helper.
-  window.DialBridgeScan = { start, reset, h, img };
+  window.DialBridgeScan = { start, reset, showBack, h, img };
 })();

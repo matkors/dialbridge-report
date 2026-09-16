@@ -834,6 +834,8 @@
 
     const hero = document.querySelector("main.hero");
     if (hero) hero.hidden = true;
+    const back = document.getElementById("homeBack");
+    if (back) back.hidden = false;
     const scan = $("scan");
     if (scan) scan.hidden = false;
     document.querySelector(".scan-grid")?.setAttribute("hidden", "");
