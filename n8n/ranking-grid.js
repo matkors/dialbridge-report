@@ -22,7 +22,7 @@
 //
 // The map image is fetched here and uploaded to GHL's media library, which returns a public
 // CDN url on assets.cdn.filesafe.space that mail clients load with no auth. The email points
-// at that, so no Google key is ever sitting in somebody's inbox waiting to be lifted."
+// at that, so no Google key is ever sitting in somebody's inbox waiting to be lifted.
 
 // ============ Plan Rank Grid ============
 // Nine points in a 3 x 3 grid, 3km apart, centred on the business. Each one becomes a
@@ -74,13 +74,14 @@ return out;
 
 // ============ Rank At Point (HTTP Request node) ============
 // POST https://places.googleapis.com/v1/places:searchText
+// Auth: Generic Credential Type -> Query Auth -> "Google Maps Server Key".
 // Headers:
-//   X-Goog-Api-Key: ={{ (function () { try { return ($vars && ($vars.GOOGLE_STATIC_MAPS_KEY || $vars.GOOGLE_MAPS_API_KEY)) || ''; } catch (e) { return ''; } })() }}
 //   X-Goog-FieldMask: places.id,places.displayName,places.rating,places.userRatingCount
+//   Content-Type: application/json
 // Body: { textQuery, locationBias: { circle: { center: { latitude, longitude }, radius: 3000 } },
 //         includePureServiceAreaBusinesses: true, pageSize: 20 }
-// Never error, always output data, continue on error. The key is read inside the expression
-// so it never lands in item data where the execution log would keep it.
+// Never error, always output data, continue on error, so one dead point costs one pin
+// rather than the whole map.
 
 // ============ Collect Ranks ============
 // Turns nine result lists into the shape the email already draws: a rank per point, the pins
