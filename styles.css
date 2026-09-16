@@ -746,7 +746,6 @@ h1 {
 .card-cta h3 { margin: 0 0 10px; font-size: 1.05rem; }
 .card-cta p { margin: 0 0 8px; color: rgba(255, 255, 255, 0.82); }
 .card-cta .cta-line { margin: 0; color: #fff; font-weight: 700; font-size: 1.05rem; }
-.report-restart { margin: 0; text-align: center; }
 
 @media (max-width: 560px) {
   .card { padding: 18px; }

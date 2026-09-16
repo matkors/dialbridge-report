@@ -365,47 +365,23 @@
 
   function renderReviews(report) {
     const rv = report?.reviews;
-    if (!rv || num(rv.googleReviewCount) === null) return null;
-    // Published before the review scan finished: show what Google gives us and say so,
-    // rather than an empty card or a wrong "no reviews" claim.
-    if (rv.pending) {
-      const local = window.scanResult?.profile;
-      const recent = (local?.reviews || []).slice(0, 2);
-      return h("section", { class: "card" }, [
-        h("div", { class: "card-head" }, [
-          h("h3", { text: "Your reputation" }),
-          h("span", { class: `pill tone-${rv.googleRating >= 4.5 ? "good" : "warn"}`, text: `${rv.googleRating ?? "?"}★ from ${rv.googleReviewCount} reviews` }),
-        ]),
-        ...recent.map((r) => h("p", { class: "muted", text: `"${r.text.slice(0, 140)}" ${r.author}, ${r.when}` })),
-        h("p", { class: "muted", text: "We're still reading through every review. The full breakdown, including which ones you never replied to, comes with your report." }),
-      ]);
-    }
-    const leader = (report.competitors || [])[0];
+    if (!rv) return null;
+    // The star rating and count are already tiles, and the competitor gap is already a
+    // finding. This card only carries what neither of those says.
     const items = [
-      num(rv.googleRating) !== null
-        ? { ok: rv.googleRating >= 4.5, text: `${rv.googleRating} stars from ${rv.googleReviewCount} Google reviews` }
-        : null,
-      leader && num(leader.reviewCount) !== null
-        ? { ok: (rv.googleReviewCount || 0) >= leader.reviewCount, text: `${leader.name} has ${leader.reviewCount} reviews` }
-        : null,
       num(rv.unansweredCount) !== null
-        ? { ok: rv.unansweredCount === 0, text: rv.unansweredCount === 0 ? "Every review has a reply" : `${rv.unansweredCount} reviews with no reply from you` }
+        ? { ok: rv.unansweredCount === 0, text: rv.unansweredCount === 0 ? "Every review has a reply from you" : `${rv.unansweredCount} reviews with no reply from you` }
         : null,
       num(rv.replyRatePercent) !== null ? { ok: rv.replyRatePercent >= 80, text: `You reply to ${rv.replyRatePercent}% of reviews` } : null,
-      rv.lastReviewAt ? { ok: true, text: `Last review came in on ${rv.lastReviewAt}` } : null,
+      rv.lastReviewAt ? { ok: true, text: `Your last review came in on ${rv.lastReviewAt}` } : null,
       num(rv.facebookReviewCount) !== null
-        ? { ok: rv.facebookReviewCount > 0, text: rv.facebookReviewCount > 0 ? `${rv.facebookReviewCount} Facebook reviews` : "No reviews on Facebook" }
+        ? { ok: rv.facebookReviewCount > 0, text: rv.facebookReviewCount > 0 ? `${rv.facebookReviewCount} reviews on Facebook too` : "No reviews on Facebook" }
         : null,
     ].filter(Boolean);
+    if (!items.length) return null;
     return h("section", { class: "card" }, [
-      h("div", { class: "card-head" }, [
-        h("h3", { text: "Your reputation" }),
-        h("span", { class: `pill tone-${rv.googleRating >= 4.5 ? "good" : "warn"}`, text: `${rv.googleRating ?? "?"}★ from ${rv.googleReviewCount} reviews` }),
-      ]),
+      h("div", { class: "card-head" }, [h("h3", { text: "Your reviews" })]),
       h("ul", { class: "checks" }, items.map((c) => h("li", { class: c.ok ? "ok" : "bad", text: c.text }))),
-      ...(rv.recent || []).slice(0, 2).map((r) =>
-        h("p", { class: "muted", text: `"${String(r.text || "").slice(0, 130)}" ${r.author || ""}${r.when ? `, ${r.when}` : ""}` })
-      ),
     ]);
   }
 
@@ -437,41 +413,27 @@
         h("p", { class: "muted", text: "Homeowners who can't find a website usually call the next company on the list." }),
       ]);
     }
+    // The speed numbers live in the tiles above. This card is only the yes-or-no checks.
     const checks = [
-      w.https === null || w.https === undefined ? null : { ok: w.https, text: w.https ? "Secure (HTTPS)" : "Not secure, browsers warn visitors" },
+      w.https === null || w.https === undefined ? null : { ok: w.https, text: w.https ? "Secure, no browser warning" : "Not secure, browsers warn visitors" },
       w.mobileFriendly === null || w.mobileFriendly === undefined ? null : { ok: w.mobileFriendly, text: w.mobileFriendly ? "Fits a phone screen" : "Doesn't fit a phone screen" },
-      w.googleAnalytics === null || w.googleAnalytics === undefined ? null : { ok: w.googleAnalytics, text: w.googleAnalytics ? "Visitor tracking is set up" : "No visitor tracking, you can't see where leads come from" },
-      w.facebookPixel === null || w.facebookPixel === undefined ? null : { ok: w.facebookPixel, text: w.facebookPixel ? "Facebook ad tracking is set up" : "No Facebook ad tracking" },
+      w.googleAnalytics === null || w.googleAnalytics === undefined ? null : { ok: w.googleAnalytics, text: w.googleAnalytics ? "Visitor tracking is set up" : "No visitor tracking, so you can't tell where leads come from" },
       w.chatWidget === null || w.chatWidget === undefined ? null : { ok: w.chatWidget, text: w.chatWidget ? "Visitors can message you from the site" : "No way to message you from the site" },
     ].filter(Boolean);
+    if (!checks.length) return null;
     return h("section", { class: "card" }, [
       h("div", { class: "card-head" }, [
         h("h3", { text: "Your website" }),
-        w.mobileLoadTime ? h("span", { class: `pill tone-${num(w.mobileScore) >= 50 ? "good" : "bad"}`, text: `Loads in ${w.mobileLoadTime}` }) : null,
+        h("span", { class: "card-hint", text: domainOf(w.url) }),
       ]),
-      h("div", { class: "web-row" }, [
-        h("div", { class: "web-rings" }, [
-          scoreRing(w.mobileScore, "on a phone", "sm"),
-          num(w.desktopScore) !== null ? scoreRing(w.desktopScore, "on a computer", "sm") : null,
-        ].filter(Boolean)),
-        h("div", { class: "web-copy" }, [
-          h("p", { class: "live-domain", text: domainOf(w.url) }),
-          w.mobileLoadTime || w.desktopLoadTime
-            ? h("p", { class: "muted", text: [
-                w.mobileLoadTime ? `Phone: main content in ${w.mobileLoadTime}` : "",
-                w.desktopLoadTime ? `Computer: ${w.desktopLoadTime}` : "",
-              ].filter(Boolean).join(" · ") })
-            : null,
-          h("ul", { class: "checks" }, checks.map((c) => h("li", { class: c.ok ? "ok" : "bad", text: c.text }))),
-        ]),
-      ]),
+      h("ul", { class: "checks" }, checks.map((c) => h("li", { class: c.ok ? "ok" : "bad", text: c.text }))),
     ]);
   }
 
   function renderStrengths(summary) {
     const strengths = summary?.strengths || [];
     if (!strengths.length) return null;
-    return h("section", { class: "card" }, [
+    return h("section", { class: "card card-wide" }, [
       h("div", { class: "card-head" }, [h("h3", { text: "What's already working" })]),
       h("ul", { class: "checks" }, strengths.map((s) => h("li", { class: "ok", text: s }))),
     ]);
@@ -582,16 +544,14 @@
           renderWebsite(report),
           renderReviews(report),
           renderListings(report),
-          renderStrengths(summary),
         ].filter(Boolean)),
+        renderStrengths(summary),
         renderNextStep(summary),
-        h("p", { class: "report-restart" }, h("button", { class: "link", type: "button", id: "reportRestart", text: "Check a different business" })),
       ].filter(Boolean)
     );
     body.hidden = false;
     setStatus("");
     $("report").hidden = false;
-    $("reportRestart")?.addEventListener("click", () => window.DialBridgeScan.reset());
     $("scan")?.scrollIntoView({ behavior: REDUCED_MOTION ? "auto" : "smooth", block: "start" });
   }
 

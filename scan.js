@@ -661,10 +661,6 @@
     window.scrollTo({ top: 0 });
   }
 
-  document.addEventListener("DOMContentLoaded", () => {
-    $("scanRestart")?.addEventListener("click", reset);
-  });
-
   // h is shared with report.js so the full report is built with the same safe, text-only DOM helper.
   window.DialBridgeScan = { start, reset, h, img };
 })();
