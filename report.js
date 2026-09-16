@@ -632,6 +632,23 @@
     ]);
   }
 
+
+  function renderDownload(report) {
+    const name = report?.profile?.name || "your business";
+    const button = h("button", { class: "cta cta-ghost", type: "button", text: "Download this report as a PDF" });
+    button.addEventListener("click", () => {
+      const previous = document.title;
+      // The print dialog uses the page title as the suggested filename.
+      document.title = `Lost Job Report - ${name}`;
+      window.addEventListener("afterprint", () => { document.title = previous; }, { once: true });
+      window.print();
+    });
+    return h("section", { class: "report-download" }, [
+      button,
+      h("p", { class: "download-note", text: "Opens your print window. Choose Save as PDF as the destination." }),
+    ]);
+  }
+
   // ============ RENDER ============
 
   function render(payload) {
@@ -664,6 +681,7 @@
         renderStrengths(summary),
         renderBlueprint(report, summary),
         renderNextStep(report),
+        renderDownload(report),
       ].filter(Boolean)
     );
     body.hidden = false;

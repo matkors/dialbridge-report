@@ -1007,3 +1007,84 @@ body.is-locked { overflow: hidden; }
 @media (max-width: 560px) {
   .phone-frame { width: 150px; }
 }
+
+.report-download { text-align: center; padding: 4px 0 8px; }
+.cta-ghost {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+}
+.cta-ghost:hover { border-color: var(--accent); color: var(--accent-ink); }
+.download-note { margin: 10px 0 0; font-size: 0.8rem; color: var(--ink-3); }
+
+/* ============ PRINT: the report as a document ============ */
+@media print {
+  @page { margin: 14mm 12mm; }
+
+  /* Nothing that belongs to the screen version goes on paper. */
+  .topbar,
+  .scan-grid,
+  .scan-head .eyebrow,
+  .scan-credit,
+  .scan-done,
+  #questionsOverlay,
+  .card-gate,
+  .report-download,
+  .report-status,
+  .cta,
+  .cta-link { display: none !important; }
+
+  html, body { background: #fff !important; }
+  body { font-size: 10.5pt; }
+  .scan { max-width: none; padding: 0; }
+  #scanTitle { font-size: 20pt; margin: 0 0 10pt; letter-spacing: -0.02em; }
+  .report { margin-top: 8pt; }
+  .report-body { display: block; }
+
+  /* Cards become plain sections with a rule, so the ink goes on the words. */
+  .card,
+  .report-hero,
+  .journey {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    box-shadow: none !important;
+    border: 0 !important;
+    border-top: 1px solid #dde2e8 !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+    padding: 10pt 0 !important;
+    margin: 0 !important;
+  }
+  .report-hero { border-top: 3px solid #e8702a !important; }
+  .card-cta, .card-blueprint { background: #fff !important; color: var(--ink) !important; }
+  .card-cta h3, .card-cta p { color: var(--ink) !important; }
+  .card-hint { display: none; }
+
+  /* Keep the two scores and the money figure, they are the summary of the thing. */
+  .ring { background: none !important; width: auto !important; height: auto !important; }
+  .ring::after { display: none; }
+  .ring-inner { display: block; }
+  .ring-lg strong { font-size: 26pt; }
+  .ring-sm strong { font-size: 16pt; }
+  .hero-rings { gap: 26pt; }
+  .hero-leak { background: #f8e7e2 !important; padding: 8pt 10pt !important; }
+
+  .journey { display: flex; gap: 14pt; }
+  .journey-arrow { display: none; }
+
+  .finding-card { background: #f6f7f4 !important; break-inside: avoid; }
+  .phone-frame { background: #fff !important; box-shadow: none !important; border: 1px solid #dde2e8; width: 130pt; }
+  .tiles { grid-template-columns: repeat(4, 1fr); }
+  a[href]::after { content: ""; }
+
+  /* A footer line so a printed page still says where it came from. */
+  .report-body::after {
+    content: "Prepared by DialBridge. Business details, reviews and ranking data from Google.";
+    display: block;
+    margin-top: 14pt;
+    padding-top: 8pt;
+    border-top: 1px solid #dde2e8;
+    font-size: 8pt;
+    color: #7b879a;
+  }
+}
