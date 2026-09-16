@@ -1160,7 +1160,51 @@ body.is-locked { overflow: hidden; }
 }
 .unlock-form input:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
 .unlock-form .cta { flex: none; }
-#unlockCode { letter-spacing: 0.32em; font-family: "IBM Plex Mono", monospace; max-width: 190px; }
+
+/* the code step */
+.unlock-slot { display: block; }
+.unlock-form-code { flex-direction: column; gap: 14px; }
+.unlock-code-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; }
+
+#unlockCode {
+  flex: 0 0 auto;
+  width: 188px;
+  padding: 12px 14px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 1.32rem;
+  font-weight: 600;
+  letter-spacing: 0.34em;
+  /* letter-spacing adds a trailing gap after the last digit, which shoves the run of
+     numbers off centre. The same value as an indent puts it back. */
+  text-indent: 0.34em;
+  text-align: center;
+  color: var(--ink);
+}
+#unlockCode::placeholder { color: var(--ink-3); font-weight: 400; }
+
+.unlock-links { margin: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.unlock-dot { color: var(--ink-3); }
+.unlock-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.unlock-link:hover:not(:disabled) { color: var(--accent-ink); }
+.unlock-link:disabled { color: var(--ink-3); text-decoration: none; cursor: default; }
+.unlock-link:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+
+.gate-note:empty { display: none; }
+
+@media (max-width: 460px) {
+  #unlockCode { width: 100%; }
+  .unlock-code-row .cta { width: 100%; }
+}
 
 @media print {
   .locked-wrap.is-locked { max-height: none; filter: none; opacity: 1; }

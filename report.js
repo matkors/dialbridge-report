@@ -655,28 +655,220 @@
   // Everything below the headline numbers is held back until they tell us who they are and
   // prove the phone is theirs. The code is generated and checked server side; the page only
   // ever sees whether it was right.
+  // Two stages living in one card. The card's own words change with the stage, because a
+  // heading still saying "tell me who you are" above a code box reads like a bug.
   function renderPhoneGate(onUnlock) {
+    const STAGE = {
+      ask: {
+        eyebrow: "The rest of your report",
+        heading: "Where the jobs are going, and what fixes it",
+        lead: "The full report names every gap we found, what each one is costing you, and the order I would fix them in. Tell me who you are and I will text you a code to open it.",
+        fine: "One text with a code. No calls unless you ask for one.",
+      },
+      code: {
+        eyebrow: "Step 2 of 2",
+        heading: "Check your phone",
+        lead: "",
+        fine: "The code lasts ten minutes.",
+      },
+    };
+
+    const eyebrow = h("p", { class: "eyebrow" });
+    const heading = h("h3");
+    const lead = h("p", { class: "unlock-lead" });
     const note = h("p", { class: "gate-note", role: "status", "aria-live": "polite" });
-    const nameInput = h("input", { id: "unlockName", type: "text", placeholder: "Your name", autocomplete: "name", required: "" });
-    const phoneInput = h("input", { id: "unlockPhone", type: "tel", placeholder: "Your mobile number", autocomplete: "tel", required: "" });
-    const sendButton = h("button", { class: "cta", type: "submit", text: "Text me the code" });
-    const form = h("form", { class: "unlock-form", novalidate: "" }, [nameInput, phoneInput, sendButton]);
+    const fine = h("p", { class: "gate-fine" });
+    const slot = h("div", { class: "unlock-slot" });
 
-    function codeStep() {
-      const codeInput = h("input", { id: "unlockCode", type: "text", inputmode: "numeric", maxlength: "6", placeholder: "6 digit code", autocomplete: "one-time-code", required: "" });
-      const verifyButton = h("button", { class: "cta", type: "submit", text: "Unlock my report" });
-      const codeForm = h("form", { class: "unlock-form", novalidate: "" }, [codeInput, verifyButton]);
+    let lastName = "";
+    let lastPhone = "";
+    let countdown = null;
 
-      codeForm.addEventListener("submit", async (event) => {
+    function setStage(name, leadText) {
+      const stage = STAGE[name];
+      eyebrow.textContent = stage.eyebrow;
+      heading.textContent = stage.heading;
+      lead.textContent = leadText || stage.lead;
+      lead.hidden = !lead.textContent;
+      fine.textContent = stage.fine;
+    }
+
+    function say(text, tone) {
+      note.textContent = text || "";
+      note.className = tone ? "gate-note is-" + tone : "gate-note";
+    }
+
+    // (732) 533-8997 reads like a phone number. 7325338997 reads like a serial number.
+    function prettyPhone(raw) {
+      const digits = String(raw || "").replace(/\D/g, "").slice(-10);
+      return digits.length === 10
+        ? "(" + digits.slice(0, 3) + ") " + digits.slice(3, 6) + "-" + digits.slice(6)
+        : String(raw || "").trim();
+    }
+
+    async function sendCode(name, phone) {
+      const res = await fetch(UNLOCK_SEND_URL(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          submissionId: window.reportSubmissionId,
+          name,
+          phone,
+          company_fax: document.getElementById("companyFax")?.value || "",
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.error || "send_failed");
+      return data;
+    }
+
+    // ============ stage one: who are you ============
+    function askStep() {
+      if (countdown) {
+        clearInterval(countdown);
+        countdown = null;
+      }
+
+      const nameInput = h("input", { id: "unlockName", type: "text", placeholder: "Your name", autocomplete: "name", required: "" });
+      const phoneInput = h("input", { id: "unlockPhone", type: "tel", placeholder: "Your mobile number", autocomplete: "tel", required: "" });
+      nameInput.value = lastName;
+      phoneInput.value = lastPhone;
+      const button = h("button", { class: "cta", type: "submit", text: "Text me the code" });
+      const form = h("form", { class: "unlock-form", novalidate: "" }, [nameInput, phoneInput, button]);
+
+      form.addEventListener("submit", async (event) => {
         event.preventDefault();
-        const code = codeInput.value.replace(/\D/g, "");
-        if (code.length !== 6) {
-          note.textContent = "That code is six digits.";
-          note.className = "gate-note is-bad";
+        const name = nameInput.value.trim();
+        const digits = phoneInput.value.replace(/\D/g, "");
+        if (name.length < 2) {
+          say("Your name, so I know who I'm talking to.", "bad");
+          nameInput.focus();
           return;
         }
-        verifyButton.disabled = true;
-        verifyButton.textContent = "Checking...";
+        if (digits.length < 10) {
+          say("A mobile number we can text the code to.", "bad");
+          phoneInput.focus();
+          return;
+        }
+        if (!UNLOCK_SEND_URL() || !window.reportSubmissionId) {
+          say("We can't send a code right now. Try again in a minute.", "bad");
+          return;
+        }
+
+        lastName = name;
+        lastPhone = phoneInput.value;
+        button.disabled = true;
+        button.textContent = "Sending...";
+        try {
+          await sendCode(name, phoneInput.value);
+          say("");
+          codeStep(phoneInput.value);
+        } catch (err) {
+          console.warn("Unlock send failed", err);
+          say(
+            err.message === "too_soon"
+              ? "A code is already on its way. Give it a few seconds."
+              : "We couldn't text that number. Check it and try again.",
+            "bad"
+          );
+          button.disabled = false;
+          button.textContent = "Text me the code";
+        }
+      });
+
+      setStage("ask");
+      slot.replaceChildren(form);
+    }
+
+    // ============ stage two: the code ============
+    function codeStep(phone) {
+      const codeInput = h("input", {
+        id: "unlockCode",
+        type: "text",
+        inputmode: "numeric",
+        maxlength: "6",
+        placeholder: "000000",
+        autocomplete: "one-time-code",
+        "aria-label": "The six digit code we texted you",
+        required: "",
+      });
+      const button = h("button", { class: "cta", type: "submit", text: "Unlock my report" });
+      const row = h("div", { class: "unlock-code-row" }, [codeInput, button]);
+      const back = h("button", { class: "unlock-link", type: "button", text: "Wrong number?" });
+      const resend = h("button", { class: "unlock-link", type: "button", text: "Send it again" });
+      const links = h("p", { class: "unlock-links" }, [
+        back,
+        h("span", { class: "unlock-dot", "aria-hidden": "true", text: "\u00b7" }),
+        resend,
+      ]);
+      const form = h("form", { class: "unlock-form unlock-form-code", novalidate: "" }, [row, links]);
+      let checking = false;
+
+      // The server turns down a second code inside 45 seconds, so the link waits that long
+      // rather than offering something that would be refused.
+      function holdResend() {
+        if (countdown) clearInterval(countdown);
+        let left = 45;
+        resend.disabled = true;
+        resend.textContent = "Send it again in " + left + "s";
+        countdown = setInterval(() => {
+          left -= 1;
+          if (left <= 0) {
+            clearInterval(countdown);
+            countdown = null;
+            resend.disabled = false;
+            resend.textContent = "Send it again";
+          } else {
+            resend.textContent = "Send it again in " + left + "s";
+          }
+        }, 1000);
+      }
+
+      // Digits only, and six of them is the whole form, so there is nothing left to press.
+      codeInput.addEventListener("input", () => {
+        const digits = codeInput.value.replace(/\D/g, "").slice(0, 6);
+        if (codeInput.value !== digits) codeInput.value = digits;
+        if (digits.length === 6 && !checking) form.requestSubmit();
+      });
+
+      back.addEventListener("click", () => {
+        say("");
+        askStep();
+        document.getElementById("unlockPhone")?.focus();
+      });
+
+      resend.addEventListener("click", async () => {
+        resend.disabled = true;
+        resend.textContent = "Sending...";
+        try {
+          await sendCode(lastName, lastPhone);
+          say("New code sent to " + prettyPhone(lastPhone) + ".", "good");
+          codeInput.value = "";
+          codeInput.focus();
+        } catch (err) {
+          say(
+            err.message === "too_soon"
+              ? "A code is already on its way. Give it a few seconds."
+              : "We couldn't send another code. Try again in a minute.",
+            "bad"
+          );
+        }
+        holdResend();
+      });
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        if (checking) return;
+        const code = codeInput.value.replace(/\D/g, "");
+        if (code.length !== 6) {
+          say("That code is six digits.", "bad");
+          codeInput.focus();
+          return;
+        }
+        checking = true;
+        button.disabled = true;
+        button.textContent = "Checking...";
+        say("");
         try {
           const res = await fetch(UNLOCK_VERIFY_URL(), {
             method: "POST",
@@ -685,87 +877,44 @@
           });
           const data = await res.json().catch(() => ({}));
           if (data.ok && data.unlocked) {
-            try { sessionStorage.setItem("dialbridge_unlocked", window.reportSubmissionId); } catch (err) { /* private window */ }
+            if (countdown) {
+              clearInterval(countdown);
+              countdown = null;
+            }
+            try {
+              sessionStorage.setItem("dialbridge_unlocked", window.reportSubmissionId);
+            } catch (err) {
+              /* private window */
+            }
             onUnlock(data.firstName || "");
             return;
           }
           const messages = {
             wrong_code: "That code doesn't match. Check the text and try again.",
-            expired: "That code has expired. Start again and we'll text a new one.",
+            expired: "That code has expired. Send yourself a new one.",
             too_many_attempts: "Too many tries. Reply to the text and I'll send your report over myself.",
             no_code: "We don't have a code for you yet.",
           };
-          note.textContent = messages[data.error] || "That didn't work. Try again.";
-          note.className = "gate-note is-bad";
+          say(messages[data.error] || "That didn't work. Try again.", "bad");
+          codeInput.select();
         } catch (err) {
           console.warn("Verify failed", err);
-          note.textContent = "That didn't work. Try again.";
-          note.className = "gate-note is-bad";
+          say("That didn't work. Try again.", "bad");
         }
-        verifyButton.disabled = false;
-        verifyButton.textContent = "Unlock my report";
+        checking = false;
+        button.disabled = false;
+        button.textContent = "Unlock my report";
       });
 
-      form.replaceWith(codeForm);
+      setStage("code", "I texted a six digit code to " + prettyPhone(phone) + ".");
+      slot.replaceChildren(form);
+      holdResend();
       codeInput.focus();
     }
 
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const name = nameInput.value.trim();
-      const phone = phoneInput.value.replace(/\D/g, "");
-      if (name.length < 2) {
-        note.textContent = "Your name, so I know who I'm talking to.";
-        note.className = "gate-note is-bad";
-        nameInput.focus();
-        return;
-      }
-      if (phone.length < 10) {
-        note.textContent = "A mobile number we can text the code to.";
-        note.className = "gate-note is-bad";
-        phoneInput.focus();
-        return;
-      }
-      if (!UNLOCK_SEND_URL() || !window.reportSubmissionId) {
-        note.textContent = "We can't send a code right now. Try again in a minute.";
-        note.className = "gate-note is-bad";
-        return;
-      }
-      sendButton.disabled = true;
-      sendButton.textContent = "Sending...";
-      try {
-        const res = await fetch(UNLOCK_SEND_URL(), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            submissionId: window.reportSubmissionId,
-            name,
-            phone: phoneInput.value,
-            company_fax: document.getElementById("companyFax")?.value || "",
-          }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data.ok) throw new Error(data.error || "send_failed");
-        note.textContent = `Code sent to ${phoneInput.value.trim()}. It's good for ten minutes.`;
-        note.className = "gate-note is-good";
-        codeStep();
-      } catch (err) {
-        console.warn("Unlock send failed", err);
-        note.textContent = "We couldn't text that number. Check it and try again.";
-        note.className = "gate-note is-bad";
-        sendButton.disabled = false;
-        sendButton.textContent = "Text me the code";
-      }
-    });
+    askStep();
 
-    return h("section", { class: "card card-wide card-unlock" }, [
-      h("p", { class: "eyebrow", text: "The rest of your report" }),
-      h("h3", { text: "Where the jobs are going, and what fixes it" }),
-      h("p", { class: "unlock-lead", text: "The full report names every gap we found, what each one is costing you, and the order I would fix them in. Tell me who you are and I will text you a code to open it." }),
-      form,
-      note,
-      h("p", { class: "gate-fine", text: "One text with a code. No calls unless you ask for one." }),
-    ]);
+    return h("section", { class: "card card-wide card-unlock" }, [eyebrow, heading, lead, slot, note, fine]);
   }
 
 
