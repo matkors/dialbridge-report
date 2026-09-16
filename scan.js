@@ -118,8 +118,18 @@
     "reviews", "editorialSummary", "regularOpeningHours", "pureServiceAreaBusiness",
   ].join(",");
 
+  // The search box already looked this place up, with every field we need, inside the
+  // session that makes the autocomplete keystrokes free. Reusing it saves a paid call and
+  // a round trip. We only go back to Google if that handover is missing or stale.
   async function fetchProfile(placeId) {
-    const p = await placesRequest(`/places/${encodeURIComponent(placeId)}`, { fieldMask: PROFILE_FIELDS });
+    const handed = window.selectedPlace;
+    const p = handed && handed.id === placeId
+      ? handed
+      : await placesRequest(`/places/${encodeURIComponent(placeId)}`, { fieldMask: PROFILE_FIELDS });
+    return normaliseProfile(p);
+  }
+
+  function normaliseProfile(p) {
     return {
       id: p.id,
       name: p.displayName?.text || "",

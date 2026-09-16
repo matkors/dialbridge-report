@@ -17,6 +17,11 @@ const MIN_CHARS = 3;
 const DEBOUNCE_MS = 250;
 
 // Place Details fields. Phone, website, rating and review count bill as Place Details Enterprise.
+// Everything the search box AND the scan need, in one lookup. The scan used to fetch the
+// same place again with a longer list of fields, which Google bills as a second call at a
+// higher tier. Asking once for the union costs less than asking twice for halves, and the
+// scan starts a round trip sooner. Google prices Place Details by the priciest field asked
+// for, and reviews plus editorialSummary are the top tier, so those two set the price here.
 const DETAIL_FIELDS = [
   "id",
   "displayName",
@@ -29,7 +34,12 @@ const DETAIL_FIELDS = [
   "googleMapsUri",
   "location",
   "primaryType",
+  "primaryTypeDisplayName",
   "pureServiceAreaBusiness",
+  "photos",
+  "reviews",
+  "editorialSummary",
+  "regularOpeningHours",
 ].join(",");
 
 // Streets, cities and zip codes aren't businesses, so keep them out of the dropdown.
@@ -159,6 +169,7 @@ async function selectSuggestion(index) {
 
   input.value = chosen.mainText;
   closeList();
+  window.selectedPlace = null;
   setStatus("Looking up business details...");
 
   try {
@@ -166,6 +177,9 @@ async function selectSuggestion(index) {
       `/places/${encodeURIComponent(chosen.placeId)}?sessionToken=${encodeURIComponent(sessionToken)}`,
       { fieldMask: DETAIL_FIELDS }
     );
+
+    // Handed to the scan so it does not pay for the same lookup twice.
+    window.selectedPlace = place;
 
     window.selectedBusiness = {
       placeId: place.id,
