@@ -34,8 +34,12 @@ depending on the field mask. Tiers go Essentials (IDs Only) → Essentials → P
 | Text Search | ranking grid, centre point | 1 | Text Search **Enterprise** | $35.00 | 1,000 | $0.035 |
 | Text Search | ranking grid, other 8 points | 8 | Text Search **Essentials (IDs Only)** | **$0** | unlimited | $0 |
 | Static Maps | the emailed ranking map | 1 | Static Maps | $2.00 | 10,000 | $0.002 |
+| Geocoding | only when the business has no pin | 0 or 1 | Geocoding | $5.00 | 10,000 | $0 or $0.005 |
 
-**Google total: $0.099 per audit.**
+**Google total: $0.099 per audit**, or $0.104 for a pure service-area business, which has
+no pin on Google Maps and needs its town geocoded to give the ranking grid a centre.
+**Geocoding API has to be enabled on the project and added to the server key's
+restrictions**, or those businesses get no map at all.
 
 Why the autocomplete is free: every keystroke goes out with a session token, and the session
 ends in a Place Details call. Google then bills those keystrokes under "Autocomplete
@@ -105,6 +109,7 @@ The point is not to save money, it is that a leaked key or a loop cannot run up 
 | API | Suggested cap | Reasoning |
 |---|---|---|
 | Places API (New) | 2,000 requests/day | ~14 per audit, so this allows ~140 audits a day |
+| Geocoding API | 200 requests/day | at most 1 per audit, and only for service-area businesses |
 | Maps Static API | 500 requests/day | 2 per audit |
 | PageSpeed Insights | 500 requests/day | 2 per audit, default is 25,000 |
 
