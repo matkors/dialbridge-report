@@ -143,11 +143,13 @@
           h("div", { class: "hero-ring" }, [
             scoreRing(report?.foundScore ?? report?.overallScore, "out of 100"),
             h("p", { class: "hero-ring-label", text: "Getting found" }),
+            h("p", { class: "hero-ring-sub", text: "How you show up on Google" }),
           ]),
           response !== null
             ? h("div", { class: "hero-ring" }, [
                 scoreRing(response, "out of 100"),
                 h("p", { class: "hero-ring-label", text: "Catching the lead" }),
+                h("p", { class: "hero-ring-sub", text: "What happens when they call" }),
               ])
             : null,
         ].filter(Boolean)),
@@ -157,14 +159,102 @@
           summary?.summary ? h("p", { class: "lead", text: summary.summary }) : null,
         ]),
       ]),
-      statChips(report),
       report?.leak
-        ? h("p", { class: "hero-leak" }, [
-            h("strong", { text: `About $${Number(report.leak.oneAWeek).toLocaleString("en-US")} a month` }),
-            ` if just one of those lost calls or quotes a week hires someone else instead, at the $${Number(report.leak.jobValue).toLocaleString("en-US")} a job you told us about.`,
+        ? h("div", { class: "hero-leak" }, [
+            h("p", { class: "hero-leak-value", text: `$${Number(report.leak.oneAWeek).toLocaleString("en-US")}` }),
+            h("div", {}, [
+              h("p", { class: "hero-leak-label", text: "a month, walking out the door" }),
+              h("p", { class: "hero-leak-note", text: `Counting just one lost call or quote a week, at the $${Number(report.leak.jobValue).toLocaleString("en-US")} a job you told us about. Your real number is probably higher.` }),
+            ]),
           ])
         : null,
     ].filter(Boolean));
+  }
+
+
+  // The whole report in one glance: three stages of getting a job, and which one breaks.
+  // A contractor reads this before any number and knows what we are about to tell them.
+  function renderJourney(report) {
+    const rk = report?.ranking || {};
+    const rv = report?.reviews || {};
+    const web = report?.website || {};
+    const found = num(report?.foundScore);
+    const response = num(report?.responseScore);
+
+    const stages = [
+      {
+        label: "They find you",
+        ok: found === null ? null : found >= 60,
+        detail: num(rv.googleReviewCount)
+          ? `${rv.googleRating ?? "?"} stars, ${rv.googleReviewCount} reviews on Google`
+          : "Your Google listing",
+      },
+      {
+        label: "They check you out",
+        ok: web.found === false ? false : num(web.mobileScore) === null ? null : web.mobileScore >= 50,
+        detail: web.found === false
+          ? "No website to send them to"
+          : num(web.mobileScore) !== null
+            ? `Your site loads in ${web.mobileLoadTime || "a few seconds"} on a phone`
+            : "Your website",
+      },
+      {
+        label: "You catch the job",
+        ok: response === null ? null : response >= 60,
+        detail: response === null
+          ? "How you handle calls and quotes"
+          : response >= 60
+            ? "Calls answered and quotes followed up"
+            : "This is where the jobs are going",
+      },
+    ];
+
+    return h("section", { class: "journey" }, stages.map((stage, i) =>
+      h("div", { class: `journey-step is-${stage.ok === null ? "unknown" : stage.ok ? "ok" : "broken"}` }, [
+        h("span", { class: "journey-mark", "aria-hidden": "true", text: stage.ok === null ? "?" : stage.ok ? "✓" : "✕" }),
+        h("div", {}, [
+          h("p", { class: "journey-label", text: stage.label }),
+          h("p", { class: "journey-detail", text: stage.detail }),
+        ]),
+        i < stages.length - 1 ? h("span", { class: "journey-arrow", "aria-hidden": "true", text: "→" }) : null,
+      ].filter(Boolean))
+    ));
+  }
+
+  // The headline numbers as tiles. Big number, plain label, status colour plus a word,
+  // never colour alone.
+  function renderNumbers(report) {
+    const rv = report?.reviews || {};
+    const rk = report?.ranking || {};
+    const ls = report?.listings || {};
+    const w = report?.website || {};
+    const tiles = [
+      num(rv.googleRating) !== null
+        ? { value: `${rv.googleRating}`, unit: "stars", label: `from ${rv.googleReviewCount || 0} Google reviews`, tone: rv.googleRating >= 4.5 ? "good" : "warn" }
+        : null,
+      Array.isArray(rk.ranks) && rk.ranks.length
+        ? { value: `${rk.pointsInTop3}`, unit: `of ${rk.ranks.length}`, label: "spots where you make the top 3", tone: rk.pointsInTop3 >= rk.ranks.length / 2 ? "good" : "bad" }
+        : null,
+      num(w.mobileScore) !== null
+        ? { value: `${w.mobileScore}`, unit: "of 100", label: "website speed on a phone", tone: w.mobileScore >= 80 ? "good" : w.mobileScore >= 50 ? "warn" : "bad" }
+        : null,
+      num(w.desktopScore) !== null
+        ? { value: `${w.desktopScore}`, unit: "of 100", label: "website speed on a computer", tone: w.desktopScore >= 80 ? "good" : w.desktopScore >= 50 ? "warn" : "bad" }
+        : null,
+      num(ls.checked)
+        ? { value: `${ls.found}`, unit: `of ${ls.checked}`, label: "directories that list you", tone: ls.missing > ls.found ? "bad" : "good" }
+        : null,
+    ].filter(Boolean);
+    if (!tiles.length) return null;
+    return h("section", { class: "card card-wide" }, [
+      h("div", { class: "card-head" }, [h("h3", { text: "Your numbers" })]),
+      h("ul", { class: "tiles" }, tiles.map((t) =>
+        h("li", { class: `tile tone-${t.tone}` }, [
+          h("p", { class: "tile-value" }, [h("strong", { text: t.value }), h("span", { text: t.unit })]),
+          h("p", { class: "tile-label", text: t.label }),
+        ])
+      )),
+    ]);
   }
 
   // A real Google map with a pin per grid point, the way the audit shows it.
@@ -233,8 +323,11 @@
     const findings = summary?.findings || [];
     if (!findings.length) return null;
     return h("section", { class: "card card-wide" }, [
-      h("div", { class: "card-head" }, [h("h3", { text: "What's costing you jobs" })]),
-      h("ol", { class: "findings-list" }, findings.map((f, i) => {
+      h("div", { class: "card-head" }, [
+        h("h3", { text: "What's costing you jobs" }),
+        h("span", { class: "card-hint", text: "Worst first" }),
+      ]),
+      h("ol", { class: "findings-list" }, findings.slice(0, 4).map((f, i) => {
         const severity = SEVERITY[f.severity] || SEVERITY.medium;
         return h("li", { class: `finding-card tone-${severity.tone}` }, [
           h("span", { class: "finding-num", "aria-hidden": "true", text: String(i + 1) }),
@@ -245,7 +338,7 @@
             ]),
             f.area ? h("p", { class: "finding-area", text: AREA_LABELS[f.area] || String(f.area).replace(/_/g, " ") }) : null,
             f.detail ? h("p", { text: f.detail }) : null,
-            f.fix ? h("p", { class: "finding-fix" }, [h("span", { text: "What fixes it: " }), f.fix]) : null,
+            f.fix ? h("p", { class: "finding-fix" }, [h("span", { text: "We handle it: " }), f.fix]) : null,
           ]),
         ]);
       })),
@@ -256,7 +349,10 @@
     const grades = (report?.grades || []).filter((g) => !/overall/i.test(g.name || "") && num(g.score) !== null);
     if (!grades.length) return null;
     return h("section", { class: "card card-wide" }, [
-      h("div", { class: "card-head" }, [h("h3", { text: "Your scores" })]),
+      h("div", { class: "card-head" }, [
+        h("h3", { text: "Your scorecard" }),
+        h("span", { class: "card-hint", text: "Higher is better" }),
+      ]),
       h("ul", { class: "grade-list" }, grades.map((g) =>
         h("li", { class: `grade tone-${g.level === "success" ? "good" : g.level === "warning" ? "warn" : "bad"}` }, [
           h("span", { class: "grade-name", text: GRADE_LABELS[g.name] || g.name }),
@@ -477,15 +573,17 @@
     body.replaceChildren(
       ...[
         renderHero(summary, report),
+        renderJourney(report),
         renderFindings(summary),
+        renderNumbers(report),
         report?.ranking ? renderRanking(report) : renderMapGate(),
+        renderGrades(report),
         h("div", { class: "card-grid" }, [
-          renderReviews(report),
           renderWebsite(report),
+          renderReviews(report),
           renderListings(report),
           renderStrengths(summary),
         ].filter(Boolean)),
-        renderGrades(report),
         renderNextStep(summary),
         h("p", { class: "report-restart" }, h("button", { class: "link", type: "button", id: "reportRestart", text: "Check a different business" })),
       ].filter(Boolean)
