@@ -50,6 +50,17 @@
     const overlay = $("questionsOverlay");
     if (overlay) overlay.hidden = true;
     document.body.classList.remove("is-locked");
+    document.removeEventListener("keydown", onKeyDown);
+  }
+
+  // Closing is not skipping: it drops them back to the landing page with no report.
+  function cancel() {
+    onDone = null;
+    close();
+  }
+
+  function onKeyDown(event) {
+    if (event.key === "Escape") cancel();
   }
 
   function finish() {
@@ -85,6 +96,7 @@
 
     card.replaceChildren(
       ...[
+      h("button", { class: "q-close", type: "button", "aria-label": "Close", text: "×" }),
       h("p", { class: "q-progress", text: progressLabel() }),
       index === 0
         ? h("p", { class: "q-intro", text: "Three quick taps and your report gets built around your answers." })
@@ -101,8 +113,14 @@
         });
         return button;
       })),
-      h("p", { class: "q-note", text: "Your answers get built into the report. Google can show us how you turn up in search, only you can tell us what happens to the calls it sends you." })
+      h("p", { class: "q-note", text: "Your answers get built into the report. Google can show us how you turn up in search, only you can tell us what happens to the calls it sends you." }),
+      index > 0 ? h("button", { class: "link q-back", type: "button", text: "Back" }) : null,
     ].filter(Boolean));
+    card.querySelector(".q-close")?.addEventListener("click", cancel);
+    card.querySelector(".q-back")?.addEventListener("click", () => {
+      index = Math.max(0, index - 1);
+      render();
+    });
     card.querySelector(".q-option")?.focus();
   }
 
@@ -119,6 +137,10 @@
     onDone = done || null;
     overlay.hidden = false;
     document.body.classList.add("is-locked");
+    document.addEventListener("keydown", onKeyDown);
+    overlay.onclick = (event) => {
+      if (event.target === overlay) cancel();
+    };
     render();
   }
 

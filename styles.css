@@ -16,6 +16,10 @@
 
 * { box-sizing: border-box; }
 
+/* The hidden attribute must always win. Without this, any rule that sets display (the
+   question popup, the report body, the scan grid) stays on screen while marked hidden. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--paper);
@@ -268,7 +272,6 @@ h1 {
 .scan-head { text-align: center; margin-bottom: 28px; }
 .scan-head h1 { font-size: clamp(1.7rem, 4.5vw, 2.6rem); }
 
-.scan-grid[hidden] { display: none !important; }
 .scan-grid {
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
@@ -882,3 +885,18 @@ h1 {
 .q-overlay .questions { margin: auto; width: 100%; max-width: 560px; }
 body.is-locked { overflow: hidden; }
 .q-intro { margin: 0 0 14px; font-size: 0.92rem; color: var(--ink-2); }
+.questions { position: relative; }
+.q-close {
+  position: absolute;
+  top: 10px; right: 12px;
+  width: 34px; height: 34px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 50%;
+  background: transparent;
+  font-size: 22px; line-height: 1;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.q-close:hover { background: var(--paper); color: var(--ink); }
+.q-close:focus-visible { outline: 3px solid var(--focus); outline-offset: 1px; }
+.q-back { display: block; margin: 14px auto 0; font-size: 0.85rem; }
