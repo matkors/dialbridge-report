@@ -43,6 +43,14 @@ browser key the page uses is locked to a referrer and is refused server-side wit
 contact, with `CONVERSATIONS_MSG_PHONE_MISMATCH`. Our contacts carry the business number
 from the Google listing, so every unlock code failed. The Phone Unlock workflow now writes
 the lead's name and number onto the contact before sending: into the standard `phone` field
-so the text can go at all, into `Lead Phone` so it is clear which number came from the
-person, and the listing's number into `Business Phone` so nothing is lost. Both custom
-fields are looked up by name at run time, because field ids change when a field is rebuilt.
+so the text can go at all, and into `Lead Phone` so it is clear which number came from the
+person. Custom fields are looked up by name at run time, because field ids change when a
+field is rebuilt.
+
+Once the code verifies, `Restore Main Phone` puts the listing's number back in the standard
+`phone` field, which is what the main number means on this record, and the lead's own number
+stays in `Lead Phone`. The restore happens after verification rather than straight after
+sending, because GHL may resolve the recipient from the contact when it dispatches the SMS
+and we would be racing it. A lead who asks for a code and then walks away leaves their
+mobile in the main field until they come back and finish; the data table holds both numbers
+either way.
