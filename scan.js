@@ -263,7 +263,7 @@
     if (!site) return { hasWebsite: false };
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 45000);
+    const timer = setTimeout(() => controller.abort(), 60000);
     try {
       // Both runs at once: a phone test and a computer test cost the same wall clock as one.
       const [data, desktop] = await Promise.all([

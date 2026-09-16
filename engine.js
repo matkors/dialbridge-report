@@ -200,7 +200,6 @@
     const { profile, ranking, website } = data;
     const out = [];
     const leader = (data.competitors || [])[0];
-    const jobValue = money(answers?.averageJobValue);
 
     if (ranking && ranking.gridPoints) {
       const missing = ranking.gridPoints - ranking.pointsInTop3;
@@ -223,13 +222,14 @@
       }
     }
 
-    if (leader && (profile.reviewCount || 0) < leader.reviewCount) {
-      const gap = leader.reviewCount - (profile.reviewCount || 0);
+    const myReviews = data.reviews?.googleReviewCount || 0;
+    if (leader && myReviews < leader.reviewCount) {
+      const gap = leader.reviewCount - myReviews;
       out.push({
         area: "reviews",
         severity: gap > 100 ? "high" : "medium",
         title: `${leader.name} has ${gap} more reviews than you`,
-        detail: `They sit on ${leader.reviewCount} Google reviews to your ${profile.reviewCount || 0}. Homeowners compare those two numbers before they call anyone.`,
+        detail: `They sit on ${leader.reviewCount} Google reviews to your ${myReviews}. Homeowners compare those two numbers before they call anyone.`,
         fix: "We ask every customer for a review automatically, by text, right after the job.",
       });
     }
@@ -302,7 +302,7 @@
 
     // What they told us about handling leads. These come first: a business can be perfect on
     // Google and still lose the call, and this is the part they can feel.
-    const money = leakMath(answers);
+    const leak = leakMath(answers);
     const AFTER_HOURS = {
       voicemail: "You told us those calls go to voicemail.",
       rings_out: "You told us those calls ring out with no voicemail at all.",
@@ -313,7 +313,7 @@
         area: "lead_follow_up",
         severity: "high",
         title: "The calls you already earned are going unanswered",
-        detail: `${AFTER_HOURS[answers.afterHours]} Homeowners with a problem today call the next company on the list instead of waiting.${money ? ` A job is worth about ${dollars(money.jobValue)} to you, so one of those a week is around ${dollars(money.oneAWeek)} a month.` : ""}`,
+        detail: `${AFTER_HOURS[answers.afterHours]} Homeowners with a problem today call the next company on the list instead of waiting.${leak ? ` A job is worth about ${dollars(leak.jobValue)} to you, so one of those a week is around ${dollars(leak.oneAWeek)} a month.` : ""}`,
         fix: "Every call gets answered or texted back in seconds, day or night, and the conversation keeps going until it's booked.",
       });
     }
@@ -328,13 +328,18 @@
         area: "lead_follow_up",
         severity: answers.quoteFollowUp === "call_once" ? "medium" : "high",
         title: "Quotes go quiet and stay quiet",
-        detail: `${FOLLOW_UP[answers.quoteFollowUp]} Most quotes are won by whoever follows up, not whoever quoted first or cheapest.${money ? ` At ${dollars(money.jobValue)} a job, recovering one a week is about ${dollars(money.oneAWeek)} a month.` : ""}`,
+        detail: `${FOLLOW_UP[answers.quoteFollowUp]} Most quotes are won by whoever follows up, not whoever quoted first or cheapest.${leak ? ` At ${dollars(leak.jobValue)} a job, recovering one a week is about ${dollars(leak.oneAWeek)} a month.` : ""}`,
         fix: "We follow up every quote for you by text and email until they answer one way or the other.",
       });
     }
 
     const order = { high: 0, medium: 1, low: 2 };
-    return out.sort((a, b) => order[a.severity] - order[b.severity]).slice(0, 5);
+    // Within a severity, what they told us about handling leads comes first. It is the
+    // leak they can feel, and the one a Google audit can never show them.
+    const areaRank = (area) => (area === "lead_follow_up" ? 0 : 1);
+    return out
+      .sort((a, b) => order[a.severity] - order[b.severity] || areaRank(a.area) - areaRank(b.area))
+      .slice(0, 5);
   }
 
   function strengthsFor(data) {
