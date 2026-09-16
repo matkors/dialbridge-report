@@ -8,6 +8,27 @@
   // for the day we want to merge the emailed audit's listings back into the page.
   const STATUS_URL = () => window.DIALBRIDGE_CONFIG?.N8N_REPORT_STATUS_URL || "";
   const EMAIL_URL = () => window.DIALBRIDGE_CONFIG?.N8N_REPORT_EMAIL_URL || "";
+  const TERMS_URL = "https://dialbridge.ai/terms";
+  const PRIVACY_URL = "https://dialbridge.ai/privacy";
+
+  // Consent has to sit at the point of collection, next to the button that gives it, and we
+  // store the exact wording somebody saw with their submission. A screenshot of today's
+  // page is no use in six months when the copy has changed.
+  const SMS_CONSENT =
+    "By tapping Text me the code you agree that DialBridge LLC may text and call you at this number about your report and our services, including by automated means. Consent is not a condition of any purchase. Message frequency varies, and message and data rates may apply. Reply STOP to opt out or HELP for help.";
+  const EMAIL_CONSENT =
+    "By tapping Email me the map you agree that DialBridge LLC may email you this report and follow up about it. You can unsubscribe from any email.";
+
+  function consentNodes(text) {
+    return [
+      text + " See our ",
+      h("a", { href: TERMS_URL, target: "_blank", rel: "noopener", text: "Terms" }),
+      " and ",
+      h("a", { href: PRIVACY_URL, target: "_blank", rel: "noopener", text: "Privacy Policy" }),
+      ".",
+    ];
+  }
+
   const UNLOCK_SEND_URL = () => window.DIALBRIDGE_CONFIG?.N8N_UNLOCK_SEND_URL || "";
   const UNLOCK_VERIFY_URL = () => window.DIALBRIDGE_CONFIG?.N8N_UNLOCK_VERIFY_URL || "";
   const STATIC_MAP_URL = "https://maps.googleapis.com/maps/api/staticmap";
@@ -602,6 +623,7 @@
             submissionId: window.reportSubmissionId,
             email,
             answers: window.leadAnswers || {},
+            consent: EMAIL_CONSENT,
             company_fax: document.getElementById("companyFax")?.value || "",
           }),
         });
@@ -629,7 +651,7 @@
         h("p", { text: "We check your position from nine points around your service area and map it, so you can see the streets where customers never see you. It comes with your full report, including every directory that has your business listed wrong." }),
         form,
         note,
-        h("p", { class: "gate-fine", text: "One email with your report. No spam." }),
+        h("p", { class: "gate-fine" }, consentNodes(EMAIL_CONSENT)),
       ]),
     ]);
   }
@@ -663,13 +685,13 @@
         eyebrow: "The rest of your report",
         heading: "Where the jobs are going, and what fixes it",
         lead: "The full report names every gap we found, what each one is costing you, and the order I would fix them in. Tell me who you are and I will text you a code to open it.",
-        fine: "One text with a code. No calls unless you ask for one.",
+        fine: () => consentNodes(SMS_CONSENT),
       },
       code: {
         eyebrow: "Step 2 of 2",
         heading: "Check your phone",
         lead: "",
-        fine: "The code lasts ten minutes.",
+        fine: () => ["The code lasts ten minutes."],
       },
     };
 
@@ -690,7 +712,7 @@
       heading.textContent = stage.heading;
       lead.textContent = leadText || stage.lead;
       lead.hidden = !lead.textContent;
-      fine.textContent = stage.fine;
+      fine.replaceChildren(...stage.fine());
     }
 
     function say(text, tone) {
@@ -714,6 +736,7 @@
           submissionId: window.reportSubmissionId,
           name,
           phone,
+          consent: SMS_CONSENT,
           company_fax: document.getElementById("companyFax")?.value || "",
         }),
       });
