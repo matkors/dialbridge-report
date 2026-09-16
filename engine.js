@@ -162,6 +162,33 @@
     return clamp(score);
   }
 
+
+  // Everything above measures getting found. This measures what happens to a lead once it
+  // arrives, which is the half no audit tool can see and the half we actually sell.
+  function leadResponseScore(answers) {
+    if (!answers || (!answers.afterHours && !answers.quoteFollowUp)) return null;
+    const leak = (v) => (typeof v === "number" ? v : 0);
+    const worst = 6; // both questions at their worst
+    const total = leak(answers.afterHoursLeak) + leak(answers.quoteFollowUpLeak);
+    return clamp(100 - (total / worst) * 100);
+  }
+
+  // Their own job value, low end of the bracket, so the number is defensible.
+  function leakMath(answers) {
+    const low = Number(answers?.jobValueLow);
+    if (!Number.isFinite(low) || low <= 0) return null;
+    const missing = leakLevel(answers.afterHours) || leakLevel(answers.quoteFollowUp);
+    if (!missing) return null;
+    const perMonth = low * 4; // one lost job a week, deliberately conservative
+    return { jobValue: low, oneAWeek: perMonth };
+  }
+
+  function leakLevel(value) {
+    return ["voicemail", "rings_out", "callback_later", "nothing", "when_remember", "call_once"].includes(value);
+  }
+
+  const dollars = (n) => "$" + Math.round(n).toLocaleString("en-US");
+
   // ============ FINDINGS ============
 
   const money = (value) => {
@@ -273,24 +300,36 @@
       });
     }
 
-    if (answers?.afterHoursHandling && /voicemail|nobody|no one|miss/i.test(answers.afterHoursHandling)) {
+    // What they told us about handling leads. These come first: a business can be perfect on
+    // Google and still lose the call, and this is the part they can feel.
+    const money = leakMath(answers);
+    const AFTER_HOURS = {
+      voicemail: "You told us those calls go to voicemail.",
+      rings_out: "You told us those calls ring out with no voicemail at all.",
+      callback_later: "You told us you call them back later, usually the next day.",
+    };
+    if (AFTER_HOURS[answers?.afterHours]) {
       out.push({
         area: "lead_follow_up",
         severity: "high",
-        title: "After-hours calls go to voicemail",
-        detail: jobValue
-          ? `You told us calls after hours go to voicemail. At about $${jobValue.toLocaleString()} a job, a few missed calls a week is real money walking away.`
-          : "You told us calls after hours go to voicemail. Most homeowners with an urgent job call the next company instead of leaving a message.",
-        fix: "Every missed call gets an instant text back, and the conversation keeps going until it's booked.",
+        title: "The calls you already earned are going unanswered",
+        detail: `${AFTER_HOURS[answers.afterHours]} Homeowners with a problem today call the next company on the list instead of waiting.${money ? ` A job is worth about ${dollars(money.jobValue)} to you, so one of those a week is around ${dollars(money.oneAWeek)} a month.` : ""}`,
+        fix: "Every call gets answered or texted back in seconds, day or night, and the conversation keeps going until it's booked.",
       });
     }
-    if (answers?.quoteFollowUp && /nothing|never|rarely|manual|myself/i.test(answers.quoteFollowUp)) {
+
+    const FOLLOW_UP = {
+      nothing: "You told us nothing happens after a quote goes out.",
+      when_remember: "You told us you follow up when you remember.",
+      call_once: "You told us you call or text once.",
+    };
+    if (FOLLOW_UP[answers?.quoteFollowUp]) {
       out.push({
         area: "lead_follow_up",
-        severity: "high",
-        title: "Quotes go out and nothing follows them",
-        detail: "Most quotes that never get a follow-up are lost to whoever called the homeowner back first.",
-        fix: "We follow up every quote for you by text and email until they answer.",
+        severity: answers.quoteFollowUp === "call_once" ? "medium" : "high",
+        title: "Quotes go quiet and stay quiet",
+        detail: `${FOLLOW_UP[answers.quoteFollowUp]} Most quotes are won by whoever follows up, not whoever quoted first or cheapest.${money ? ` At ${dollars(money.jobValue)} a job, recovering one a week is about ${dollars(money.oneAWeek)} a month.` : ""}`,
+        fix: "We follow up every quote for you by text and email until they answer one way or the other.",
       });
     }
 
@@ -316,9 +355,13 @@
     return out.slice(0, 3);
   }
 
-  function headlineFor(findings, profile) {
+  function headlineFor(findings, profile, scores = {}) {
     const first = findings[0];
     if (!first) return `${profile.name} is in good shape online`;
+    // The most valuable thing we can tell a strong business: the problem is not being found.
+    if (scores.found !== null && scores.found >= 70 && scores.response !== null && scores.response <= 50) {
+      return "You're easy to find and hard to reach";
+    }
     const byArea = {
       map_ranking: "Homeowners nearby are seeing your competitors first",
       reviews: "Your competitors' review counts are winning the click",
@@ -338,6 +381,7 @@
       "Reviews and reputation": reviewScore(profile, competitors),
       "Website": websiteScore(website),
       "Google profile": profileScore(profile),
+      "Catching the lead": leadResponseScore(answers),
     };
     const weights = { "Google Maps ranking": 0.35, "Reviews and reputation": 0.35, Website: 0.3, "Google profile": 0.3 };
     let total = 0;
@@ -346,16 +390,25 @@
     for (const [name, score] of Object.entries(scores)) {
       if (score === null) continue;
       grades.push({ name, score, level: score >= 80 ? "success" : score >= 50 ? "warning" : "error" });
-      total += score * weights[name];
-      used += weights[name];
+      if (weights[name]) {
+        total += score * weights[name];
+        used += weights[name];
+      }
     }
-    const overallScore = used ? clamp(total / used) : null;
+    // Two separate numbers on purpose. A business can be excellent at getting found and
+    // still lose the call, and one blended score hides exactly the gap we are selling.
+    const foundScore = used ? clamp(total / used) : null;
+    const responseScore = scores["Catching the lead"];
+    const overallScore = foundScore;
 
     const data = {
       submissionId,
       source: "dialbridge",
       generatedAt: new Date().toISOString(),
       overallScore,
+      foundScore,
+      responseScore,
+      leak: leakMath(answers),
       grades,
       profile: {
         name: profile.name,
@@ -389,7 +442,7 @@
 
     const findings = findingsFor(data, answers);
     const summary = {
-      headline: headlineFor(findings, profile),
+      headline: headlineFor(findings, profile, { found: foundScore, response: responseScore }),
       summary: summaryLine(data, findings),
       findings,
       strengths: strengthsFor(data),
@@ -402,6 +455,9 @@
 
   function summaryLine(data, findings) {
     const parts = [];
+    if (data.responseScore !== null && data.responseScore <= 50 && data.foundScore !== null && data.foundScore >= 70) {
+      parts.push("The hard part is already done: customers can find you. What you told us about answering calls and following up is where the jobs are going.");
+    }
     const r = data.ranking;
     if (r && r.gridPoints) {
       parts.push(

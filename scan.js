@@ -9,9 +9,12 @@
   const PSI_URL = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed";
   const STATIC_MAP_URL = "https://maps.googleapis.com/maps/api/staticmap";
   const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const MIN_STEP_MS = REDUCED_MOTION ? 1200 : 3200; // each step stays up at least this long
-  const DATA_CAP_MS = 18000; // never let one slow API hold a step longer than this
-  const WEBSITE_CAP_MS = 30000; // phone speed tests are slower
+  // Every lookup starts at once, so these are about pacing what the lead sees, not waiting
+  // on data. Each step holds long enough to actually read, and no step stalls on a slow API.
+  const MIN_STEP_MS = REDUCED_MOTION ? 1200 : 3800; // each step stays up at least this long
+  const DATA_CAP_MS = 9000; // never let one slow API hold a step longer than this
+  const WEBSITE_CAP_MS = 11000; // the speed test keeps running in the background if it is slower
+  const WEBSITE_FINAL_CAP_MS = 30000; // but the report waits for it before it is built
 
   const STEPS = [
     { key: "profile", label: (name) => `Finding ${name} on Google` },
@@ -547,6 +550,7 @@
     $("scan").hidden = false;
     $("scanTitle").textContent = `Scanning ${business.name}`;
     resetSteps(business.name);
+    window.DialBridgeQuestions?.start();
     $("scanLive").replaceChildren(waiting("Connecting to Google..."));
     window.scrollTo({ top: 0, behavior: REDUCED_MOTION ? "auto" : "smooth" });
 
@@ -606,7 +610,7 @@
         } else if (step.key === "photos") {
           showLive("Photos homeowners see first", renderPhotos(results.profile));
         } else if (step.key === "website") {
-          if (results.profile.website) showLive("Loading your site on a phone", waiting("Running a real phone speed test..."));
+          if (results.profile.website) showLive("Loading your site on a phone", waiting("Running a real speed test on a phone and a computer..."));
           results.website = await withCap(websiteReady, WEBSITE_CAP_MS, results.website);
           showLive("How your website does on a phone", renderWebsite(results.website));
         } else if (step.key === "reach") {
@@ -630,10 +634,16 @@
     // Build the report right here from what we already pulled from Google. No waiting on
     // anyone: the deeper audit and the ranking map go out by email instead.
     try {
+      // If the speed test was still running when its step ended, wait for it here.
+      if (results.profile.website && !results.website.checked) {
+        results.website = await withCap(websiteReady, WEBSITE_FINAL_CAP_MS, results.website);
+        window.scanResult.website = results.website;
+      }
       const built = window.DialBridgeEngine?.buildReport({
         profile: results.profile,
         competitors: results.competitors,
         website: results.website,
+        answers: window.leadAnswers || {},
         submissionId: window.reportSubmissionId || null,
       });
       if (built) window.DialBridgeReport?.showLocal(built);
@@ -645,6 +655,7 @@
   function reset() {
     if (running) return;
     window.DialBridgeReport?.reset();
+    window.DialBridgeQuestions?.reset();
     $("scan").hidden = true;
     document.querySelector("main.hero").hidden = false;
     document.getElementById("clearBtn")?.click();

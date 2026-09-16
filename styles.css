@@ -802,3 +802,66 @@ h1 {
 .gate-note.is-bad { color: var(--bad); }
 .gate-fine { margin: 10px 0 0 !important; font-size: 0.78rem !important; color: var(--ink-3) !important; }
 .web-rings { display: flex; flex-wrap: wrap; gap: 12px; }
+
+/* three questions, asked while the scan runs */
+.questions {
+  max-width: 620px;
+  margin: 22px auto 0;
+  padding: 26px 28px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-top: 4px solid var(--accent);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  animation: scan-fade 0.4s ease both;
+}
+.q-progress {
+  margin: 0 0 8px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent-ink);
+}
+.q-title { margin: 0 0 18px; font-size: clamp(1.1rem, 2.6vw, 1.35rem); letter-spacing: -0.02em; text-wrap: balance; }
+.q-options { display: grid; gap: 10px; }
+.q-option {
+  width: 100%;
+  padding: 15px 18px;
+  text-align: left;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 11px;
+  font: inherit;
+  font-size: 0.97rem;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, transform 0.08s;
+}
+.q-option:hover { border-color: var(--accent); background: var(--surface); }
+.q-option:active { transform: translateY(1px); }
+.q-option:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.q-note { margin: 16px 0 0; font-size: 0.82rem; color: var(--ink-3); }
+
+/* two scores side by side: getting found, and catching the lead */
+.hero-rings { display: flex; flex-wrap: wrap; gap: 20px; }
+.hero-ring { display: grid; justify-items: center; gap: 8px; }
+.hero-ring-label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-3);
+}
+.hero-leak {
+  margin: 18px 0 0;
+  padding: 14px 16px;
+  background: var(--bad-soft);
+  border-radius: 11px;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.hero-leak strong { color: var(--bad); }

@@ -136,9 +136,21 @@
 
   function renderHero(summary, report) {
     const p = report?.profile || {};
+    const response = num(report?.responseScore);
     return h("header", { class: "report-hero" }, [
       h("div", { class: "report-hero-top" }, [
-        scoreRing(report?.overallScore, "out of 100"),
+        h("div", { class: "hero-rings" }, [
+          h("div", { class: "hero-ring" }, [
+            scoreRing(report?.foundScore ?? report?.overallScore, "out of 100"),
+            h("p", { class: "hero-ring-label", text: "Getting found" }),
+          ]),
+          response !== null
+            ? h("div", { class: "hero-ring" }, [
+                scoreRing(response, "out of 100"),
+                h("p", { class: "hero-ring-label", text: "Catching the lead" }),
+              ])
+            : null,
+        ].filter(Boolean)),
         h("div", { class: "report-hero-text" }, [
           h("p", { class: "eyebrow", text: [p.name, p.category].filter(Boolean).join(" · ") }),
           h("h2", { text: summary?.headline || "Here's where you're losing jobs online" }),
@@ -146,7 +158,13 @@
         ]),
       ]),
       statChips(report),
-    ]);
+      report?.leak
+        ? h("p", { class: "hero-leak" }, [
+            h("strong", { text: `About $${Number(report.leak.oneAWeek).toLocaleString("en-US")} a month` }),
+            ` if just one of those lost calls or quotes a week hires someone else instead, at the $${Number(report.leak.jobValue).toLocaleString("en-US")} a job you told us about.`,
+          ])
+        : null,
+    ].filter(Boolean));
   }
 
   // A real Google map with a pin per grid point, the way the audit shows it.
@@ -408,6 +426,7 @@
           body: JSON.stringify({
             submissionId: window.reportSubmissionId,
             email,
+            answers: window.leadAnswers || {},
             company_fax: document.getElementById("companyFax")?.value || "",
           }),
         });

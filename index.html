@@ -102,6 +102,10 @@
       </div>
     </div>
 
+    <!-- Asked while the scan runs. These answers are the only way to price what happens
+         to a lead after it arrives, and they change what the report says. -->
+    <section id="questions" class="questions" hidden aria-live="polite"></section>
+
     <p id="scanAnnounce" class="visually-hidden" aria-live="polite"></p>
 
     <section id="scanDone" class="scan-done" hidden>
@@ -124,6 +128,7 @@
   <script src="config.js"></script>
   <script src="engine.js"></script>
   <script src="scan.js"></script>
+  <script src="questions.js"></script>
   <script src="report.js"></script>
   <script src="app.js"></script>
 </body>
