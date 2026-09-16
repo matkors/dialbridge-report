@@ -191,11 +191,11 @@
       },
       {
         label: "They check you out",
-        ok: web.found === false ? false : num(web.mobileScore) === null ? null : web.mobileScore >= 50,
+        ok: web.found === false ? false : num(web.mobileScore) === null ? null : web.mobileScore >= 70,
         detail: web.found === false
           ? "No website to send them to"
           : num(web.mobileScore) !== null
-            ? `Your site loads in ${web.mobileLoadTime || "a few seconds"} on a phone`
+            ? `Your site takes ${web.mobileLoadTime || "a few seconds"} to show up on a phone`
             : "Your website",
       },
       {
