@@ -556,6 +556,75 @@
     ]);
   }
 
+
+  // The ranking map is the reason to hand over an email, so it is never built or shown here.
+  // We describe it, take the email, and n8n emails the full report with the map in it.
+  function renderMapGate() {
+    const form = h("form", { class: "gate-form", novalidate: "" }, [
+      h("label", { class: "visually-hidden", for: "gateEmail", text: "Email address" }),
+      h("input", { id: "gateEmail", type: "email", name: "email", placeholder: "you@yourcompany.com", autocomplete: "email", required: "" }),
+      h("button", { class: "cta", type: "submit", text: "Email me the map" }),
+    ]);
+    const note = h("p", { class: "gate-note", role: "status", "aria-live": "polite" });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const input = form.querySelector("#gateEmail");
+      const email = input.value.trim();
+      const button = form.querySelector("button");
+      if (!/^[^@\s]+@[^@\s.]+\.[a-z]{2,}$/i.test(email)) {
+        note.textContent = "That email doesn't look right.";
+        note.className = "gate-note is-bad";
+        input.focus();
+        return;
+      }
+      if (!EMAIL_URL() || !window.reportSubmissionId) {
+        note.textContent = "We can't send it right now. Try again in a minute.";
+        note.className = "gate-note is-bad";
+        return;
+      }
+      button.disabled = true;
+      button.textContent = "Sending...";
+      try {
+        const res = await fetch(EMAIL_URL(), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            submissionId: window.reportSubmissionId,
+            email,
+            answers: window.leadAnswers || {},
+            company_fax: document.getElementById("companyFax")?.value || "",
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || `Request failed (${res.status})`);
+        form.replaceChildren();
+        note.textContent = `On its way to ${email}. Check your inbox in a few minutes for the map and the rest of your report.`;
+        note.className = "gate-note is-good";
+      } catch (err) {
+        console.warn("Email request failed", err);
+        note.textContent = "That didn't go through. Try again.";
+        note.className = "gate-note is-bad";
+        button.disabled = false;
+        button.textContent = "Email me the map";
+      }
+    });
+
+    return h("section", { class: "card card-wide card-gate" }, [
+      h("div", { class: "gate-visual", "aria-hidden": "true" }, [
+        h("div", { class: "gate-grid" }, Array.from({ length: 9 }, () => h("span", { class: "gate-cell" }))),
+        h("span", { class: "gate-lock", text: "Locked" }),
+      ]),
+      h("div", { class: "gate-copy" }, [
+        h("h3", { text: "Where you rank on Google Maps, block by block" }),
+        h("p", { text: "We check your position from nine points around your service area and map it, so you can see the streets where customers never see you. It comes with your full report, including every directory that has your business listed wrong." }),
+        form,
+        note,
+        h("p", { class: "gate-fine", text: "One email with your report. No spam." }),
+      ]),
+    ]);
+  }
+
   // ============ RENDER ============
 
   function render(payload) {
