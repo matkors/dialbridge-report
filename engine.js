@@ -177,17 +177,21 @@
   // on their profile. Their data, not our guess. Needs at least two dated reviews.
   function jobsPerMonth(profile) {
     const REVIEWS_PER_JOB = 10; // roughly one customer in ten leaves a review
+    // A business with a handful of reviews gives us no usable pace. Three reviews that
+    // happen to land in one week would imply hundreds of jobs a month, which is nonsense,
+    // so we would rather say nothing than put a made-up number in front of an owner.
+    if ((profile?.reviewCount || 0) < 10) return null;
     const dates = (profile?.reviews || [])
       .map((r) => Date.parse(r.publishedAt))
       .filter(Number.isFinite)
       .sort((a, b) => b - a);
-    if (dates.length < 2) return null;
+    if (dates.length < 3) return null;
     const spanDays = (dates[0] - dates[dates.length - 1]) / 86400000;
-    if (spanDays < 7) return null; // too short a window to mean anything
+    if (spanDays < 30) return null; // less than a month of history proves nothing
     const reviewsPerMonth = ((dates.length - 1) / spanDays) * 30;
     const jobs = Math.round(reviewsPerMonth * REVIEWS_PER_JOB);
     if (!Number.isFinite(jobs) || jobs < 1) return null;
-    return Math.min(jobs, 400); // a sanity ceiling on a small sample
+    return Math.min(jobs, 400);
   }
 
   // What share of those jobs their own answers put at risk. Every rate is stated on the
@@ -250,7 +254,7 @@
     }
 
     const myReviews = data.reviews?.googleReviewCount || 0;
-    if (leader && myReviews < leader.reviewCount) {
+    if (leader && myReviews >= 10 && myReviews < leader.reviewCount) {
       const gap = leader.reviewCount - myReviews;
       out.push({
         area: "reviews",
@@ -261,12 +265,23 @@
       });
     }
 
+    if (myReviews < 10) {
+      out.push({
+        area: "foundation",
+        rank: 2,
+        severity: "high",
+        title: myReviews ? `Only ${myReviews} reviews on Google` : "No reviews on Google yet",
+        detail: `Reviews are the single biggest thing deciding where you show up on the map and who gets called. ${leader ? `${leader.name} is sitting on ${leader.reviewCount}.` : "Established competitors in your area have hundreds."} You cannot out-rank that until the count moves.`,
+        fix: "We ask every customer for a review automatically, by text, right after the job.",
+      });
+    }
     if (!website.found) {
       out.push({
-        area: "website",
+        area: "foundation",
+        rank: 1,
         severity: "high",
-        title: "No website on your Google profile",
-        detail: "Homeowners who can't find a website usually call the next company on the list, even when your reviews are better.",
+        title: "You don't have a website for people to land on",
+        detail: "Your Google listing has nowhere to send anyone. Homeowners who can't find a website almost always call the next company on the list, and Google leans on a real site to decide who to show at all.",
         fix: "We build and host the site, and it is yours to keep.",
       });
     } else {
@@ -430,9 +445,15 @@
     const order = { high: 0, medium: 1, low: 2 };
     // Within a severity, what they told us about handling leads comes first. It is the
     // leak they can feel, and the one a Google audit can never show them.
-    const areaRank = (area) => (area === "lead_follow_up" ? 0 : 1);
+    // Foundation first, then the leads they already get, then everything else. A business
+    // with no website and four reviews has nothing to leak yet.
+    const AREA_ORDER = { foundation: 0, lead_follow_up: 1, map_ranking: 2, reviews: 3, website: 4, google_profile: 5, listings: 6 };
+    const areaRank = (area) => (area in AREA_ORDER ? AREA_ORDER[area] : 9);
     return out
-      .sort((a, b) => order[a.severity] - order[b.severity] || areaRank(a.area) - areaRank(b.area))
+      .sort((a, b) =>
+        order[a.severity] - order[b.severity]
+        || areaRank(a.area) - areaRank(b.area)
+        || (a.rank || 9) - (b.rank || 9))
       .slice(0, 5);
   }
 
@@ -458,10 +479,13 @@
     const first = findings[0];
     if (!first) return `${profile.name} is in good shape online`;
     // The most valuable thing we can tell a strong business: the problem is not being found.
-    if (scores.found !== null && scores.found >= 70 && scores.response !== null && scores.response <= 50) {
+    // Only claim the easy-to-find gap when they genuinely are easy to find.
+    if (first.area !== "foundation" && scores.found !== null && scores.found >= 70
+      && scores.response !== null && scores.response <= 50) {
       return "You're easy to find and hard to reach";
     }
     const byArea = {
+      foundation: "You're missing the pieces that bring the calls in",
       map_ranking: "Homeowners nearby are seeing your competitors first",
       reviews: "Your competitors' review counts are winning the click",
       website: "Your website is costing you the calls you already earned",
@@ -567,7 +591,14 @@
 
   function summaryLine(data, findings) {
     const parts = [];
-    if (data.responseScore !== null && data.responseScore <= 50 && data.foundScore !== null && data.foundScore >= 70) {
+    const foundation = findings.find((f) => f.area === "foundation");
+    if (foundation) {
+      parts.push(
+        data.website?.found === false
+          ? "Before anything else: there is no website for your Google listing to send people to. Everything else we could fix matters less than that."
+          : "The groundwork is not in place yet, so the rest of this list cannot do much until it is."
+      );
+    } else if (data.responseScore !== null && data.responseScore <= 50 && data.foundScore !== null && data.foundScore >= 70) {
       parts.push("The hard part is already done: customers can find you. What you told us about answering calls and following up is where the jobs are going.");
     }
     const r = data.ranking;
@@ -578,7 +609,7 @@
           : `You don't crack the top 3 on Google Maps anywhere we checked around you.`
       );
     }
-    if (num(data.reviews.googleRating) !== null) {
+    if (num(data.reviews.googleRating) !== null && (data.reviews.googleReviewCount || 0) >= 10) {
       parts.push(`Your ${data.reviews.googleRating} star rating from ${data.reviews.googleReviewCount} reviews is doing its job.`);
     }
     const high = findings.filter((f) => f.severity === "high").length;

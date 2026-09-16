@@ -28,6 +28,7 @@
     listings: "Business listings",
     business_details: "Business details",
     lead_follow_up: "Lead follow-up",
+    foundation: "The basics",
   };
 
   const SEVERITY = {
@@ -154,7 +155,6 @@
             : null,
         ].filter(Boolean)),
         h("div", { class: "report-hero-text" }, [
-          h("p", { class: "eyebrow", text: [p.name, p.category].filter(Boolean).join(" · ") }),
           h("h2", { text: summary?.headline || "Here's where you're losing jobs online" }),
           summary?.summary ? h("p", { class: "lead", text: summary.summary }) : null,
         ]),
@@ -238,6 +238,12 @@
     const response = num(report?.responseScore);
 
     const steps = [
+      has("foundation") && report?.website?.found === false
+        ? { n: "1", title: "A website that actually brings in work", body: "Built and hosted for you, fast on a phone, with your number one tap away. This is the piece everything else hangs off." }
+        : null,
+      has("foundation") && (report?.reviews?.googleReviewCount || 0) < 10
+        ? { n: "2", title: "Get your review count moving", body: "Every customer gets asked by text right after the job. This is what moves you up the map, and it compounds every month." }
+        : null,
       has("lead_follow_up") || (response !== null && response < 80)
         ? { n: "1", title: "Catch every call, day or night", body: "A missed call gets a text back in seconds, and the conversation keeps going until the job is booked. Nothing sits waiting for you to climb off a roof." }
         : null,
@@ -252,7 +258,8 @@
         : null,
     ].filter(Boolean);
 
-    const shown = steps.length ? steps : [
+    const numbered = steps.map((step, i) => ({ ...step, n: String(i + 1) }));
+    const shown = numbered.length ? numbered : [
       { n: "1", title: "Catch every call, day or night", body: "A missed call gets a text back in seconds, and the conversation keeps going until the job is booked." },
       { n: "2", title: "Turn finished jobs into reviews", body: "Every customer gets asked by text right after the work is done." },
     ];
