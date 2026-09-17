@@ -15,12 +15,12 @@
   const QUESTIONS = [
     {
       key: "leadResponse",
-      question: "When someone reaches out about a job, what actually happens?",
+      question: "When someone calls or messages about a job, how fast do they hear back?",
       options: [
-        { value: "within_hour", label: "Every inquiry gets a response within the hour", leak: 0 },
+        { value: "within_hour", label: "Within the hour, every time", leak: 0 },
         { value: "same_day", label: "Same day, usually", leak: 1 },
         { value: "when_slammed", label: "Depends how slammed we are", leak: 2 },
-        { value: "fall_through", label: "Some fall through and we don't always catch it", leak: 3 },
+        { value: "fall_through", label: "Some never hear back at all", leak: 3 },
       ],
     },
     {
@@ -128,7 +128,7 @@
         });
         return button;
       })),
-      h("p", { class: "q-note", text: "Your answers get built into the report. Google can show us how you turn up in search, only you can tell us what happens to the calls it sends you." }),
+      h("p", { class: "q-note", text: "Your answers get built into the report. Google can show us how you turn up in search. Only you can tell us what happens after someone reaches out." }),
       index > 0 ? h("button", { class: "link q-back", type: "button", text: "Back" }) : null,
     ].filter(Boolean));
     card.querySelector(".q-close")?.addEventListener("click", cancel);

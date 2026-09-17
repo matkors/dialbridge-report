@@ -7,17 +7,20 @@
   // The page builds its own report now. The status endpoint stays in n8n, switched off,
   // for the day we want to merge the emailed audit's listings back into the page.
   const STATUS_URL = () => window.DIALBRIDGE_CONFIG?.N8N_REPORT_STATUS_URL || "";
-  const EMAIL_URL = () => window.DIALBRIDGE_CONFIG?.N8N_REPORT_EMAIL_URL || "";
+  // Where the Growth Blueprint request goes. Same n8n endpoint the old map email used; the
+  // workflow behind it stores the address and will send the hosted PDF once it exists.
+  const PLAN_URL = () => window.DIALBRIDGE_CONFIG?.N8N_REPORT_EMAIL_URL || "";
   const TERMS_URL = "https://dialbridge.ai/terms";
   const PRIVACY_URL = "https://dialbridge.ai/privacy";
 
   // Consent has to sit at the point of collection, next to the button that gives it, and we
   // store the exact wording somebody saw with their submission. A screenshot of today's
   // page is no use in six months when the copy has changed.
+  const EMAIL_CONSENT =
+    "By tapping Send me the plan you agree that DialBridge LLC may email you your Growth Blueprint and occasional advice for local contractors. Unsubscribe any time from the footer of any email.";
+
   const SMS_CONSENT =
     "By tapping Text me the code you agree that DialBridge LLC may text and call you at this number about your report and our services, including by automated means. Consent is not a condition of any purchase. Message frequency varies, and message and data rates may apply. Reply STOP to opt out or HELP for help.";
-  const EMAIL_CONSENT =
-    "By tapping Email me the map you agree that DialBridge LLC may email you this report and follow up about it. You can unsubscribe from any email.";
 
   function consentNodes(text) {
     return [
@@ -29,9 +32,46 @@
     ];
   }
 
+  // What goes to n8n when the code checks out. Kept in one place so there is a single
+  // answer to "what do we actually know about this person".
+  function leadPayload() {
+    const report = lastPayload?.report;
+    const summary = lastPayload?.summary;
+    if (!report) return null;
+    const scan = window.scanResult || {};
+    return {
+      // For the LLM gate: is this a contractor or home service business at all? Ad traffic
+      // brings in plenty of people who are neither, and those must not go back to Meta.
+      classify: {
+        name: report.profile?.name || "",
+        googleCategory: report.profile?.category || "",
+        googlePrimaryType: scan.profile?.primaryType || "",
+        detectedTrades: scan.trades || [],
+        website: report.website?.url || "",
+        description: scan.profile?.summary || "",
+        address: report.profile?.address || "",
+      },
+      score: window.DialBridgeEngine?.leadScore(report) || null,
+      report: {
+        foundScore: report.foundScore,
+        catchingScore: report.responseScore,
+        subScores: report.subScores || null,
+        signals: report.signals || null,
+        reviewCount: report.reviews?.googleReviewCount ?? null,
+        reviewRating: report.reviews?.googleRating ?? null,
+        mapKeyword: report.ranking?.keyword || "",
+        mapPointsInTop3: report.ranking?.pointsInTop3 ?? null,
+        mapPoints: report.ranking?.ranks?.length ?? null,
+        monthlyLoss: report.leak?.perMonth ?? null,
+        redCount: summary?.redCount ?? null,
+        goldCount: summary?.goldCount ?? null,
+      },
+      answers: window.leadAnswers || {},
+    };
+  }
+
   const UNLOCK_SEND_URL = () => window.DIALBRIDGE_CONFIG?.N8N_UNLOCK_SEND_URL || "";
   const UNLOCK_VERIFY_URL = () => window.DIALBRIDGE_CONFIG?.N8N_UNLOCK_VERIFY_URL || "";
-  const STATIC_MAP_URL = "https://maps.googleapis.com/maps/api/staticmap";
   const POLL_MS = 4000;
   const MAX_MS = 12 * 60 * 1000; // audits with a slow review scan can take several minutes
 
@@ -40,6 +80,14 @@
   const img = (...args) => window.DialBridgeScan.img(...args);
   const apiKey = () => window.DIALBRIDGE_CONFIG?.GOOGLE_MAPS_API_KEY || "";
   const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Set while the unlock dialog is up. Leaving the report has to be able to take it down,
+  // otherwise "start over" lands them back on the landing page with a modal over it.
+  let gateClose = null;
+
+  // The payload the report was last drawn from. Re-measuring the map on another keyword
+  // mutates it in place and has to be able to save the result for a refresh.
+  let lastPayload = null;
 
   let polling = false;
 
@@ -54,11 +102,6 @@
     foundation: "The basics",
   };
 
-  const SEVERITY = {
-    high: { tone: "bad", label: "Costing you jobs" },
-    medium: { tone: "warn", label: "Slowing you down" },
-    low: { tone: "good", label: "Worth a look" },
-  };
 
   // The audit ships jargon category names; say them the way a contractor would.
   const GRADE_LABELS = {
@@ -71,11 +114,6 @@
     "Google Business Profile": "Google profile",
   };
 
-  // Pin colours match the legend: top 3, pushed down, nowhere to be found.
-  const PIN_GOOD = "0x1f7a4d";
-  const PIN_WARN = "0xe8702a";
-  const PIN_BAD = "0xa33a22";
-
   function setStatus(text, tone = "") {
     const el = $("reportStatus");
     if (!el) return;
@@ -85,6 +123,9 @@
   }
 
   const dollars = (n) => "$" + Number(n).toLocaleString("en-US");
+
+  // "1 reviews" is the kind of thing that makes an owner stop trusting the rest of the page.
+  const reviewWord = (n) => `${n} review${Number(n) === 1 ? "" : "s"}`;
 
   function num(value) {
     return typeof value === "number" && Number.isFinite(value) ? value : null;
@@ -132,36 +173,10 @@
 
   // ============ SECTIONS ============
 
-  function statChips(report) {
-    const rv = report?.reviews || {};
-    const rk = report?.ranking || {};
-    const ls = report?.listings || {};
-    const web = report?.website || {};
-    const chips = [
-      num(rv.googleRating) !== null
-        ? { tone: rv.googleRating >= 4.5 ? "good" : "warn", value: `${rv.googleRating}★`, label: `${rv.googleReviewCount ?? 0} Google reviews` }
-        : null,
-      Array.isArray(rk.ranks) && rk.ranks.length
-        ? { tone: rk.pointsInTop3 >= rk.ranks.length / 2 ? "good" : "bad", value: `${rk.pointsInTop3}/${rk.ranks.length}`, label: "spots in the top 3" }
-        : null,
-      num(ls.checked)
-        ? { tone: ls.missing > ls.found ? "bad" : "good", value: `${ls.found}/${ls.checked}`, label: "directories list you" }
-        : null,
-      num(web.mobileScore) !== null
-        ? { tone: web.mobileScore >= 50 ? "good" : "bad", value: String(web.mobileScore), label: "phone speed score" }
-        : null,
-    ].filter(Boolean);
-    if (!chips.length) return null;
-    return h("ul", { class: "stat-row" }, chips.map((c) =>
-      h("li", { class: `stat tone-${c.tone}` }, [
-        h("strong", { text: c.value }),
-        h("span", { text: c.label }),
-      ])
-    ));
-  }
-
+  // Everything anybody gets for nothing: the two scores, and the one line that names which
+  // of them is the problem. What those scores are made of, what it costs and what fixes it
+  // all sits behind the phone check below.
   function renderHero(summary, report) {
-    const p = report?.profile || {};
     const response = num(report?.responseScore);
     return h("header", { class: "report-hero" }, [
       h("div", { class: "report-hero-top" }, [
@@ -179,47 +194,53 @@
         ].filter(Boolean)),
         h("div", { class: "report-hero-text" }, [
           h("h2", { text: summary?.headline || "Here's where you're losing jobs online" }),
-          summary?.summary ? h("p", { class: "lead", text: summary.summary }) : null,
-        ]),
-      ]),
-      renderLeak(report?.leak),
-    ].filter(Boolean));
-  }
-
-
-
-  // The money line shows its own arithmetic: their job pace, their job value, and the
-  // share their own answers put at risk. Nothing here is a number we made up.
-  function renderLeak(leak) {
-    if (!leak) return null;
-    const money = (n) => `$${Number(n).toLocaleString("en-US")}`;
-    const percent = `${Math.round(leak.rate * 100)}%`;
-
-    if (!leak.perMonth) {
-      return h("div", { class: "hero-leak" }, [
-        h("p", { class: "hero-leak-value", text: money(leak.jobValue) }),
-        h("div", {}, [
-          h("p", { class: "hero-leak-label", text: "gone with every lead you miss" }),
-          h("p", { class: "hero-leak-note", text: "That is the job value you gave us. We could not work out your job pace from your reviews, so we are not going to guess at a monthly figure." }),
-        ]),
-      ]);
-    }
-
-    return h("div", { class: "hero-leak" }, [
-      h("p", { class: "hero-leak-value", text: money(leak.perMonth) }),
-      h("div", {}, [
-        h("p", { class: "hero-leak-label", text: "a month, on your own numbers" }),
-        h("ul", { class: "hero-leak-math" }, [
-          h("li", { text: `About ${leak.jobs} jobs a month, going by how fast reviews land on your profile` }),
-          h("li", { text: `${money(leak.jobValue)} a job, the figure you gave us` }),
-          h("li", { text: leak.lostJobs >= 1
-            ? `${percent} of them at risk from what you told us about calls and quotes, which is about ${leak.lostJobs} ${leak.lostJobs === 1 ? "job" : "jobs"} a month`
-            : `${percent} of them at risk from what you told us about calls and quotes, which works out to roughly one job every ${Math.max(2, Math.round(1 / leak.lostJobs))} months` }),
+          h("p", { class: "lead", text: "Two scores out of a hundred, both built from your own Google data and the four answers you gave us." }),
         ]),
       ]),
     ]);
   }
 
+  // The money line. It used to lead with a red number over the caption "a month, on your
+  // own numbers", which never actually said the number was theirs or that it was going out
+  // the door, so an owner could read it and feel nothing. It says it plainly now, and the
+  // arithmetic sits underneath as three labelled cells rather than a bullet list: the point
+  // is the total, and the working is there to be argued with, not read first.
+  function renderLeak(leak) {
+    if (!leak) return null;
+    const money = (n) => `$${Number(n).toLocaleString("en-US")}`;
+    const percent = `${Math.round(leak.rate * 100)}%`;
+
+    if (!leak.perMonth) return null;
+
+    // It is a multiplication, so it reads as one. Three stacked blocks each carrying a
+    // number, a label and a note of a different length came out ragged, and per the stat
+    // tile contract they were three competing hero figures under the actual hero figure.
+    // One line of terms, one muted line of provenance, nothing to stack.
+    const term = (value, label) => h("span", { class: "leak-term" }, [
+      h("b", { text: value }),
+      h("span", { text: label }),
+    ]);
+    const times = () => h("i", { class: "leak-x", "aria-hidden": "true", text: "×" });
+
+    return h("section", { class: "leak" }, [
+      h("p", { class: "leak-lead", text: "You're losing about" }),
+      h("p", { class: "leak-value" }, [
+        h("strong", { text: money(leak.perMonth) }),
+        h("span", { text: "a month" }),
+      ]),
+      h("p", { class: "leak-sub", text: "in work you already paid to get" }),
+      h("div", { class: "leak-math" }, [
+        h("p", { class: "leak-math-head", text: "How we got there" }),
+        h("p", { class: "leak-eq" }, [
+          term(String(leak.jobs), "jobs a month"),
+          times(),
+          term(money(leak.jobValue), "a job"),
+          times(),
+          term(percent, "at risk"),
+        ]),
+      ]),
+    ]);
+  }
 
   // Google hands back a real photo of the site on a phone as part of the speed test. A
   // contractor who sees their own site in a phone frame gets it faster than any score.
@@ -252,129 +273,90 @@
     ]);
   }
 
-  // Where we explain the offer by explaining their problem. No price, no pitch language,
-  // just the shape of the fix, built from the findings they actually have.
-  // Three things decide whether a job is theirs, and each one is a thing we do. This
-  // section teaches rather than pitches: what each piece is, and what it changes. No
-  // prices, no packages, no booking pressure. The pillar their own report is worst at is
-  // marked "start here", so the education lands on the problem they just read about.
-  const PILLARS = [
-    {
-      key: "found",
-      eyebrow: "1. Get found",
-      heading: "Being the one they call starts with being the one they see",
-      areas: ["foundation", "website", "google_profile", "listings", "map_ranking"],
-      items: [
-        ["A website built to be found, and to ask for the job",
-         "Loads fast on a phone, your number one tap away, and the pages Google wants before it will rank you locally. We build and host it, and it stays yours."],
-        ["Your Google profile actually worked",
-         "Categories, services, hours, photos and posts kept current. It is the biggest single lever on where you appear on the map, and most profiles are filled in once and never touched again."],
-      ],
-    },
-    {
-      key: "chosen",
-      eyebrow: "2. Get chosen",
-      heading: "Two companies, same price. The one with more recent reviews gets the call",
-      areas: ["reviews"],
-      items: [
-        ["Every finished job asks for a review",
-         "By text, while they are still pleased with the work. That is the only moment most people will actually write one."],
-        ["Every review gets a reply",
-         "In your voice, within the day. Homeowners read the replies to work out what you are like when something goes wrong, and Google counts them too."],
-        ["A steady run, not one good week two years ago",
-         "Reviews arriving every month is what moves you up the map. A burst and then silence reads as a business that stopped."],
-      ],
-    },
-    {
-      key: "capture",
-      eyebrow: "3. Capture every lead",
-      heading: "You cannot answer the phone from a roof, so something else has to",
-      areas: ["lead_follow_up"],
-      items: [
-        ["A text back on every missed call",
-         "Within seconds, so they are answering you instead of dialling the next company on the list. This one change catches more work than any amount of extra traffic."],
-        ["Cover for after hours and the calls you cannot take",
-         "An assistant that answers, takes the details and books the job. It says up front that it is an assistant, because pretending otherwise would cost you the trust you are trying to build."],
-        ["Booking and follow-up that does not wait on you",
-         "Jobs land straight in your calendar, and a quote that goes quiet gets chased instead of quietly dying."],
-      ],
-    },
-  ];
-
-  function renderPlan(report, summary) {
-    const findings = summary?.findings || [];
-    const worst = findings[0];
-    const startKey = worst
-      ? (PILLARS.find((pillar) => pillar.areas.includes(worst.area)) || {}).key
-      : null;
-
-    return h("section", { class: "card card-wide card-plan" }, [
-      h("p", { class: "eyebrow", text: "What fixing this looks like" }),
-      h("h3", { text: "Three things decide whether a job is yours" }),
-      h("p", { class: "plan-lead", text: "Every business that beats you locally is doing these three well, whether they meant to or not. None of it is clever, and none of it needs another person on the payroll. It just has to happen every single day, which is the part that breaks." }),
-
-      h("div", { class: "plan-pillars" }, PILLARS.map((pillar) =>
-        h("section", { class: `plan-pillar${pillar.key === startKey ? " is-start" : ""}` }, [
-          h("div", { class: "plan-pillar-head" }, [
-            h("p", { class: "plan-eyebrow", text: pillar.eyebrow }),
-            pillar.key === startKey ? h("span", { class: "plan-flag", text: "Start here" }) : null,
-          ]),
-          h("p", { class: "plan-heading", text: pillar.heading }),
-          h("ul", { class: "plan-items" }, pillar.items.map(([title, body]) =>
-            h("li", {}, [
-              h("strong", { text: title }),
-              h("p", { text: body }),
-            ])
-          )),
-        ])
-      )),
-
-      h("p", { class: "plan-close", text: "You keep everything we build. The site, the profile, the number, the reviews. Yours whether we carry on working together or not." }),
-    ]);
-  }
-
-  // The whole report in one glance: three stages of getting a job, and which one breaks.
-  // A contractor reads this before any number and knows what we are about to tell them.
-  function renderJourney(report) {
-    const rk = report?.ranking || {};
+  // Reviews and the website judged as one verdict, because that is the pair a homeowner
+  // compares on a single screen before they call anybody. Whichever is weaker is what we
+  // name, and a good rating on a thin count is not a pass: five stars from thirteen
+  // reviews is thirteen happy customers, not a reputation.
+  function chosenStage(report) {
     const rv = report?.reviews || {};
     const web = report?.website || {};
-    const found = num(report?.foundScore);
+    const standing = rv.standing;
+    const count = num(rv.googleReviewCount) ?? 0;
+    const rating = num(rv.googleRating);
+    const stars = rating === null ? "No rating" : `${rating}★`;
+
+    if (web.found === false) {
+      return { ok: false, detail: "No website for your listing to send anyone to" };
+    }
+    if (standing && !standing.enough) {
+      return {
+        ok: false,
+        detail: standing.median
+          ? `${reviewWord(count)}, against about ${standing.median} for the companies beside you`
+          : `${reviewWord(count)} is light for what a homeowner wants to see`,
+      };
+    }
+    if (standing && !standing.rated) {
+      return { ok: false, detail: `${stars} from ${reviewWord(count)} is below what wins the call` };
+    }
+    if (num(web.mobileScore) !== null && web.mobileScore < 50) {
+      return { ok: false, detail: `${reviewWord(count)}, but your site scores ${web.mobileScore} out of 100 on a phone` };
+    }
+    if (standing && standing.ok) {
+      return {
+        ok: true,
+        detail: num(web.mobileScore) !== null
+          ? `${stars} from ${reviewWord(count)}, and a site that holds up`
+          : `${stars} from ${reviewWord(count)}`,
+      };
+    }
+    return { ok: null, detail: "Your reviews and your website" };
+  }
+
+  // The whole report in one glance: the three things that decide whether a job is theirs,
+  // in the order they happen, and which one is breaking. Named after the pillars in the
+  // plan further down, so by the time they reach it they already know its shape.
+  //
+  // Getting found is measured on the map, not on the stars. A business with a 5.0 from
+  // thirteen reviews used to get a green tick here for being easy to find, which is the
+  // one claim its owner knows for a fact is not true.
+  function renderJourney(report) {
+    const rk = report?.ranking || {};
+    const total = Array.isArray(rk.ranks) ? rk.ranks.length : 0;
     const response = num(report?.responseScore);
 
+    // Lead with whichever half is true. "Top 3 at 2 of 9 spots" next to a red cross reads
+    // like good news that has been marked wrong, so when it is a fail we count the misses.
+    const inTop3 = rk.pointsInTop3 || 0;
+    const found = total
+      ? {
+          ok: inTop3 >= Math.ceil(total / 2),
+          detail: inTop3 >= Math.ceil(total / 2)
+            ? `Top 3 at ${inTop3} of ${total} spots nearby`
+            : inTop3
+              ? `Top 3 at only ${inTop3} of ${total} spots nearby`
+              : "Never in the top 3 anywhere nearby",
+        }
+      : { ok: null, detail: "We could not measure your position on the map" };
+
+    const caught = response === null
+      ? { ok: null, detail: "How you handle calls and quotes" }
+      : response >= 60
+        ? { ok: true, detail: "Enquiries answered fast and quotes chased" }
+        : { ok: false, detail: "This is where the jobs are going" };
+
     const stages = [
-      {
-        label: "They find you",
-        ok: found === null ? null : found >= 60,
-        detail: num(rv.googleReviewCount)
-          ? `${rv.googleRating ?? "?"} stars, ${rv.googleReviewCount} reviews on Google`
-          : "Your Google listing",
-      },
-      {
-        label: "They check you out",
-        ok: web.found === false ? false : num(web.mobileScore) === null ? null : web.mobileScore >= 70,
-        detail: web.found === false
-          ? "No website to send them to"
-          : num(web.mobileScore) !== null
-            ? `Your site takes ${web.mobileLoadTime || "a few seconds"} to show up on a phone`
-            : "Your website",
-      },
-      {
-        label: "You catch the job",
-        ok: response === null ? null : response >= 60,
-        detail: response === null
-          ? "How you handle calls and quotes"
-          : response >= 60
-            ? "Calls answered and quotes followed up"
-            : "This is where the jobs are going",
-      },
+      { label: "Get found", sub: "When they search, do you come up?", ...found },
+      { label: "Get chosen", sub: "Once they see you, do they pick you?", ...chosenStage(report) },
+      { label: "Catch the lead", sub: "When they reach out, do you land it?", ...caught },
     ];
 
     return h("section", { class: "journey" }, stages.map((stage, i) =>
       h("div", { class: `journey-step is-${stage.ok === null ? "unknown" : stage.ok ? "ok" : "broken"}` }, [
         h("span", { class: "journey-mark", "aria-hidden": "true", text: stage.ok === null ? "?" : stage.ok ? "✓" : "✕" }),
-        h("div", {}, [
+        h("div", { class: "journey-body" }, [
           h("p", { class: "journey-label", text: stage.label }),
+          h("p", { class: "journey-sub", text: stage.sub }),
           h("p", { class: "journey-detail", text: stage.detail }),
         ]),
         i < stages.length - 1 ? h("span", { class: "journey-arrow", "aria-hidden": "true", text: "→" }) : null,
@@ -390,11 +372,17 @@
     const ls = report?.listings || {};
     const w = report?.website || {};
     const tiles = [
+      // Stars are only good news when the count behind them stands up, so the tone comes
+      // from the one verdict the whole report shares rather than the rating alone.
       num(rv.googleRating) !== null
-        ? { value: `${rv.googleRating}`, unit: "stars", label: `from ${rv.googleReviewCount || 0} Google reviews`, tone: rv.googleRating >= 4.5 ? "good" : "warn" }
-        : null,
-      Array.isArray(rk.ranks) && rk.ranks.length
-        ? { value: `${rk.pointsInTop3}`, unit: `of ${rk.ranks.length}`, label: "spots where you make the top 3", tone: rk.pointsInTop3 >= rk.ranks.length / 2 ? "good" : "bad" }
+        ? {
+            value: `${rv.googleRating}`,
+            unit: "stars",
+            label: rv.standing && !rv.standing.enough
+              ? `from only ${reviewWord(rv.googleReviewCount || 0)} on Google`
+              : `from ${reviewWord(rv.googleReviewCount || 0)} on Google`,
+            tone: rv.standing?.ok ? "good" : rv.standing?.rated ? "warn" : "bad",
+          }
         : null,
       num(w.mobileScore) !== null
         ? { value: `${w.mobileScore}`, unit: "of 100", label: "website speed on a phone", tone: w.mobileScore >= 80 ? "good" : w.mobileScore >= 50 ? "warn" : "bad" }
@@ -408,7 +396,7 @@
     ].filter(Boolean);
     if (!tiles.length) return null;
     return h("section", { class: "card card-wide" }, [
-      h("div", { class: "card-head" }, [h("h3", { text: "Your numbers" })]),
+      h("div", { class: "card-head" }, [h("h3", { text: "The rest of your numbers" })]),
       h("ul", { class: "tiles" }, tiles.map((t) =>
         h("li", { class: `tile tone-${t.tone}` }, [
           h("p", { class: "tile-value" }, [h("strong", { text: t.value }), h("span", { text: t.unit })]),
@@ -418,62 +406,145 @@
     ]);
   }
 
-  // A real Google map with a pin per grid point, the way the audit shows it.
-  function mapImage(ranking) {
-    const points = (ranking?.points || []).filter((p) => num(p.lat) !== null && num(p.lng) !== null);
-    if (!points.length || !apiKey()) return null;
+  // A clean Google map with our own numbered circles over it. Google's own Static Maps
+  // markers can only carry ONE character, so a rank of 14 had to come out as an unlabelled
+  // pin or a fake X. Drawing the circles ourselves means every one says what it actually
+  // is, and it costs the same single Static Maps request.
+  function heatMap(ranking) {
+    const map = window.DialBridgeEngine?.rankingMap(ranking);
+    if (!map) return null;
 
-    const params = ["size=640x420", "scale=2", "maptype=roadmap", "format=png"];
-    if (ranking.center && num(ranking.center.lat) !== null) {
-      params.push(`markers=${encodeURIComponent(`color:0x0f1b2d|label:H|${ranking.center.lat},${ranking.center.lng}`)}`);
-    }
-    for (const point of points) {
-      const rank = num(point.rank);
-      const color = rankTone(rank) === "good" ? PIN_GOOD : rankTone(rank) === "warn" ? PIN_WARN : PIN_BAD;
-      // Static map labels take a single character, so anything past 9 shows as X.
-      const label = rank && rank <= 9 ? String(rank) : "X";
-      params.push(`markers=${encodeURIComponent(`color:${color}|label:${label}|${point.lat},${point.lng}`)}`);
-    }
-    params.push(`key=${encodeURIComponent(apiKey())}`);
-    return img(`${STATIC_MAP_URL}?${params.join("&")}`, {
-      class: "report-map",
-      alt: `Map of your Google ranking around ${ranking.keyword || "your area"}`,
+    const base = img(map.url, {
+      class: "heat-base",
+      alt: `Google Maps around your address for "${map.keyword}"`,
       loading: "lazy",
     });
+    if (!base) return null;
+
+    const wrap = h("div", { class: "heat", style: `aspect-ratio: ${map.width} / ${map.height}` }, [
+      base,
+      // Percentages rather than pixels: the image scales with the card, so the circles have
+      // to scale with it or they drift off their spots on a narrow screen.
+      ...map.pins.map((pin) =>
+        h("span", {
+          class: `heat-pin tone-${pin.tone}`,
+          style: `left: ${(50 + (pin.x / map.width) * 100).toFixed(3)}%; top: ${(50 + (pin.y / map.height) * 100).toFixed(3)}%`,
+          text: pin.label,
+        })
+      ),
+    ]);
+
+    // If Google refuses the image there is nothing to pin anything to, so the whole block
+    // goes rather than leaving circles floating on white.
+    base.addEventListener("error", () => wrap.remove(), { once: true });
+    return wrap;
+  }
+
+  // The one number that is true whatever the grid looks like: how many of the spots put
+  // them in the three results a homeowner actually sees.
+  function rankPill(r) {
+    const total = (r.ranks || []).length;
+    if (!total) return null;
+    if (!r.pointsNotRanked && num(r.averageRank) !== null) {
+      return h("span", { class: `pill tone-${rankTone(Math.round(r.averageRank))}`, text: `Average position ${r.averageRank}` });
+    }
+    const tone = r.pointsInTop3 >= Math.ceil(total / 2) ? "good" : r.pointsInTop3 ? "warn" : "bad";
+    return h("span", { class: `pill tone-${tone}`, text: `Top 3 at ${r.pointsInTop3} of ${total}` });
+  }
+
+  // Plenty of contractors sell two or three trades, and one of them is the one they want to
+  // be found for. We pick the best guess, say so out loud, and offer the others: the grid
+  // is nine free searches, so measuring a second keyword costs nothing but a second.
+  function keywordSwitch(report) {
+    const trades = window.scanResult?.trades || [];
+    const current = report?.ranking?.keyword || "";
+    const others = trades.filter((t) => t && t !== current);
+    if (!others.length) return null;
+
+    const row = h("p", { class: "map-switch" }, [
+      h("span", { text: `We measured "${current}". Do you do more than one trade?` }),
+    ]);
+
+    for (const trade of others) {
+      const button = h("button", { class: "map-switch-btn", type: "button", text: `Check "${trade}"` });
+      button.addEventListener("click", async () => {
+        const profile = window.scanResult?.profile;
+        if (!profile || !profile.location) return;
+        const card = row.closest(".card");
+        button.disabled = true;
+        button.textContent = "Checking...";
+        try {
+          const ranking = await window.DialBridgeEngine.fetchRanking(
+            profile,
+            trade,
+            window.scanResult?.competitors || []
+          );
+          if (!ranking) throw new Error("no_ranking");
+          report.ranking = ranking;
+          if (lastPayload?.report) lastPayload.report.ranking = ranking;
+          card.replaceWith(renderRanking(report));
+          if (lastPayload) saveState(lastPayload);
+        } catch (err) {
+          console.warn("Re-measuring the map failed", err);
+          button.disabled = false;
+          button.textContent = `Check "${trade}"`;
+        }
+      });
+      row.append(button);
+    }
+    return row;
   }
 
   function renderRanking(report) {
     const r = report?.ranking;
     if (!r || !Array.isArray(r.ranks) || !r.ranks.length) return null;
-    const map = mapImage(r);
     const competitors = r.topCompetitors || [];
+
+    // The real map or nothing. A grid of coloured boxes stands in for a map without being
+    // one, and it reads like a placeholder that never got finished.
+    const map = heatMap(r);
+    const visual = map
+      ? h("div", { class: "map-wrap" }, [
+          map,
+          h("ul", { class: "map-legend" }, [
+            h("li", { class: "tone-good", text: "Top 3, they see you" }),
+            h("li", { class: "tone-warn", text: "4 or lower, most people never scroll there" }),
+            h("li", { class: "tone-bad", text: "X, you don't come up at all" }),
+          ]),
+        ])
+      : null;
+
     return h("section", { class: "card card-wide" }, [
       h("div", { class: "card-head" }, [
-        h("h3", { text: `Where you show up for "${r.keyword}"` }),
-        num(r.averageRank) !== null ? h("span", { class: `pill tone-${rankTone(Math.round(r.averageRank))}`, text: `Average position ${r.averageRank}` }) : null,
+        h("h3", { text: `Your spot on Google Maps when someone searches "${r.keyword}"` }),
+        // An average position that only averages the points they actually appeared at is a
+        // flattering lie: two second places and seven no-shows came out as a green
+        // "Average position 2" beside a finding saying they were missing at seven spots.
+        // The average is only honest when they turned up everywhere.
+        rankPill(r),
       ]),
-      map
-        ? h("div", { class: "map-wrap" }, [
-            map,
-            h("ul", { class: "map-legend" }, [
-              h("li", { class: "tone-good", text: "Top 3, customers see you" }),
-              h("li", { class: "tone-warn", text: "4 to 10, below the fold" }),
-              h("li", { class: "tone-bad", text: "Not showing up" }),
-            ]),
-          ])
-        : h("div", { class: "rank-grid", "aria-hidden": "true" }, r.ranks.map((rank) =>
-            h("span", { class: `rank-cell tone-${rankTone(rank)}`, text: rank ? String(rank) : "20+" })
-          )),
-      h("p", { class: "muted", text: `Each pin is a spot where a homeowner searches. The number is your position on Google Maps there. You are in the top 3 at ${r.pointsInTop3} of ${r.ranks.length} spots.` }),
+      visual,
+      h("p", { class: "muted", text: "Each circle is a spot near you where someone searches, and your address is the middle one. The number is your position on Google Maps from there, and an X means you don't come up at all." }),
+      keywordSwitch(report),
       competitors.length
         ? h("div", { class: "table-wrap" }, h("table", { class: "cmp" }, [
-            h("thead", {}, h("tr", {}, [h("th", { text: "Beating you nearby" }), h("th", { text: "Rating" }), h("th", { text: "Reviews" })])),
+            h("thead", {}, h("tr", {}, [
+              h("th", { text: "Beating you nearby" }),
+              h("th", { text: "Rating" }),
+              h("th", { text: "Reviews" }),
+              num(competitors[0]?.appearances) !== null ? h("th", { text: "Spots" }) : null,
+            ].filter(Boolean))),
             h("tbody", {}, competitors.map((c) =>
               h("tr", {}, [
                 h("td", { text: c.name || "" }),
                 h("td", { text: num(c.rating) !== null ? `${c.rating.toFixed(1)}★` : "None" }),
                 h("td", { class: "mono", text: String(c.reviewCount ?? 0) }),
-              ])
+                // How many of the nine searches they turned up in. A rival at 9 of 9 owns
+                // the whole area; one at 2 of 9 is only strong on one side of town.
+                num(c.appearances) !== null
+                  ? h("td", { class: "mono", text: `${c.appearances} of ${(report?.ranking?.ranks || []).length || 9}` })
+                  : null,
+              ].filter(Boolean))
             )),
           ]))
         : null,
@@ -488,13 +559,16 @@
         h("h3", { text: "What's costing you jobs" }),
         h("span", { class: "card-hint", text: "Worst first" }),
       ]),
+      summary?.summary ? h("p", { class: "findings-intro", text: summary.summary }) : null,
       // Number, headline, explanation. The severity used to repeat itself as a coloured
       // chip beside every title, and the area label printed three times over when three
       // findings shared one. Both said less than the titles already do, so the severity is
       // now just the colour of the rule and the area label is gone.
       h("ol", { class: "findings-list" }, findings.slice(0, 4).map((f, i) => {
-        const severity = SEVERITY[f.severity] || SEVERITY.medium;
-        return h("li", { class: `finding-card tone-${severity.tone}` }, [
+        // The engine now hands down a tone off the severity sort: red for critical, gold
+        // for slowing them down. Nothing below 40 severity makes the list at all.
+        const tone = f.tone === "red" ? "bad" : f.tone === "gold" ? "warn" : "warn";
+        return h("li", { class: `finding-card tone-${tone}` }, [
           h("span", { class: "finding-num", "aria-hidden": "true", text: String(i + 1) }),
           h("div", { class: "finding-main" }, [
             h("strong", { class: "finding-title", text: f.title || "" }),
@@ -530,12 +604,12 @@
     // finding. This card only carries what neither of those says.
     const items = [
       num(rv.unansweredCount) !== null
-        ? { ok: rv.unansweredCount === 0, text: rv.unansweredCount === 0 ? "Every review has a reply from you" : `${rv.unansweredCount} reviews with no reply from you` }
+        ? { ok: rv.unansweredCount === 0, text: rv.unansweredCount === 0 ? "Every review has a reply from you" : `${reviewWord(rv.unansweredCount)} with no reply from you` }
         : null,
       num(rv.replyRatePercent) !== null ? { ok: rv.replyRatePercent >= 80, text: `You reply to ${rv.replyRatePercent}% of reviews` } : null,
       rv.lastReviewAt ? { ok: true, text: `Your last review came in on ${rv.lastReviewAt}` } : null,
       num(rv.facebookReviewCount) !== null
-        ? { ok: rv.facebookReviewCount > 0, text: rv.facebookReviewCount > 0 ? `${rv.facebookReviewCount} reviews on Facebook too` : "No reviews on Facebook" }
+        ? { ok: rv.facebookReviewCount > 0, text: rv.facebookReviewCount > 0 ? `${reviewWord(rv.facebookReviewCount)} on Facebook too` : "No reviews on Facebook" }
         : null,
     ].filter(Boolean);
     if (!items.length) return null;
@@ -599,37 +673,39 @@
     ]);
   }
 
-  // Quiet on purpose. They have just been handed something useful for nothing, and the
-  // fastest way to waste that is to follow it with a sales push. An offer they can ignore.
-  function renderNextStep(report) {
-    const name = report?.profile?.name;
-    return h("section", { class: "card card-wide card-cta" }, [
-      h("h3", { text: "If you want a hand with any of it" }),
-      h("p", { text: name
-        ? `Reply to the text I sent and ask me anything about this report. If it is useful I will tell you what I would fix first for ${name} and roughly what it takes. If it is not, no harm done.`
-        : "Reply to the text I sent and ask me anything about this report. If it is useful I will tell you what I would fix first and roughly what it takes. If it is not, no harm done." }),
-      h("p", { class: "cta-fine" }, [
-        "Rather talk it through? ",
-        h("a", { href: "https://www.dialbridge.ai", target: "_blank", rel: "noopener", text: "Pick a time here" }),
-        ". Fifteen minutes, this report open in front of us, no deck.",
+  // The bottom of the report, and the second thing we trade. They have just been shown
+  // what is broken; the plan for fixing it goes out as a PDF to an email address. No
+  // booking ask: they have already given a phone number and verified it, and a calendar
+  // link on top of that is the point where a free report starts feeling like a funnel.
+  // Naming the worst area in the sentence, not the worst finding's TITLE. The titles are
+  // whole sentences ("You're not in the top 3 anywhere nearby"), so splicing one into a
+  // clause produced "what to do about you're not in the top 3 anywhere nearby first".
+  const BLUEPRINT_FOCUS = {
+    map_ranking: "where you show up on the map",
+    reviews: "your review count",
+    lead_follow_up: "the enquiries slipping through",
+    website: "your website",
+    google_profile: "your Google listing",
+    foundation: "the groundwork",
+  };
+
+  const planPoint = (name, rest) => h("li", {}, [h("strong", { text: name }), ` — ${rest}`]);
+
+  function renderBlueprintOffer(report, summary) {
+    const worst = (summary?.findings || [])[0];
+    const focus = BLUEPRINT_FOCUS[worst?.area];
+    const form = h("form", { class: "plan-form", novalidate: "" }, [
+      h("label", { class: "plan-form-label", for: "planEmail", text: "Where should we send it?" }),
+      h("div", { class: "plan-form-row" }, [
+        h("input", { id: "planEmail", type: "email", name: "email", placeholder: "you@yourcompany.com", autocomplete: "email", required: "" }),
+        h("button", { class: "cta", type: "submit", text: "Send me the plan" }),
       ]),
-    ]);
-  }
-
-
-  // The ranking map is the reason to hand over an email, so it is never built or shown here.
-  // We describe it, take the email, and n8n emails the full report with the map in it.
-  function renderMapGate() {
-    const form = h("form", { class: "gate-form", novalidate: "" }, [
-      h("label", { class: "visually-hidden", for: "gateEmail", text: "Email address" }),
-      h("input", { id: "gateEmail", type: "email", name: "email", placeholder: "you@yourcompany.com", autocomplete: "email", required: "" }),
-      h("button", { class: "cta", type: "submit", text: "Email me the map" }),
     ]);
     const note = h("p", { class: "gate-note", role: "status", "aria-live": "polite" });
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
-      const input = form.querySelector("#gateEmail");
+      const input = form.querySelector("#planEmail");
       const email = input.value.trim();
       const button = form.querySelector("button");
       if (!/^[^@\s]+@[^@\s.]+\.[a-z]{2,}$/i.test(email)) {
@@ -638,7 +714,7 @@
         input.focus();
         return;
       }
-      if (!EMAIL_URL() || !window.reportSubmissionId) {
+      if (!PLAN_URL() || !window.reportSubmissionId) {
         note.textContent = "We can't send it right now. Try again in a minute.";
         note.className = "gate-note is-bad";
         return;
@@ -646,58 +722,48 @@
       button.disabled = true;
       button.textContent = "Sending...";
       try {
-        const res = await fetch(EMAIL_URL(), {
+        const res = await fetch(PLAN_URL(), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             submissionId: window.reportSubmissionId,
             email,
-            answers: window.leadAnswers || {},
+            want: "growth_blueprint",
             consent: EMAIL_CONSENT,
-            // What the scan actually searched for. Google files plenty of real trades under
-            // the category "service", and a ranking grid built on that word finds nothing
-            // and tells the owner they rank nowhere.
-            keyword: window.scanResult?.trade || "",
-            // The scan already paid Google for these, with names and review counts. Sending
-            // them along means the emailed map can name who is beating them without buying
-            // the same information a second time.
-            competitors: (window.scanResult?.competitors || []).slice(0, 5).map((c) => ({
-              name: c.name || "",
-              rating: typeof c.rating === "number" ? c.rating : null,
-              reviewCount: c.reviewCount || 0,
-            })),
+            answers: window.leadAnswers || {},
             company_fax: document.getElementById("companyFax")?.value || "",
           }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.ok) throw new Error(data.error || `Request failed (${res.status})`);
         form.replaceChildren();
-        note.textContent = `On its way to ${email}. Check your inbox in a few minutes for the map and the rest of your report.`;
+        note.textContent = `On its way to ${email}.`;
         note.className = "gate-note is-good";
       } catch (err) {
-        console.warn("Email request failed", err);
+        console.warn("Blueprint request failed", err);
         note.textContent = "That didn't go through. Try again.";
         note.className = "gate-note is-bad";
         button.disabled = false;
-        button.textContent = "Email me the map";
+        button.textContent = "Send me the plan";
       }
     });
 
-    return h("section", { class: "card card-wide card-gate" }, [
-      h("div", { class: "gate-visual", "aria-hidden": "true" }, [
-        h("div", { class: "gate-grid" }, Array.from({ length: 9 }, () => h("span", { class: "gate-cell" }))),
-        h("span", { class: "gate-lock", text: "Locked" }),
+    return h("section", { class: "card card-wide card-plan" }, [
+      h("p", { class: "eyebrow", text: "The other half of this" }),
+      h("h3", { text: "Your Growth Blueprint, free" }),
+      h("p", { class: "plan-lead", text: focus
+        ? `This report told you what is broken. The Blueprint is the plan for fixing it, in the order that pays, starting with ${focus}.`
+        : "This report told you where you stand. The Blueprint is the plan: the three things that decide whether a job is yours, and which to do first." }),
+      h("ul", { class: "plan-points" }, [
+        planPoint("Get found", "the listing and website work that puts you on the map"),
+        planPoint("Get chosen", "a review habit that doesn't depend on remembering to ask"),
+        planPoint("Capture the lead", "so nothing that comes in goes unanswered"),
       ]),
-      h("div", { class: "gate-copy" }, [
-        h("h3", { text: "Where you rank on Google Maps, block by block" }),
-        h("p", { text: "We check your position from nine points around your service area and map it, so you can see the streets where customers never see you. It comes with your full report, including every directory that has your business listed wrong." }),
-        form,
-        note,
-        h("p", { class: "gate-fine" }, consentNodes(EMAIL_CONSENT)),
-      ]),
+      form,
+      note,
+      h("p", { class: "gate-fine" }, consentNodes(EMAIL_CONSENT)),
     ]);
   }
-
 
   function renderDownload(report) {
     const name = report?.profile?.name || "your business";
@@ -721,12 +787,14 @@
   // ever sees whether it was right.
   // Two stages living in one card. The card's own words change with the stage, because a
   // heading still saying "tell me who you are" above a code box reads like a bug.
-  function renderPhoneGate(onUnlock) {
+  function renderPhoneGate(onUnlock, onLeave) {
     const STAGE = {
+      // Deliberately bare. A wall of copy over a blurred report is one more thing to read
+      // before the only two fields that matter, and it was pushing them off a short screen.
       ask: {
-        eyebrow: "The rest of your report",
-        heading: "Where the jobs are going, and what fixes it",
-        lead: "The full report names every gap we found, what each one is costing you, and the order I would fix them in. Tell me who you are and I will text you a code to open it.",
+        eyebrow: "",
+        heading: "Unlock Your Full Report",
+        lead: "",
         fine: () => consentNodes(SMS_CONSENT),
       },
       code: {
@@ -739,7 +807,7 @@
     };
 
     const eyebrow = h("p", { class: "eyebrow" });
-    const heading = h("h3");
+    const heading = h("h3", { id: "gateHeading" });
     const lead = h("p", { class: "unlock-lead" });
     const note = h("p", { class: "gate-note", role: "status", "aria-live": "polite" });
     const fine = h("p", { class: "gate-fine" });
@@ -752,6 +820,7 @@
     function setStage(name, leadText) {
       const stage = STAGE[name];
       eyebrow.textContent = stage.eyebrow;
+      eyebrow.hidden = !stage.eyebrow;
       heading.textContent = stage.heading;
       lead.textContent = leadText || stage.lead;
       lead.hidden = !lead.textContent;
@@ -939,7 +1008,15 @@
           const res = await fetch(UNLOCK_VERIFY_URL(), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ submissionId: window.reportSubmissionId, code }),
+            body: JSON.stringify({
+              submissionId: window.reportSubmissionId,
+              code,
+              // Everything n8n needs the moment this person becomes a committed lead:
+              // the lead score for Meta, and the raw facts an LLM needs to decide whether
+              // they are a contractor at all. Sent on verify rather than earlier because a
+              // lead who never enters the code is not a lead.
+              lead: leadPayload(),
+            }),
           });
           const data = await res.json().catch(() => ({}));
           if (data.ok && data.unlocked) {
@@ -980,7 +1057,49 @@
 
     askStep();
 
-    return h("section", { class: "card card-wide card-unlock" }, [eyebrow, heading, lead, slot, note, fine]);
+    // There is no close button on this card. The one way out is the code, or leaving the
+    // report altogether, which is what the link below does: it is not a way to read the
+    // report without verifying, it drops them back to the search box with nothing.
+    const leave = onLeave
+      ? h("button", { class: "unlock-link unlock-leave", type: "button", text: "Not now, take me back" })
+      : null;
+    if (leave) leave.addEventListener("click", onLeave);
+
+    return h("section", { class: "card card-wide card-unlock" },
+      [eyebrow, heading, lead, slot, note, fine, leave].filter(Boolean));
+  }
+
+  // The gate used to be a card in the flow with a blurred stack under it, which meant a
+  // long scroll of blurred cards and a form somewhere in the middle of it. It is a dialog
+  // now: the report behind it is blurred, inert and hidden from screen readers, and focus
+  // cannot leave the card, so the only thing on screen is the thing we are asking for.
+  function openGate(onUnlock, onLeave) {
+    const overlay = h("div", {
+      class: "gate-overlay",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-labelledby": "gateHeading",
+    }, renderPhoneGate(onUnlock, onLeave));
+
+    // Tab must not walk into the blurred report behind, or a screen reader happily reads
+    // out the whole thing the gate is there to hold back.
+    function keepFocus(event) {
+      if (!overlay.contains(event.target)) {
+        const first = overlay.querySelector("input, button");
+        if (first) first.focus();
+      }
+    }
+
+    document.body.append(overlay);
+    document.body.classList.add("is-locked");
+    document.addEventListener("focusin", keepFocus);
+    overlay.querySelector("input")?.focus();
+
+    return function closeGate() {
+      document.removeEventListener("focusin", keepFocus);
+      document.body.classList.remove("is-locked");
+      overlay.remove();
+    };
   }
 
 
@@ -998,7 +1117,18 @@
       answers: window.leadAnswers || null,
       scan: {
         website: window.scanResult?.website || null,
-        profile: window.scanResult?.profile ? { reviews: window.scanResult.profile.reviews || [] } : null,
+        // Enough of the profile to re-run the ranking grid after a refresh: the place id it
+        // looks for and the pin it searches around. The reviews ride along for the report.
+        profile: window.scanResult?.profile
+          ? {
+              id: window.scanResult.profile.id || "",
+              name: window.scanResult.profile.name || "",
+              location: window.scanResult.profile.location || null,
+              reviews: window.scanResult.profile.reviews || [],
+            }
+          : null,
+        competitors: window.scanResult?.competitors || [],
+        trades: window.scanResult?.trades || [],
       },
       savedAt: Date.now(),
     };
@@ -1045,6 +1175,8 @@
     window.scanResult = {
       website: state.scan?.website || null,
       profile: state.scan?.profile || null,
+      competitors: state.scan?.competitors || [],
+      trades: state.scan?.trades || [],
     };
 
     const hero = document.querySelector("main.hero");
@@ -1078,18 +1210,19 @@
     const title = $("scanTitle");
     if (title) title.textContent = report?.profile?.name ? `Lost Job Report for ${report.profile.name}` : "Your Lost Job Report";
 
-    // What anyone gets: the two scores, the money line, and which stage breaks.
-    const free = [
-      renderHero(summary, report),
-      renderJourney(report),
-    ].filter(Boolean);
+    // Free, and all of it: the two scores and the line naming which one is the problem.
+    const free = [renderHero(summary, report)].filter(Boolean);
 
-    // What costs a verified phone number: every finding, the detail, and the plan.
+    // Everything that explains them. Blurred, inert and hidden from screen readers until
+    // the phone is verified. The money line leads, because it is the answer to the
+    // question the two scores just raised.
     const gated = [
+      renderLeak(report?.leak),
+      renderJourney(report),
       renderFindings(summary),
+      renderRanking(report),
       renderNumbers(report),
       renderPhoneShot(report),
-      report?.ranking ? renderRanking(report) : renderMapGate(),
       renderGrades(report),
       h("div", { class: "card-grid" }, [
         renderWebsite(report),
@@ -1097,8 +1230,7 @@
         renderListings(report),
       ].filter(Boolean)),
       renderStrengths(summary),
-      renderPlan(report, summary),
-      renderNextStep(report),
+      renderBlueprintOffer(report, summary),
       renderDownload(report),
     ].filter(Boolean);
 
@@ -1112,28 +1244,37 @@
     const gateReady = Boolean(UNLOCK_SEND_URL() && UNLOCK_VERIFY_URL() && window.reportSubmissionId);
 
     function unlock(firstName) {
+      if (gateClose) gateClose();
+      gateClose = null;
       locked.classList.remove("is-locked");
-      const card = body.querySelector(".card-unlock");
-      if (card) {
-        card.replaceChildren(
-          h("p", { class: "eyebrow", text: firstName ? `Thanks ${firstName}` : "Thanks" }),
-          h("h3", { text: "Your full report is open below." })
-        );
-        setTimeout(() => card.remove(), 2600);
-      }
+      locked.removeAttribute("aria-hidden");
+      const hello = h("p", { class: "unlock-welcome", role: "status" }, [
+        h("strong", { text: firstName ? `Thanks ${firstName}.` : "Thanks." }),
+        " Your full report is open below.",
+      ]);
+      locked.before(hello);
+      setTimeout(() => hello.remove(), 5000);
     }
 
     if (gateReady && !alreadyUnlocked) {
       locked.classList.add("is-locked");
-      body.replaceChildren(...free, renderPhoneGate(unlock), locked);
-    } else {
-      body.replaceChildren(...free, locked);
+      locked.setAttribute("aria-hidden", "true");
     }
+    body.replaceChildren(...free, locked);
     body.hidden = false;
     setStatus("");
     $("report").hidden = false;
+    lastPayload = payload;
     saveState(payload);
     $("scan")?.scrollIntoView({ behavior: REDUCED_MOTION ? "auto" : "smooth", block: "start" });
+
+    if (gateClose) {
+      gateClose();
+      gateClose = null;
+    }
+    if (gateReady && !alreadyUnlocked) {
+      gateClose = openGate(unlock, () => window.DialBridgeScan?.reset());
+    }
   }
 
   // ============ POLLING ============
@@ -1179,6 +1320,10 @@
 
   function reset() {
     polling = false;
+    if (gateClose) {
+      gateClose();
+      gateClose = null;
+    }
     clearState();
     const section = $("report");
     if (section) section.hidden = true;

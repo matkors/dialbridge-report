@@ -20,6 +20,7 @@
   const STEPS = [
     { key: "profile", label: (name) => `Finding ${name} on Google` },
     { key: "competitors", label: () => "Comparing you to nearby competitors" },
+    { key: "ranking", label: () => "Checking where you rank on Google Maps" },
     { key: "reviews", label: () => "Reading your latest Google reviews" },
     { key: "photos", label: () => "Checking your photos" },
     { key: "website", label: () => "Testing your website on a phone" },
@@ -184,6 +185,7 @@
     ["junk", "junk removal"], ["hauling", "junk removal"], ["dumpster", "dumpster rental"],
     ["window", "window cleaning"], ["roof", "roofing"], ["plumb", "plumbing"],
     ["hvac", "hvac"], ["heating", "hvac"], ["cooling", "hvac"], ["furnace", "hvac"],
+    ["a/c", "hvac"], ["air condition", "hvac"], ["boiler", "hvac"],
     ["electric", "electrician"], ["paint", "painting"], ["landscap", "landscaping"],
     ["lawn", "lawn care"], ["tree", "tree service"], ["pest", "pest control"],
     ["fence", "fencing"], ["fencing", "fencing"], ["concrete", "concrete"],
@@ -214,24 +216,93 @@
     "general contractor", "contractor",
   ];
 
-  // What to search for. A specific Google category if there is one, otherwise the trade read
-  // out of the name. Returns "" when we genuinely cannot tell, and an empty answer is the
-  // right answer: searching a business's own name back at Google either ranks it first for a
-  // term nobody types, or nowhere at all, and both make a liar of the map.
-  function tradeOf(profile) {
-    if (!isGeneric(profile.primaryType)) {
-      return profile.primaryType.replace(/_/g, " ");
-    }
-    if (profile.category && !isGeneric(profile.category)) {
-      return profile.category;
-    }
+  // Different words for the same trade, mapped to the one a homeowner actually types into
+  // Google. Without this a plumbing and heating company comes back as four "trades"
+  // (plumber, plumbing, heating, hvac) that are really two.
+  const CANON = {
+    plumber: "plumber", plumbing: "plumber", "drain cleaning": "drain cleaning",
+    hvac: "hvac", heating: "hvac", "air conditioning": "hvac", cooling: "hvac", furnace: "hvac",
+    "hvac contractor": "hvac", "heating contractor": "hvac", "air conditioning contractor": "hvac",
+    electrician: "electrician", electrical: "electrician",
+    roofing: "roofer", roofer: "roofer", "roofing contractor": "roofer",
+    painting: "painter", painter: "painter", "painting contractor": "painter",
+    landscaping: "landscaping", landscaper: "landscaping", "lawn care": "lawn care",
+    "tree service": "tree service", "tree removal": "tree service", "stump grinding": "tree service",
+    "junk removal": "junk removal", "junk hauling": "junk removal",
+    "pressure washing": "pressure washing", "power washing": "pressure washing",
+    "window cleaning": "window cleaning", "house cleaning": "house cleaning", maid: "house cleaning",
+    "pest control": "pest control", exterminator: "pest control",
+    movers: "movers", moving: "movers", "moving company": "movers",
+    fencing: "fencing", fence: "fencing", "fence contractor": "fencing",
+    "garage door": "garage door", flooring: "flooring", remodeling: "remodeling",
+    renovation: "remodeling", concrete: "concrete", "concrete contractor": "concrete",
+    paving: "paving", asphalt: "paving", masonry: "masonry", siding: "siding",
+    gutter: "gutter", chimney: "chimney", septic: "septic", solar: "solar",
+    locksmith: "locksmith", restoration: "restoration", "water damage": "restoration",
+    "appliance repair": "appliance repair", insulation: "insulation", waterproofing: "waterproofing",
+    drywall: "drywall", deck: "deck builder", handyman: "handyman", towing: "towing",
+    "general contractor": "general contractor", contractor: "general contractor",
+  };
+
+  const canon = (term) => {
+    const flat = String(term || "").toLowerCase().replace(/_/g, " ").trim();
+    return CANON[flat] || flat;
+  };
+
+  // Every trade this business plausibly sells, best guess first. Plenty of contractors do
+  // two or three: "Dustin's Plumbing Heating and A/C Repair" is not just a plumber, so
+  // picking one silently and never saying which was the wrong shape for this. Google's own
+  // primary category leads, because the grid measures Google's ranking and that is the
+  // category Google ranks them under. The rest are read out of the name.
+  // Useless as a Google category, real as a search. "general contractor near me" is typed
+  // by actual homeowners, so it stays available as a last resort even though it tells us
+  // nothing about the trade.
+  const SEARCHABLE_GENERIC = new Set(["general contractor"]);
+
+  function tradesOf(profile) {
+    const out = [];
+    const add = (term) => {
+      const t = canon(term);
+      if (!t) return;
+      if (isGeneric(t) && !SEARCHABLE_GENERIC.has(t)) return;
+      if (out.includes(t)) return;
+      // "window cleaning" already covers "cleaning", and offering both as separate keywords
+      // invites someone to measure the vaguer of the two. Keep whichever is more specific.
+      const broaderIndex = out.findIndex((have) => t.includes(have));
+      if (out.some((have) => have.includes(t))) return;
+      if (broaderIndex > -1) {
+        out[broaderIndex] = t;
+        return;
+      }
+      out.push(t);
+    };
+
+    if (!isGeneric(profile.primaryType)) add(profile.primaryType.replace(/_/g, " "));
+    if (profile.category && !isGeneric(profile.category)) add(profile.category);
 
     const name = String(profile.name || "").toLowerCase();
-    const term = TRADE_TERMS.find((t) => new RegExp(`\\b${t}`).test(name));
-    if (term) return term;
+    for (const term of TRADE_TERMS) {
+      if (new RegExp("\\b" + term).test(name)) add(term);
+    }
+    for (const [word, trade] of TRADE_ANCHORS) {
+      if (new RegExp("\\b" + word).test(name)) add(trade);
+    }
 
-    const anchor = TRADE_ANCHORS.find(([word]) => new RegExp(`\\b${word}`).test(name));
-    return anchor ? anchor[1] : "";
+    // "general contractor" is a real search but the vaguest one we recognise, so it never
+    // outranks a specific trade found in the same name.
+    const generalAt = out.indexOf("general contractor");
+    if (generalAt > -1 && out.length > 1) {
+      out.splice(generalAt, 1);
+      out.push("general contractor");
+    }
+    return out.slice(0, 4);
+  }
+
+  // The one the grid searches. Returns "" when we genuinely cannot tell, and an empty
+  // answer is the right answer: searching a business's own name back at Google either ranks
+  // it first for a term nobody types, or nowhere at all, and both make a liar of the map.
+  function tradeOf(profile) {
+    return tradesOf(profile)[0] || "";
   }
 
   function toCompetitors(places, selfId) {
@@ -505,6 +576,22 @@
     ]);
   }
 
+  // What this step did, not what it found. The map and the positions are the payoff of the
+  // report, and showing them here spends the reveal before the lead has given us anything.
+  function renderRankGrid(ranking) {
+    if (!ranking || !Array.isArray(ranking.ranks) || !ranking.ranks.length) {
+      return h("p", { class: "muted", text: "We could not measure your map position for this business. The rest of your report is not affected." });
+    }
+    return h("div", { class: "live-rank" }, [
+      h("p", { class: "live-rank-line" }, [
+        `We searched "${ranking.keyword}" from `,
+        h("strong", { text: `${ranking.ranks.length} spots` }),
+        " around your address.",
+      ]),
+      h("p", { class: "muted", text: `About ${ranking.pointDistanceMiles} miles apart, the way a homeowner across town would search. Your position at each one is in your report.` }),
+    ]);
+  }
+
   function sentimentOf(reviews) {
     if (!reviews.length) return { label: "No reviews to read yet", tone: "warn" };
     const average = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
@@ -685,6 +772,16 @@
       console.warn("Competitor lookup failed", err);
       return [];
     });
+    // The grid needs the pin to search around and the competitor list to put names to the
+    // companies beating them, so it waits on both. Nine searches in parallel, about a
+    // second, and free: the field mask asks Google for place IDs and nothing else.
+    const rankingReady = Promise.all([profileReady, competitorsReady])
+      .then(([p, comps]) => window.DialBridgeEngine?.fetchRanking(p, tradeOf(p), comps) || null)
+      .catch((err) => {
+        console.warn("Ranking grid failed", err);
+        return null;
+      });
+
     const websiteReady = profileReady.then(async (p) => {
       const [site, extra] = await Promise.all([fetchWebsite(p.website), fetchSiteCheck(p.website)]);
       if (!extra || !extra.checked) return site;
@@ -699,6 +796,7 @@
     const results = {
       profile: baseline,
       competitors: [],
+      ranking: null,
       website: { hasWebsite: Boolean(baseline.website), checked: false, url: baseline.website },
     };
 
@@ -718,6 +816,10 @@
           showLive("Looking around your area", waiting("Finding the businesses competing for your customers..."));
           results.competitors = await withCap(competitorsReady, DATA_CAP_MS, []);
           showLive("Who homeowners compare you to", renderCompetitors(results.profile, results.competitors));
+        } else if (step.key === "ranking") {
+          showLive("Searching from nine spots around you", waiting("Asking Google where you come up from each corner of your service area..."));
+          results.ranking = await withCap(rankingReady, DATA_CAP_MS, null);
+          showLive("Where you show up on the map", renderRankGrid(results.ranking));
         } else if (step.key === "reviews") {
           showLive("What customers are saying", renderReviews(results.profile));
         } else if (step.key === "photos") {
@@ -744,11 +846,13 @@
     // The trade we searched for, kept so the emailed ranking grid asks the same question.
     // Google's category is "service" for a lot of real trades, and a grid built on that
     // word finds nothing and reports the business as ranking nowhere.
-    window.scanResult = { ...results, findings, trade: tradeOf(results.profile) };
+    // Every candidate trade goes with it, so the report can offer to re-measure the map on
+    // another one. The grid is free, so a second opinion costs nothing.
+    window.scanResult = { ...results, findings, trade: tradeOf(results.profile), trades: tradesOf(results.profile) };
     running = false;
 
-    // Build the report right here from what we already pulled from Google. No waiting on
-    // anyone: the deeper audit and the ranking map go out by email instead.
+    // Build the report right here from what we already pulled from Google, map included.
+    // Nothing waits on n8n or GHL, and nothing is held back for an email address.
     try {
       // If the speed test was still running when its step ended, wait for it here, but say
       // so on screen. A silent gap after "Scan complete" reads as a broken page.
@@ -763,6 +867,8 @@
         profile: results.profile,
         competitors: results.competitors,
         website: results.website,
+        ranking: results.ranking,
+        trade: tradeOf(results.profile),
         answers: window.leadAnswers || {},
         submissionId: window.reportSubmissionId || null,
       });
@@ -797,5 +903,5 @@
   }
 
   // h is shared with report.js so the full report is built with the same safe, text-only DOM helper.
-  window.DialBridgeScan = { start, reset, showBack, h, img };
+  window.DialBridgeScan = { start, reset, showBack, h, img, tradesOf, tradeOf };
 })();

@@ -1,6 +1,6 @@
 # What one Lost Job Report costs
 
-Checked 2026-09-16 against Google's published SKU list and verified against live runs.
+Checked 2026-09-17 against Google's published SKU list and verified against live runs.
 Every number below is per **one business**, start to finish.
 
 ## The short version
@@ -8,14 +8,21 @@ Every number below is per **one business**, start to finish.
 | | Per audit | Free each month |
 |---|---|---|
 | Google Maps Platform | **$0.064** | first ~1,000 audits |
-| GHL (one text, one email) | **$0.012** | nothing, it is pass-through |
-| n8n | 6 executions | 2,500 on Starter, so ~416 audits |
+| GHL (one text) | **$0.0115** | nothing, it is pass-through |
+| n8n | 4 executions | 2,500 on Starter, so ~625 audits |
 | PageSpeed Insights | $0 | 25,000 calls a day |
 | **Total** | **~$0.076** | **$0 for the first ~1,000 a month** |
 
-A "full" audit means someone searches their business, gets the report, unlocks it with a
-texted code, and asks for the ranking map. Somebody who only scans and leaves costs
-**$0.062** and 2 n8n executions.
+A "full" audit means someone searches their business, answers the four questions, gets the
+report and unlocks it with a texted code. Somebody who scans and walks away at the gate
+costs the same **$0.064** in Google calls and 2 n8n executions: the whole audit, ranking map
+included, is built before the gate goes up.
+
+**The 2026-09-17 change moved the ranking map onto the page and free.** It used to be the
+reward for an email address, built server side and posted out; the email step is gone and
+every lead gets the map in the report. The Google bill did not move, because the nine grid
+searches were already free and the static map that draws them was already counted. What went
+away was the email itself, two n8n workflows per lead, and the six-minute wait.
 
 ## Every call we make, and what Google charges for it
 
@@ -30,15 +37,25 @@ depending on the field mask. Tiers go Essentials (IDs Only) → Essentials → P
 | Place Details | on selecting the business | 1 | Place Details **Enterprise + Atmosphere** | $25.00 | 1,000 | $0.025 |
 | Nearby Search | competitors, during the scan | 1 | Nearby Search **Enterprise** | $35.00 | 1,000 | $0.035 |
 | Static Maps | competitor map on the scan screen | 1 | Static Maps | $2.00 | 10,000 | $0.002 |
+| Text Search | the whole ranking grid, from the browser | 9 | Text Search **Essentials (IDs Only)** | **$0** | unlimited | $0 |
+| Static Maps | the ranking map in the report | 1 | Static Maps | $2.00 | 10,000 | $0.002 |
 | PageSpeed Insights | phone + desktop speed test | 2 | not a Maps SKU | $0 | 25,000/day | $0 |
-| Text Search | the whole ranking grid | 9 | Text Search **Essentials (IDs Only)** | **$0** | unlimited | $0 |
-| Static Maps | the emailed ranking map | 1 | Static Maps | $2.00 | 10,000 | $0.002 |
-| Geocoding | only when the business has no pin | 0 or 1 | Geocoding | $5.00 | 10,000 | $0 or $0.005 |
 
-**Google total: $0.064 per audit**, or $0.069 for a pure service-area business, which has
-no pin on Google Maps and needs its town geocoded to give the ranking grid a centre.
-**Geocoding API has to be enabled on the project and added to the server key's
-restrictions**, or those businesses get no map at all.
+**Google total: $0.064 per audit.** A pure service-area business has no pin for the grid to
+search around, so it gets the rest of the report and no map, and costs $0.062. The page
+cannot geocode its way to a centre the way the old email path did, so **Geocoding is no
+longer on the per-audit path at all**.
+
+Re-measuring on a second keyword (the "do you do more than one trade?" control on the map
+card) is another nine free Text Search calls plus one more Static Maps request, so **$0.002
+per click**. There is no per-audit cap on it; if that ever matters, the Static Maps daily
+quota below is the backstop.
+
+The nine grid searches run on the **browser** key now, not the server key. The field mask is
+`places.id` and nothing else, which is the only Places mask Google does not bill for; adding
+a name or a rating to it would put all nine calls on a paid SKU and turn a free feature into
+the most expensive thing on this page. The rival names in the map table come from the Nearby
+Search the scan has already paid for, matched by place ID.
 
 Why the autocomplete is free: every keystroke goes out with a session token, and the session
 ends in a Place Details call. Google then bills those keystrokes under "Autocomplete
@@ -62,14 +79,13 @@ So the first **~1,000 audits a month cost nothing**, and everything after that i
 | | Rate | Count | Cost |
 |---|---|---|---|
 | OTP text | ~$0.0075/segment + carrier fee ~$0.004 + 5% | 1 | ~$0.0115 |
-| The map email | ~$0.80 per 1,000 | 1 | $0.0008 |
-| Contact upsert, tags, custom fields, media upload | API, no charge | ~6 | $0 |
+| Contact upsert, tags, custom fields | API, no charge | ~5 | $0 |
 
-**~$0.012 per audit.** Carrier fees vary by the lead's network (AT&T $0.0035,
+**~$0.0115 per audit.** Carrier fees vary by the lead's network (AT&T $0.0035,
 T-Mobile and Verizon $0.0045, others $0.0040) so treat this as approximate.
 
-GHL is also doing three jobs here that would otherwise be separate bills: the email
-transport, the SMS, and hosting the emailed map image on its media CDN.
+The email transport and the media CDN hosting are no longer used per audit. GHL is down to
+one job on this path: the text.
 
 ## n8n, per audit
 
@@ -77,14 +93,15 @@ transport, the SMS, and hosting the emailed map image on its media CDN.
 |---|---|---|
 | Report Request Intake | 1 | always |
 | Site Check (page) | 1 | always |
-| Report Email Capture | 1 | only if they give an email |
-| Send Audit Report Email | 1 | sub-workflow of the above |
 | Phone Unlock (send code) | 1 | only if they unlock |
 | Phone Unlock (verify code) | 1+ | one per attempt |
 
-**6 executions for a full audit, 2 for a scan that goes no further.** On n8n Cloud Starter
-(2,500 executions/month) that is roughly **416 full audits a month** before the plan is the
-binding constraint rather than Google.
+**4 executions for a full audit, 2 for a scan that goes no further.** On n8n Cloud Starter
+(2,500 executions/month) that is roughly **625 full audits a month**, so Google's 1,000-audit
+Enterprise allowance and the n8n plan now run out at about the same point. `Report Email
+Capture` and `Send Audit Report Email` are still published but nothing calls them; they cost
+nothing while idle, and they are worth keeping until we are sure nobody wants an emailed
+copy.
 
 ## Where to see the numbers in Google Cloud Console
 
@@ -107,14 +124,15 @@ The point is not to save money, it is that a leaked key or a loop cannot run up 
 | API | Suggested cap | Reasoning |
 |---|---|---|
 | Places API (New) | 2,000 requests/day | ~14 per audit, so this allows ~140 audits a day |
-| Geocoding API | 200 requests/day | at most 1 per audit, and only for service-area businesses |
-| Maps Static API | 500 requests/day | 2 per audit |
+| Maps Static API | 500 requests/day | 2 per audit, plus 1 per keyword re-measure |
 | PageSpeed Insights | 500 requests/day | 2 per audit, default is 25,000 |
 
 Two keys exist and they must stay separate:
 
 - **Browser key** — shipped in the page's `config.js`, restricted to the site's referrer.
-  Safe to be public precisely because of that restriction.
+  Safe to be public precisely because of that restriction, which is now carrying more
+  weight: this key makes the nine grid calls as well, so eleven Places calls per visitor.
+  The referrer allowlist is the only thing standing between it and somebody else's script.
 - **Server key** — the n8n "Google Maps Server Key" credential. No application restriction,
   so it must never reach the page or an email. Restricted to Places API (New) and Maps
   Static API.

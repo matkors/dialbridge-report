@@ -1,0 +1,237 @@
+# Lost Job Report — scoring, as built
+
+This is the implementation record for the scoring spec. It covers what went in as written,
+what could not be built because the data does not exist, and three places where the
+implementation deliberately differs from the spec. Every formula below is in `engine.js`.
+
+## Inputs: what we can actually get
+
+The spec lists fifteen inputs. Twelve are available. Three are not, and that shapes
+everything else.
+
+| Input | Status | Source |
+|---|---|---|
+| `review_count` | ✅ | Places Place Details |
+| `review_rating` | ✅ | Places |
+| `top_competitor_review_count` | ✅ | Nearby Search, highest count in the set |
+| `gbp_completeness` | ⚠️ partial | Places: categories, hours, photos, phone, website, description. **Post recency is not exposed by the Places API**, so it is not in the 0-100. |
+| `nap_match` | ✅ | the n8n site check compares `tel:` links to the listing number |
+| `maps_rank_avg` | ✅ | our own 9-point grid |
+| `page_speed_score` | ✅ | PageSpeed Insights, mobile |
+| tappable CTA | ⚠️ proxy | we can see whether the number is tappable; **"above the fold" is not measurable** from a Lighthouse run, so it is tappable-anywhere |
+| `q1`–`q4` | ✅ | the quiz |
+| `review_velocity_90d` | ⚠️ **saturates at 5** | Places returns a maximum of five reviews per place. A business with forty reviews in ninety days is indistinguishable from one with five. Treat it as "at least this many". |
+| `business_age_years` | ⚠️ **estimated, and a weak floor** | Not in Places. Estimated from the oldest of those five reviews, and Google picks those five by relevance, not age. Flagged `estimated: true` wherever it is used. |
+| `owner_reply_rate` | ❌ **no source** | Places does not return owner replies at all. Its 0.15 weight redistributes (see below). Getting this needs Apify or the GHL audit back. |
+
+## Renormalisation
+
+Every sub-score is a weighted average that drops unknown inputs and rescales the remaining
+weights to 1.0. This is `weighted()` in `engine.js`. It matters more than it sounds: scoring
+a missing input as zero would hand a good business a bad score for something we never
+measured. The spec asks for this behaviour for `pace_score`; it is applied to every input.
+
+So `owner_reply_rate` being unavailable does not cost anyone 15 points. Its weight goes to
+rating, rival comparison, pace and velocity in proportion.
+
+## Sub-scores, as built
+
+```
+Reviews & Reputation   0.25  rating / 5 × 100
+                       0.25  min(100, review_count / top_competitor × 100)
+                       0.20  pace: min(100, (reviews_per_year / 18) × 100)
+                       0.15  min(100, review_velocity_90d × 20)
+                       0.15  owner_reply_rate           ← unavailable, redistributes
+
+Website                0.40  nap_match (100 / 0)
+                       0.30  page_speed_score
+                       0.30  tappable number (100 / 40)
+
+Google Profile         gbp_completeness, passed through
+
+Catching the Lead      0.5 × curve(q1) + 0.5 × curve(q2)
+```
+
+Quiz curve is the spec's: `0 → 95, 1 → 72, 2 → 45, 3 → 15`. A good answer is 95 rather than
+100 because "we reply within the hour" is a claim, not a measurement.
+
+`reviews_per_year` benchmark is 18, per the spec. It is a single constant
+(`REVIEWS_PER_YEAR_BENCHMARK`) so it can be moved per trade later.
+
+## The two headline circles
+
+```
+Getting Found     = 0.40 × Reviews&Reputation
+                  + 0.30 × GoogleProfile
+                  + 0.30 × MapRanking          ← DEVIATION, see below
+
+Catching the Lead = the sub-score above, shown directly
+```
+
+Website stays out of Getting Found, as the spec says: the site is how they get chosen, not
+how they get discovered.
+
+## Three deviations from the spec
+
+**1. The map is in Getting Found.** The spec lists `maps_rank_avg` as an input and then
+never uses it in any sub-score or headline score. That reads as an oversight rather than a
+decision, because where a contractor sits on the 9-point grid is the most direct measurement
+of being found that we have, and it is now the most prominent thing in the report. Removing
+the third line of `foundScore` reverts this exactly.
+
+**2. The dollar figure does not use `miss_rate = (100 - min(sub-scores)) / 100`.** That
+formula reads a weak review count as a share of lost leads. Worked through on a real
+business: a contractor scoring 45 comes out losing 55% of their work, which on their own job
+value is a dozen jobs a month. It is not a number that survives being said out loud on a
+phone call, and the report's whole credibility rests on the owner recognising their own
+business in it.
+
+What is built instead: the leak rate comes from the two behaviour answers only, and is
+hard-capped at 20%.
+
+```
+leadResponse   same_day 0.03   when_slammed 0.08   fall_through 0.14
+quoteFollowUp  once_or_twice 0.02   when_remember 0.05   nothing 0.08
+cap            0.20
+```
+
+Job count is the lower of two independent readings, both conservative:
+- the span of the reviews we can see, at roughly one review per ten jobs
+- the last 90 days of reviews, at roughly one review per eight jobs
+
+and when neither is readable, a typical month for the job size they chose
+(20 / 10 / 4 / 2 jobs for the four bands).
+
+**3. A monthly figure always shows; the per-lead figure never does.** The spec shows the
+flat per-lead number by default and only switches to monthly when `review_velocity_90d >= 3`.
+Product decision went the other way: the report only ever talks in months, because a per-job
+figure asks the reader to do the arithmetic. There is no case left where a per-lead number
+shows, including a business with no trading history to build a month on — that one falls back
+to the typical job count for its band.
+
+Job value uses the spec's **midpoints** ($750 / $3,000 / $10,000 / $20,000), not the bottom
+of each band.
+
+The working is shown as a single multiplication line — `4 jobs a month × $10,000 a job ×
+13% at risk` — rather than three labelled cells. Three cells each carrying a number, a label
+and a note of its own length stacked raggedly, and per the stat-tile contract they read as
+three hero figures competing with the total above them.
+
+**One thing to know about that:** the line naming which job count was used ("a typical month
+for $10,000 jobs" vs "from how fast reviews land on your profile") was removed as clutter,
+so the job count now appears without its source on the page. The basis is still tracked in
+the data as `leak.basis` and goes to n8n, so it is recoverable — but a contractor who
+disputes the job count will not find the assumption stated on the report.
+
+## The heat map
+
+Google's Static Maps markers carry a **single character** label, so a rank of 14 cannot be
+drawn on one. Every workaround inside Static Maps misleads: labelling it "X" makes a 14 look
+identical to a business that does not appear at all, and dropping the label leaves a coloured
+pin with no number on it.
+
+So we do not use Google's markers. `rankingMap()` fetches a clean map (POIs and transit
+switched off) and the report draws its own numbered circles over it, positioned by projecting
+each grid point to a pixel offset from the centre. Equirectangular around the centre, which
+is sub-pixel accurate over six kilometres. Circles are placed in percentages so they scale
+with the image on a narrow screen.
+
+Green is top 3, orange is 4 or lower with the real number on it, red is an X for "does not
+come up here". There is no separate pin for their address: the middle of the grid IS their
+address, and an H marker there covered the one rank they care about most.
+
+Same single Static Maps request as before, so no change in cost.
+
+## The worst-first list
+
+Candidates are built with their own sub-metric score; `severity = 100 - score`. Sorted by
+severity, tie-broken by `dollarWeight` (how directly that gap costs a job today: losing an
+enquiry you already earned is a 10, an unfinished profile is a 3).
+
+- `severity >= 70` → red, critical
+- `severity 40-69` → gold, slowing them down
+- `severity < 40` → off the list entirely
+
+Top four are shown. `review_pace_stagnant` only enters the pool at three years or more of
+(estimated) trading. `owner_reply_low` is in the spec and absent here, because we cannot
+measure it.
+
+The intro line counts are real: `redCount` and `goldCount` come off the sort, so the page
+cannot claim five problems above a list of two. Beyond the spec's list we also score
+`no_website`, `map_ranking`, `website_speed`, `website_usability`, `website_stale`,
+`no_tap_to_call`, `review_request` (q3) and `no_phone`, because dropping "you have no
+website" to match a nine-item list would have been a regression.
+
+Max two findings per area, so three variations on "your website is slow" cannot fill the
+list.
+
+## Copy rules applied
+
+- No "call"-specific language. Lead, enquiry or job throughout.
+- Headline is "You're missing the pieces that bring the **jobs** in".
+- Every count runs through a singular/plural helper — `reviewWord()`, `yearWord()`.
+- The three-step model uses **get found / get chosen / catch the lead** in both the flow
+  strip at the top and the plan at the bottom. The top strip used to say "they check you
+  out".
+- Stagnant-pace narrative fires as a finding when pace is below 60 and the business is three
+  years old or more, naming the trade and the benchmark.
+
+## Lead score — for Meta, never shown to the lead
+
+`leadScore()` in `engine.js`. This is a different question from everything above: the report
+scores the contractor's business, this scores whether the lead was worth an ad click.
+
+```
+capacity  0.50  review_count scaled 0-120     ← a HIGH count is the good signal here
+          0.30  job value band
+          0.20  has a website (100 / 40)
+pain      0.50  100 - Getting Found
+          0.50  100 - Catching the Lead
+value     log-scaled monthly loss, $500 to $15,000
+
+score = 0.45 capacity + 0.35 pain + 0.20 value
+band  = hot >= 70, warm >= 50, cool below
+```
+
+The counter-intuitive part is deliberate. A high review count means real job volume, years
+of trading and money coming in. The business with two reviews and no website has the worst
+report on the page and no budget to fix any of it.
+
+A missing `value` does **not** renormalise away: if they finished the quiz and we still
+cannot point at a monthly loss, that is a real answer, not a gap. Renormalising it let a
+250-review shop with a perfect process score warmer than a mid-sized one bleeding $1,600 a
+month, purely on the size of its review count.
+
+How it separates, on constructed cases:
+
+| lead | score | band |
+|---|---|---|
+| Big HVAC, 400 reviews, $20k jobs, no map presence | 79 | hot |
+| Established roofer, 180 reviews, $10k jobs, weak map | 73 | hot |
+| Established plumber, 90 reviews, $3k jobs, decent map | 56 | warm |
+| Strong shop, 250 reviews, nothing broken | 48 | cool |
+| Brand new, 1 review, no website | 46 | cool |
+| Handyman, 8 reviews, $750 jobs, no website | 37 | cool |
+
+## What still has to be built server side
+
+The page sends everything needed on the **verify** call, at the moment the phone is
+confirmed. Nothing is sent before that, so only committed leads exist downstream. Payload
+shape is `leadPayload()` in `report.js`:
+
+- `classify` — name, Google category, primary type, detected trades, website, description,
+  address. This is the input for the **LLM contractor check**, which is not built yet. It has
+  to run in n8n and gate everything after it: if the LLM says this is not a contractor or
+  home service business, the lead must not go to Meta.
+- `score` — the lead score above, with the facts behind it in `reasons` so a decision can be
+  argued with later.
+- `report` — the sub-scores, signals, map result, monthly loss, red and gold counts.
+- `answers` — the four quiz answers.
+
+Outstanding:
+1. **LLM classifier in n8n**, gating the Meta send.
+2. **Meta CAPI post** for leads that pass, with the score as the event value.
+3. **Growth Blueprint PDF** hosted on GHL, and the email workflow behind the form at the
+   bottom of the report (it currently posts to the old `Report Email Capture` webhook, which
+   stores the address but does not yet send a PDF).
+4. `owner_reply_rate` via Apify if we want that 0.15 back.

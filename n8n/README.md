@@ -3,6 +3,13 @@
 Copies of code that runs inside n8n, kept here so it is reviewable in git. n8n is the
 source of truth: paste changes into the node named in each file's header.
 
+> **2026-09-17: the email path is dormant.** The ranking map is free and built on the page
+> now (`engine.js`), so nothing calls `Report Email Capture` or `Send Audit Report Email`
+> any more, and `ranking-grid.js` / `email-template.js` document workflows that no longer
+> run per lead. Both are still published and cost nothing while idle; keep them until we
+> are certain nobody wants a posted copy of the report. Everything below about how the grid
+> is built still holds, because the page does the same thing with the same field mask.
+
 | File | Node | Workflow |
 |---|---|---|
 | `email-template.js` | Build Email HTML | DialBridge - Send Audit Report Email (`nq9f9GLkGaojuJc9`) |
