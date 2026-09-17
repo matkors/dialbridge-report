@@ -110,7 +110,9 @@ h1 {
 
 .sub {
   margin: 18px auto 36px;
-  max-width: 56ch;
+  /* Wide enough that the line below holds on one line. It wraps on a phone, which is
+     unavoidable and fine; on a laptop it reads as a single statement. */
+  max-width: 70ch;
   color: var(--ink-2);
   font-size: 1.05rem;
 }
