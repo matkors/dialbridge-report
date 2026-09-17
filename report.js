@@ -254,57 +254,82 @@
 
   // Where we explain the offer by explaining their problem. No price, no pitch language,
   // just the shape of the fix, built from the findings they actually have.
-  function renderBlueprint(report, summary) {
-    const leak = report?.leak;
+  // Three things decide whether a job is theirs, and each one is a thing we do. This
+  // section teaches rather than pitches: what each piece is, and what it changes. No
+  // prices, no packages, no booking pressure. The pillar their own report is worst at is
+  // marked "start here", so the education lands on the problem they just read about.
+  const PILLARS = [
+    {
+      key: "found",
+      eyebrow: "1. Get found",
+      heading: "Being the one they call starts with being the one they see",
+      areas: ["foundation", "website", "google_profile", "listings", "map_ranking"],
+      items: [
+        ["A website built to be found, and to ask for the job",
+         "Loads fast on a phone, your number one tap away, and the pages Google wants before it will rank you locally. We build and host it, and it stays yours."],
+        ["Your Google profile actually worked",
+         "Categories, services, hours, photos and posts kept current. It is the biggest single lever on where you appear on the map, and most profiles are filled in once and never touched again."],
+      ],
+    },
+    {
+      key: "chosen",
+      eyebrow: "2. Get chosen",
+      heading: "Two companies, same price. The one with more recent reviews gets the call",
+      areas: ["reviews"],
+      items: [
+        ["Every finished job asks for a review",
+         "By text, while they are still pleased with the work. That is the only moment most people will actually write one."],
+        ["Every review gets a reply",
+         "In your voice, within the day. Homeowners read the replies to work out what you are like when something goes wrong, and Google counts them too."],
+        ["A steady run, not one good week two years ago",
+         "Reviews arriving every month is what moves you up the map. A burst and then silence reads as a business that stopped."],
+      ],
+    },
+    {
+      key: "capture",
+      eyebrow: "3. Capture every lead",
+      heading: "You cannot answer the phone from a roof, so something else has to",
+      areas: ["lead_follow_up"],
+      items: [
+        ["A text back on every missed call",
+         "Within seconds, so they are answering you instead of dialling the next company on the list. This one change catches more work than any amount of extra traffic."],
+        ["Cover for after hours and the calls you cannot take",
+         "An assistant that answers, takes the details and books the job. It says up front that it is an assistant, because pretending otherwise would cost you the trust you are trying to build."],
+        ["Booking and follow-up that does not wait on you",
+         "Jobs land straight in your calendar, and a quote that goes quiet gets chased instead of quietly dying."],
+      ],
+    },
+  ];
+
+  function renderPlan(report, summary) {
     const findings = summary?.findings || [];
-    const has = (area) => findings.some((f) => f.area === area);
-    const response = num(report?.responseScore);
+    const worst = findings[0];
+    const startKey = worst
+      ? (PILLARS.find((pillar) => pillar.areas.includes(worst.area)) || {}).key
+      : null;
 
-    const steps = [
-      has("foundation") && report?.website?.found === false
-        ? { n: "1", title: "A website that actually brings in work", body: "Built and hosted for you, fast on a phone, with your number one tap away. This is the piece everything else hangs off." }
-        : null,
-      has("foundation") && (report?.reviews?.googleReviewCount || 0) < 10
-        ? { n: "2", title: "Get your review count moving", body: "Every customer gets asked by text right after the job. This is what moves you up the map, and it compounds every month." }
-        : null,
-      has("lead_follow_up") || (response !== null && response < 80)
-        ? { n: "1", title: "Catch every call, day or night", body: "A missed call gets a text back in seconds, and the conversation keeps going until the job is booked. Nothing sits waiting for you to climb off a roof." }
-        : null,
-      has("reviews") || has("map_ranking")
-        ? { n: "2", title: "Turn finished jobs into reviews", body: "Every customer gets asked by text right after the work is done. More reviews lift where you sit on the map, and the map is where the calls come from." }
-        : null,
-      has("website") && report?.website?.found !== false
-        ? { n: "3", title: "A site that loads fast and asks for the job", body: "Opens quickly on a phone, your number one tap away, and a form that reaches you the second it is sent." }
-        : null,
-      has("listings") || has("google_profile")
-        ? { n: "4", title: "One set of business details everywhere", body: "Your profile and every listing say the same thing, so Google trusts you and customers reach the right number." }
-        : null,
-    ].filter(Boolean);
+    return h("section", { class: "card card-wide card-plan" }, [
+      h("p", { class: "eyebrow", text: "What fixing this looks like" }),
+      h("h3", { text: "Three things decide whether a job is yours" }),
+      h("p", { class: "plan-lead", text: "Every business that beats you locally is doing these three well, whether they meant to or not. None of it is clever, and none of it needs another person on the payroll. It just has to happen every single day, which is the part that breaks." }),
 
-    const numbered = steps.map((step, i) => ({ ...step, n: String(i + 1) }));
-    const shown = numbered.length ? numbered : [
-      { n: "1", title: "Catch every call, day or night", body: "A missed call gets a text back in seconds, and the conversation keeps going until the job is booked." },
-      { n: "2", title: "Turn finished jobs into reviews", body: "Every customer gets asked by text right after the work is done." },
-    ];
-
-    const lead = leak && leak.perMonth
-      ? `Every line above is work somebody has to do daily: answer the phone, chase the quote, ask for the review, keep the listings straight. A person to do that costs more than the ${dollars(leak.perMonth)} a month it is costing you now. This is the same work, done by a system that does not sleep or quit.`
-      : "Every line above is work somebody has to do daily: answer the phone, chase the quote, ask for the review, keep the listings straight. This is that work, done by a system instead of another salary.";
-
-    return h("section", { class: "card card-wide card-blueprint" }, [
-      h("p", { class: "eyebrow", text: "Growth Plan Blueprint" }),
-      h("h3", { text: "How this gets fixed without hiring anyone" }),
-      h("p", { class: "blueprint-lead", text: lead }),
-      h("ol", { class: "blueprint-steps" }, shown.map((step) =>
-        h("li", { class: "blueprint-step" }, [
-          h("span", { class: "blueprint-num", "aria-hidden": "true", text: step.n }),
-          h("div", {}, [
-            h("p", { class: "blueprint-title", text: step.title }),
-            h("p", { class: "blueprint-body", text: step.body }),
+      h("div", { class: "plan-pillars" }, PILLARS.map((pillar) =>
+        h("section", { class: `plan-pillar${pillar.key === startKey ? " is-start" : ""}` }, [
+          h("div", { class: "plan-pillar-head" }, [
+            h("p", { class: "plan-eyebrow", text: pillar.eyebrow }),
+            pillar.key === startKey ? h("span", { class: "plan-flag", text: "Start here" }) : null,
           ]),
+          h("p", { class: "plan-heading", text: pillar.heading }),
+          h("ul", { class: "plan-items" }, pillar.items.map(([title, body]) =>
+            h("li", {}, [
+              h("strong", { text: title }),
+              h("p", { text: body }),
+            ])
+          )),
         ])
       )),
-      h("p", { class: "blueprint-close", text: "You keep everything we build. The site, the profile, the number, the reviews. Yours whether we keep working together or not." }),
+
+      h("p", { class: "plan-close", text: "You keep everything we build. The site, the profile, the number, the reviews. Yours whether we carry on working together or not." }),
     ]);
   }
 
@@ -463,16 +488,16 @@
         h("h3", { text: "What's costing you jobs" }),
         h("span", { class: "card-hint", text: "Worst first" }),
       ]),
+      // Number, headline, explanation. The severity used to repeat itself as a coloured
+      // chip beside every title, and the area label printed three times over when three
+      // findings shared one. Both said less than the titles already do, so the severity is
+      // now just the colour of the rule and the area label is gone.
       h("ol", { class: "findings-list" }, findings.slice(0, 4).map((f, i) => {
         const severity = SEVERITY[f.severity] || SEVERITY.medium;
         return h("li", { class: `finding-card tone-${severity.tone}` }, [
           h("span", { class: "finding-num", "aria-hidden": "true", text: String(i + 1) }),
           h("div", { class: "finding-main" }, [
-            h("div", { class: "finding-head" }, [
-              h("strong", { text: f.title || "" }),
-              h("span", { class: `pill tone-${severity.tone}`, text: severity.label }),
-            ]),
-            f.area ? h("p", { class: "finding-area", text: AREA_LABELS[f.area] || String(f.area).replace(/_/g, " ") }) : null,
+            h("strong", { class: "finding-title", text: f.title || "" }),
             f.detail ? h("p", { text: f.detail }) : null,
           ]),
         ]);
@@ -574,15 +599,20 @@
     ]);
   }
 
+  // Quiet on purpose. They have just been handed something useful for nothing, and the
+  // fastest way to waste that is to follow it with a sales push. An offer they can ignore.
   function renderNextStep(report) {
-    const leak = report?.leak;
+    const name = report?.profile?.name;
     return h("section", { class: "card card-wide card-cta" }, [
-      h("h3", { text: "Want us to walk you through it?" }),
-      h("p", { text: leak && leak.perMonth
-        ? `Fifteen minutes on the phone and we will show you which of these we would fix first, and what it takes to stop the ${dollars(leak.perMonth)} a month.`
-        : "Fifteen minutes on the phone and we will show you which of these we would fix first, and what it takes." }),
-      h("a", { class: "cta cta-link", href: "https://www.dialbridge.ai", target: "_blank", rel: "noopener", text: "Book a 15 minute call" }),
-      h("p", { class: "cta-fine", text: "No pitch deck. We will have this report open and go through it with you." }),
+      h("h3", { text: "If you want a hand with any of it" }),
+      h("p", { text: name
+        ? `Reply to the text I sent and ask me anything about this report. If it is useful I will tell you what I would fix first for ${name} and roughly what it takes. If it is not, no harm done.`
+        : "Reply to the text I sent and ask me anything about this report. If it is useful I will tell you what I would fix first and roughly what it takes. If it is not, no harm done." }),
+      h("p", { class: "cta-fine" }, [
+        "Rather talk it through? ",
+        h("a", { href: "https://www.dialbridge.ai", target: "_blank", rel: "noopener", text: "Pick a time here" }),
+        ". Fifteen minutes, this report open in front of us, no deck.",
+      ]),
     ]);
   }
 
@@ -1065,7 +1095,7 @@
         renderListings(report),
       ].filter(Boolean)),
       renderStrengths(summary),
-      renderBlueprint(report, summary),
+      renderPlan(report, summary),
       renderNextStep(report),
       renderDownload(report),
     ].filter(Boolean);

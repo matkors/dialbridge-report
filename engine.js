@@ -449,12 +449,23 @@
     // with no website and four reviews has nothing to leak yet.
     const AREA_ORDER = { foundation: 0, lead_follow_up: 1, map_ranking: 2, reviews: 3, website: 4, google_profile: 5, listings: 6 };
     const areaRank = (area) => (area in AREA_ORDER ? AREA_ORDER[area] : 9);
-    return out
-      .sort((a, b) =>
-        order[a.severity] - order[b.severity]
-        || areaRank(a.area) - areaRank(b.area)
-        || (a.rank || 9) - (b.rank || 9))
-      .slice(0, 5);
+    const sorted = out.sort((a, b) =>
+      order[a.severity] - order[b.severity]
+      || areaRank(a.area) - areaRank(b.area)
+      || (a.rank || 9) - (b.rank || 9));
+
+    // Three findings that all say "you do not follow up" read as one finding padded out to
+    // look like work. Two from any one area is plenty; past that the list should be telling
+    // them something they do not already know.
+    const perArea = {};
+    const varied = [];
+    for (const finding of sorted) {
+      const area = finding.area || "other";
+      perArea[area] = (perArea[area] || 0) + 1;
+      if (perArea[area] > 2) continue;
+      varied.push(finding);
+    }
+    return varied.slice(0, 5);
   }
 
   function strengthsFor(data) {

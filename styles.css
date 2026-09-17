@@ -712,9 +712,7 @@ h1 {
 .finding-main { min-width: 0; }
 .finding-main p { margin: 0 0 6px; font-size: 0.92rem; color: var(--ink-2); }
 .finding-main p:last-child { margin-bottom: 0; }
-.finding-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 4px; }
-.finding-head strong { font-size: 1.02rem; letter-spacing: -0.01em; }
-.finding-area { font-size: 0.7rem !important; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-3) !important; }
+.finding-title { display: block; margin-bottom: 5px; font-size: 1.02rem; letter-spacing: -0.01em; line-height: 1.35; }
 .finding-fix { color: var(--ink) !important; font-weight: 600; }
 .finding-fix span { color: var(--accent-ink); }
 
@@ -1022,25 +1020,59 @@ body.is-locked { overflow: hidden; }
 .shot-copy { flex: 1 1 260px; min-width: 0; }
 .shot-copy .checks { margin-top: 12px; }
 
-/* growth plan blueprint: the offer, explained through their own findings */
-.card-blueprint { border-top: 4px solid var(--accent); background: linear-gradient(180deg, #fff, var(--paper)); }
-.card-blueprint h3 { margin: 4px 0 10px; font-size: clamp(1.15rem, 2.8vw, 1.45rem); letter-spacing: -0.02em; }
-.blueprint-lead { margin: 0 0 20px; color: var(--ink-2); font-size: 0.97rem; line-height: 1.6; }
-.blueprint-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
-.blueprint-step { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; }
-.blueprint-num {
-  width: 30px; height: 30px;
-  display: grid; place-items: center;
-  border-radius: 50%;
-  background: var(--accent-soft); color: var(--accent-ink);
-  font-family: "IBM Plex Mono", monospace; font-weight: 600; font-size: 0.9rem;
+/* the plan: three pillars, taught rather than pitched */
+.card-plan { border-top: 4px solid var(--accent); }
+.card-plan h3 { margin: 4px 0 10px; font-size: clamp(1.15rem, 2.8vw, 1.45rem); letter-spacing: -0.02em; }
+.plan-lead { margin: 0 0 22px; max-width: 72ch; color: var(--ink-2); font-size: 0.97rem; line-height: 1.6; }
+
+.plan-pillars { display: grid; gap: 16px; }
+@media (min-width: 900px) {
+  .plan-pillars { grid-template-columns: repeat(3, 1fr); gap: 18px; align-items: start; }
 }
-.blueprint-title { margin: 3px 0 4px; font-weight: 700; font-size: 1rem; }
-.blueprint-body { margin: 0; font-size: 0.92rem; color: var(--ink-2); line-height: 1.55; }
-.blueprint-close { margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--rule); font-size: 0.9rem; color: var(--ink-2); }
+
+.plan-pillar {
+  padding: 18px 18px 16px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--surface);
+}
+/* The pillar their own report is worst at. Everything else is context; this is the bit to
+   read, so it gets the accent and a label rather than a louder colour. */
+.plan-pillar.is-start { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+
+.plan-pillar-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.plan-eyebrow {
+  margin: 0;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--accent-ink);
+}
+.plan-flag {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--accent);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #fff;
+  white-space: nowrap;
+}
+.plan-heading { margin: 0 0 14px; font-weight: 700; font-size: 0.99rem; line-height: 1.4; letter-spacing: -0.01em; }
+
+.plan-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.plan-items > li { padding-left: 14px; border-left: 2px solid var(--rule); }
+.plan-items strong { display: block; margin-bottom: 3px; font-size: 0.9rem; line-height: 1.35; }
+.plan-items p { margin: 0; font-size: 0.86rem; line-height: 1.55; color: var(--ink-2); }
+
+.plan-close { margin: 22px 0 0; padding-top: 16px; border-top: 1px solid var(--rule); font-size: 0.9rem; color: var(--ink-2); }
 
 .cta-link { display: inline-block; text-decoration: none; margin-top: 4px; }
-.cta-fine { margin: 12px 0 0 !important; font-size: 0.8rem; color: rgba(255, 255, 255, 0.6) !important; }
+.cta-fine { margin: 12px 0 0 !important; font-size: 0.85rem; color: rgba(255, 255, 255, 0.66) !important; }
+.cta-fine a { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
+.cta-fine a:hover { color: var(--accent); }
 
 @media (max-width: 560px) {
   .phone-frame { width: 150px; }
@@ -1095,8 +1127,9 @@ body.is-locked { overflow: hidden; }
     margin: 0 !important;
   }
   .report-hero { border-top: 3px solid #e8702a !important; }
-  .card-cta, .card-blueprint { background: #fff !important; color: var(--ink) !important; }
+  .card-cta, .card-plan { background: #fff !important; color: var(--ink) !important; }
   .card-cta h3, .card-cta p { color: var(--ink) !important; }
+  .cta-fine, .cta-fine a { color: var(--ink-2) !important; }
   .card-hint { display: none; }
 
   /* Keep the two scores and the money figure, they are the summary of the thing. */
