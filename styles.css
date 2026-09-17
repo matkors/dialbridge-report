@@ -1244,3 +1244,151 @@ body.is-locked { overflow: hidden; }
   .locked-wrap.is-locked::after { display: none; }
   .card-unlock { display: none !important; }
 }
+
+
+/* ============ HOW IT WORKS (landing page, under the search) ============ */
+.how {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 64px 20px 8px;
+  text-align: left;
+}
+.how-title {
+  margin: 0 0 26px;
+  text-align: center;
+  font-size: clamp(1.1rem, 2.6vw, 1.35rem);
+  letter-spacing: -0.02em;
+}
+
+.how-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 22px; }
+@media (min-width: 760px) {
+  .how-steps { grid-template-columns: repeat(2, 1fr); gap: 26px; }
+}
+@media (min-width: 1040px) {
+  .how-steps { grid-template-columns: repeat(4, 1fr); gap: 20px; }
+}
+
+.how-step {
+  padding: 18px 18px 20px;
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.how-step h3 { margin: 6px 0 6px; font-size: 1rem; letter-spacing: -0.01em; }
+.how-step > p:last-child { margin: 0; font-size: 0.88rem; line-height: 1.55; color: var(--ink-2); }
+.how-num {
+  margin: 0;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--accent-ink);
+}
+
+/* The drawings. One idea each, and the only thing that moves is the thing being explained. */
+.how-art {
+  margin: -4px 0 12px;
+  border-radius: 10px;
+  background: var(--paper);
+  overflow: hidden;
+}
+.how-art svg { display: block; width: 100%; height: auto; }
+.how-art rect, .how-art circle, .how-art path { vector-effect: non-scaling-stroke; }
+
+.how-field { fill: var(--surface); stroke: var(--rule); stroke-width: 1.5; }
+.how-lens { fill: none; stroke: var(--ink-3); stroke-width: 1.8; stroke-linecap: round; }
+.how-caret { fill: var(--accent); animation: how-blink 1.1s steps(1, end) infinite; }
+.how-suggest rect:first-child { fill: var(--surface); stroke: var(--rule); stroke-width: 1.2; }
+.how-suggest-line { fill: var(--ink-3); }
+.how-suggest { opacity: 0; animation: how-appear 3s ease-in-out infinite; }
+
+.how-row { fill: var(--surface); stroke: var(--rule); stroke-width: 1.4; }
+.how-row-pick { animation: how-pick 3s ease-in-out infinite; }
+.how-tick {
+  fill: none; stroke: var(--good); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 16; stroke-dashoffset: 16;
+  animation: how-draw 3s ease-in-out infinite;
+}
+
+.how-dial-track { fill: none; stroke: var(--rule); stroke-width: 7; }
+.how-dial {
+  fill: none; stroke: var(--accent); stroke-width: 7; stroke-linecap: round;
+  transform: rotate(-90deg); transform-origin: 60px 40px;
+  stroke-dasharray: 151; stroke-dashoffset: 151;
+  animation: how-fill 3s ease-in-out infinite;
+}
+.how-bar { fill: var(--ink-3); }
+.how-bar-short { fill: var(--rule); }
+
+.how-pillar { fill: var(--rule); }
+.how-pillar-1 { animation: how-grow 3s ease-in-out infinite; }
+.how-pillar-2 { animation: how-grow 3s ease-in-out 0.18s infinite; }
+.how-pillar-3 { animation: how-grow 3s ease-in-out 0.36s infinite; }
+.how-rise {
+  fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-linecap: round;
+  stroke-dasharray: 76; stroke-dashoffset: 76;
+  animation: how-draw 3s ease-in-out 0.3s infinite;
+}
+
+@keyframes how-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes how-appear {
+  0%, 18% { opacity: 0; transform: translateY(-3px); }
+  34%, 82% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-3px); }
+}
+@keyframes how-pick {
+  0%, 22% { fill: var(--surface); stroke: var(--rule); }
+  40%, 84% { fill: #fdeee4; stroke: var(--accent); }
+  100% { fill: var(--surface); stroke: var(--rule); }
+}
+@keyframes how-draw {
+  0%, 26% { stroke-dashoffset: var(--len, 16); }
+  52%, 86% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: var(--len, 16); }
+}
+@keyframes how-fill {
+  0%, 16% { stroke-dashoffset: 151; }
+  60%, 86% { stroke-dashoffset: 56; }
+  100% { stroke-dashoffset: 151; }
+}
+@keyframes how-grow {
+  0%, 16% { transform: scaleY(0.35); }
+  54%, 86% { transform: scaleY(1); }
+  100% { transform: scaleY(0.35); }
+}
+.how-pillar { transform-origin: 50% 66px; }
+
+/* Three true numbers. No invented count of businesses: a made-up figure on a page aimed at
+   prospects is a lie with a legal edge on it, and these are checkable in the code. */
+.how-stats {
+  list-style: none;
+  margin: 30px 0 0;
+  padding: 22px 0 0;
+  border-top: 1px solid var(--rule);
+  display: grid;
+  gap: 18px;
+  text-align: center;
+}
+@media (min-width: 620px) {
+  .how-stats { grid-template-columns: repeat(3, 1fr); gap: 24px; }
+}
+.how-stats strong {
+  display: block;
+  font-size: clamp(1.5rem, 4vw, 1.9rem);
+  letter-spacing: -0.03em;
+  color: var(--accent-ink);
+}
+.how-stats span { display: block; margin-top: 4px; font-size: 0.84rem; line-height: 1.5; color: var(--ink-2); }
+
+/* Anyone who asked for less motion gets the finished state, not the loop. */
+@media (prefers-reduced-motion: reduce) {
+  .how-caret, .how-suggest, .how-row-pick, .how-tick, .how-dial,
+  .how-pillar-1, .how-pillar-2, .how-pillar-3, .how-rise { animation: none; }
+  .how-suggest { opacity: 1; }
+  .how-tick, .how-rise { stroke-dashoffset: 0; }
+  .how-dial { stroke-dashoffset: 56; }
+  .how-row-pick { fill: #fdeee4; stroke: var(--accent); }
+  .how-caret { opacity: 1; }
+}
+
+@media print { .how { display: none !important; } }
