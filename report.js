@@ -624,6 +624,10 @@
             email,
             answers: window.leadAnswers || {},
             consent: EMAIL_CONSENT,
+            // What the scan actually searched for. Google files plenty of real trades under
+            // the category "service", and a ranking grid built on that word finds nothing
+            // and tells the owner they rank nowhere.
+            keyword: window.scanResult?.trade || "",
             // The scan already paid Google for these, with names and review counts. Sending
             // them along means the emailed map can name who is beating them without buying
             // the same information a second time.

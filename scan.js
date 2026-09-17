@@ -161,10 +161,42 @@
   ].join(",");
 
   // Categories too vague to find real competitors ("Services" returns hospitals and hardware stores).
+  // Categories that tell us nothing about the trade. Google files a great many real trades
+  // under plain "service", and its display label for that is "Services", so both spellings
+  // and both plurals have to be caught. Store types are here too: searching "home
+  // improvement store" returns Home Depot, never the contractor filed under it.
   const GENERIC_TYPES = new Set([
-    "service", "point_of_interest", "establishment", "store", "manufacturer", "corporate_office",
-    "business_center", "consultant", "",
+    "service", "point of interest", "establishment", "store", "manufacturer", "corporate office",
+    "business center", "consultant", "general contractor", "contractor",
+    "home improvement store", "home goods store", "",
   ]);
+
+  // "Services" and "service", "general_contractor" and "General Contractor" are the same
+  // uselessness wearing different clothes.
+  function isGeneric(label) {
+    const flat = String(label || "").toLowerCase().replace(/_/g, " ").replace(/\s+/g, " ").trim();
+    return GENERIC_TYPES.has(flat) || GENERIC_TYPES.has(flat.replace(/s$/, ""));
+  }
+
+  // One word in a business name, and the trade a homeowner would actually search for.
+  // "Junk King" is not "junk king", it is junk removal.
+  const TRADE_ANCHORS = [
+    ["junk", "junk removal"], ["hauling", "junk removal"], ["dumpster", "dumpster rental"],
+    ["window", "window cleaning"], ["roof", "roofing"], ["plumb", "plumbing"],
+    ["hvac", "hvac"], ["heating", "hvac"], ["cooling", "hvac"], ["furnace", "hvac"],
+    ["electric", "electrician"], ["paint", "painting"], ["landscap", "landscaping"],
+    ["lawn", "lawn care"], ["tree", "tree service"], ["pest", "pest control"],
+    ["fence", "fencing"], ["fencing", "fencing"], ["concrete", "concrete"],
+    ["paving", "paving"], ["asphalt", "paving"], ["masonry", "masonry"],
+    ["moving", "movers"], ["movers", "movers"], ["gutter", "gutter"],
+    ["chimney", "chimney"], ["septic", "septic"], ["pool", "pool"], ["solar", "solar"],
+    ["locksmith", "locksmith"], ["restoration", "restoration"], ["contracting", "general contractor"],
+    ["remodel", "remodeling"], ["renovat", "renovation"], ["floor", "flooring"],
+    ["deck", "deck"], ["garage", "garage door"], ["towing", "towing"],
+    ["appliance", "appliance repair"], ["insulation", "insulation"],
+    ["waterproof", "waterproofing"], ["drywall", "drywall"], ["siding", "siding"],
+    ["washing", "pressure washing"], ["clean", "cleaning"], ["maid", "house cleaning"],
+  ];
 
   // Trades we can recognise from a business name when Google's category is vague.
   const TRADE_TERMS = [
@@ -174,27 +206,32 @@
     "electrician", "solar", "painting", "pressure washing", "power washing", "window cleaning",
     "carpet cleaning", "house cleaning", "cleaning", "pest control", "exterminator", "garage door",
     "fencing", "fence", "deck", "concrete", "paving", "asphalt", "masonry", "remodeling", "renovation",
-    "flooring", "tile", "cabinet", "countertop", "handyman", "general contractor", "contractor",
+    "flooring", "tile", "cabinet", "countertop", "handyman",
     "moving", "movers", "restoration", "water damage", "mold", "pool", "irrigation", "locksmith",
     "appliance repair", "insulation", "foundation", "waterproofing", "chimney", "drywall",
+    // Last, and deliberately so. Broad but real: people do search "general contractor near
+    // me". Anything more specific in the same name wins because it is matched first.
+    "general contractor", "contractor",
   ];
 
-  // What to search for: a specific Google category if there is one, otherwise the trade in the name.
+  // What to search for. A specific Google category if there is one, otherwise the trade read
+  // out of the name. Returns "" when we genuinely cannot tell, and an empty answer is the
+  // right answer: searching a business's own name back at Google either ranks it first for a
+  // term nobody types, or nowhere at all, and both make a liar of the map.
   function tradeOf(profile) {
-    if (!GENERIC_TYPES.has(profile.primaryType)) {
-      return profile.category || profile.primaryType.replace(/_/g, " ");
+    if (!isGeneric(profile.primaryType)) {
+      return profile.primaryType.replace(/_/g, " ");
     }
-    const name = profile.name.toLowerCase();
+    if (profile.category && !isGeneric(profile.category)) {
+      return profile.category;
+    }
+
+    const name = String(profile.name || "").toLowerCase();
     const term = TRADE_TERMS.find((t) => new RegExp(`\\b${t}`).test(name));
     if (term) return term;
 
-    // Last resort: the business name minus its city, state and legal suffixes.
-    const place = cityOf(profile.address).toLowerCase().split(/[\s,]+/).filter(Boolean);
-    const words = name
-      .replace(/[^a-z0-9\s]/g, " ")
-      .split(/\s+/)
-      .filter((w) => w && !place.includes(w) && !["llc", "inc", "co", "corp", "company", "the", "and", "of", "ai"].includes(w));
-    return words.length ? words.join(" ") : "";
+    const anchor = TRADE_ANCHORS.find(([word]) => new RegExp(`\\b${word}`).test(name));
+    return anchor ? anchor[1] : "";
   }
 
   function toCompetitors(places, selfId) {
@@ -700,7 +737,10 @@
     setProgress(STEPS.length);
     $("scanAnnounce").textContent = "Scan complete";
     const findings = findingsFor(results.profile, results.competitors, results.website);
-    window.scanResult = { ...results, findings };
+    // The trade we searched for, kept so the emailed ranking grid asks the same question.
+    // Google's category is "service" for a lot of real trades, and a grid built on that
+    // word finds nothing and reports the business as ranking nowhere.
+    window.scanResult = { ...results, findings, trade: tradeOf(results.profile) };
     running = false;
 
     // Build the report right here from what we already pulled from Google. No waiting on
