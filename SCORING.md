@@ -142,6 +142,37 @@ address, and an H marker there covered the one rank they care about most.
 
 Same single Static Maps request as before, so no change in cost.
 
+## Service-area businesses have no map, and that is deliberate
+
+**Measured 2026-09-17:** a pure service-area business never appears in Places `searchText`
+results for a trade. Tried location bias, location restriction, a plain town query, and with
+and without `includePureServiceAreaBusinesses` — absent from all twenty results every time,
+across three different businesses. That flag only makes them findable when you search their
+**name**, which is what the search box does.
+
+So the 9-point grid cannot rank them. The first attempt at a fix centred the grid on the
+median of their competitors' pins, which worked mechanically and was wrong: it produced nine
+red X pins telling a working contractor with 81 reviews that they are invisible. That is not
+a measurement, it is a false claim about somebody's business.
+
+What ships instead: no grid, and a card that says why, explicitly framed as a limit on what
+we can measure rather than a verdict on how they rank. The map sub-score is `null`, so
+`weighted()` drops it and Getting Found is computed from reviews and the profile alone —
+they are not penalised for something we never measured.
+
+**This affects about half of them.** Of fourteen real contractors tested, seven were pure
+service-area: roofing, demolition, window cleaning, pressure washing, junk removal and lawn
+care. The real fix is a SERP scraper (the Apify Google Maps actor sees what a person sees,
+service-area businesses included). Until then, half of paid traffic gets a report with no map.
+
+The centroid code is still there for the narrow case it is honest for: a business that is
+not flagged service-area but is missing coordinates anyway, which Google will return in a
+trade search.
+
+Verified end to end against fourteen real businesses: seven real maps, seven honest
+explanations, zero grids of X pins for a business that cannot be measured, zero sections
+that silently disappear.
+
 ## The worst-first list
 
 Candidates are built with their own sub-metric score; `severity = 100 - score`. Sorted by

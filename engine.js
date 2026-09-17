@@ -61,10 +61,53 @@
     return data.places || [];
   }
 
+  // MEASURED, 2026-09-17: a pure service-area business never appears in Places searchText
+  // results for a trade, under any query shape. Location bias, location restriction, a town
+  // query, with and without includePureServiceAreaBusinesses: absent from all twenty results
+  // every time, across three different businesses. That flag only makes them findable when
+  // you search their NAME, which is what the search box does.
+  //
+  // So the grid cannot rank them, and giving them a centre anyway would produce nine red X
+  // pins telling a working contractor they are invisible. That is not a measurement, it is a
+  // false claim about somebody's business. They get an explanation instead, and a SERP
+  // scraper is the real fix if we ever want to measure them properly.
+  //
+  // The centroid stays for the narrow case it is honest for: a business that is not flagged
+  // service-area but is still missing coordinates, which does happen and which Google will
+  // return in a trade search.
+  function centroidOf(competitors) {
+    const pins = (competitors || [])
+      .map((c) => c && c.location)
+      .filter((l) => l && num(l.lat) !== null && num(l.lng) !== null);
+    if (pins.length < 2) return null;
+
+    const mid = (values) => {
+      const sorted = [...values].sort((a, b) => a - b);
+      const i = Math.floor(sorted.length / 2);
+      return sorted.length % 2 ? sorted[i] : (sorted[i - 1] + sorted[i]) / 2;
+    };
+    const lat = mid(pins.map((p) => p.lat));
+    const lng = mid(pins.map((p) => p.lng));
+
+    // If the rivals are scattered across half a state the middle of them is not a
+    // neighbourhood, and a grid built on it would measure nothing meaningful.
+    const spread = Math.max(
+      Math.max(...pins.map((p) => Math.abs(p.lat - lat))) * 111,
+      Math.max(...pins.map((p) => Math.abs(p.lng - lng))) * 85
+    );
+    if (spread > 40) return null; // kilometres
+
+    return { lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 };
+  }
+
   // Returns the shape the report renders: a rank per point, the pins, and who beats them.
-  // `known` is the competitor list from the scan, which is where the names come from.
+  // `known` is the competitor list from the scan, which is where the names come from and,
+  // for a business with no pin of its own, where the centre comes from too.
   async function fetchRanking(profile, query, known = []) {
-    const center = profile.location;
+    const ownPin = profile.location && num(profile.location.lat) !== null ? profile.location : null;
+    // No centre is guessed for a business Google will not return in a trade search anyway.
+    const center = ownPin || (profile.serviceAreaOnly ? null : centroidOf(known));
+    const centerSource = ownPin ? "pin" : "competitors";
     if (!center || !query || !apiKey()) return null;
 
     const byId = new Map((known || []).filter((c) => c && c.id).map((c) => [c.id, c]));
@@ -117,6 +160,10 @@
     return {
       keyword: query,
       status: "COMPLETED",
+      // Whether the grid is centred on their own pin or on the middle of their competitors.
+      // The report has to say which, because "your address is the middle one" is a lie for
+      // a business that has no address on the map.
+      centerSource,
       gridPoints: ranks.length,
       pointDistanceMiles: Math.round((GRID_SPACING_M / 1609) * 10) / 10,
       averageRank: ranked.length ? Math.round((ranked.reduce((a, b) => a + b, 0) / ranked.length) * 10) / 10 : null,
@@ -981,6 +1028,9 @@
         phone: profile.phone || "",
         photoCount: profile.photos?.length || 0,
         hasHours: Boolean(profile.hasHours),
+        // Set when Google has no pin for them at all. The map section reads it to explain
+        // itself instead of silently disappearing.
+        serviceAreaOnly: Boolean(profile.serviceAreaOnly),
         claimed: null,
       },
       competitors,

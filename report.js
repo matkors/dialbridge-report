@@ -499,9 +499,24 @@
     return row;
   }
 
+  // When there is no map, say so and say why. It used to return null, so the section simply
+  // was not there, and the only way to find out was somebody asking where the heatmap went.
+  function renderNoMap(report) {
+    const sab = report?.profile?.serviceAreaOnly;
+    return h("section", { class: "card card-wide" }, [
+      h("div", { class: "card-head" }, [h("h3", { text: "Where you show up on Google Maps" })]),
+      h("p", { class: "muted", text: sab
+        ? "Your Google listing is set up as a service-area business, so it has no pin on the map. Google will not return listings like yours in the searches we use to measure position, so there is no grid we can honestly put in front of you. That is a limit on what we can measure, not a verdict on how you rank."
+        : "We could not measure your position on the map for this business. Everything else in this report is unaffected." }),
+      sab
+        ? h("p", { class: "muted", text: "It is worth knowing either way: a listing with no pin competes differently from one with an address, and it is one of the things worth talking through." })
+        : null,
+    ].filter(Boolean));
+  }
+
   function renderRanking(report) {
     const r = report?.ranking;
-    if (!r || !Array.isArray(r.ranks) || !r.ranks.length) return null;
+    if (!r || !Array.isArray(r.ranks) || !r.ranks.length) return renderNoMap(report);
     const competitors = r.topCompetitors || [];
 
     // The real map or nothing. A grid of coloured boxes stands in for a map without being
@@ -528,7 +543,9 @@
         rankPill(r),
       ]),
       visual,
-      h("p", { class: "muted", text: "Each circle is a spot near you where someone searches, and your address is the middle one. The number is your position on Google Maps from there, and an X means you don't come up at all." }),
+      h("p", { class: "muted", text: r.centerSource === "competitors"
+        ? "Each circle is a spot where someone searches. Your Google listing has no pin on the map, so this is centred on your service area. The number is your position from there, and an X means you don't come up at all."
+        : "Each circle is a spot near you where someone searches, and your address is the middle one. The number is your position on Google Maps from there, and an X means you don't come up at all." }),
       keywordSwitch(report),
       competitors.length
         ? h("div", { class: "table-wrap" }, h("table", { class: "cmp" }, [
