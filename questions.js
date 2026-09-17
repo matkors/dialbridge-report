@@ -9,35 +9,50 @@
   const $ = (id) => document.getElementById(id);
   const h = (...args) => window.DialBridgeScan.h(...args);
 
+  // Four questions, and every answer has to land somewhere in the report. The first two
+  // price the leak, the third explains a review count, and the fourth is what turns a
+  // percentage into money. The leak numbers are a 0 to 3 severity, not a guess at dollars.
   const QUESTIONS = [
     {
-      key: "afterHours",
-      question: "A call comes in while you're on a job, or after hours. What usually happens?",
+      key: "leadResponse",
+      question: "When someone reaches out about a job, what actually happens?",
       options: [
-        { value: "answered", label: "Someone answers, any hour", leak: 0 },
-        { value: "voicemail", label: "It goes to voicemail", leak: 2 },
-        { value: "rings_out", label: "It rings out, no voicemail", leak: 3 },
-        { value: "callback_later", label: "I call back when I can, usually later or next day", leak: 2 },
+        { value: "within_hour", label: "Every inquiry gets a response within the hour", leak: 0 },
+        { value: "same_day", label: "Same day, usually", leak: 1 },
+        { value: "when_slammed", label: "Depends how slammed we are", leak: 2 },
+        { value: "fall_through", label: "Some fall through and we don't always catch it", leak: 3 },
       ],
     },
     {
       key: "quoteFollowUp",
       question: "You send a quote and they go quiet. What happens next?",
       options: [
-        { value: "automatic", label: "They get follow-ups automatically until they answer", leak: 0 },
-        { value: "call_once", label: "I call or text them once", leak: 1 },
-        { value: "when_remember", label: "I follow up when I remember", leak: 2 },
-        { value: "nothing", label: "Nothing, they either call back or they don't", leak: 3 },
+        { value: "automatic", label: "They get automatic follow-ups until they respond", leak: 0 },
+        { value: "once_or_twice", label: "I follow up once or twice myself", leak: 1 },
+        { value: "when_remember", label: "I follow up if I remember", leak: 2 },
+        { value: "nothing", label: "Nothing. They call back or they don't", leak: 3 },
+      ],
+    },
+    {
+      key: "reviewHabit",
+      question: "After the job's done, how do you get reviews?",
+      options: [
+        { value: "automatic", label: "Automatic request goes out right after every job", leak: 0 },
+        { value: "in_person", label: "I ask in person here and there", leak: 1 },
+        { value: "mean_to", label: "I mean to send something but rarely do", leak: 2 },
+        { value: "never", label: "We don't really ask", leak: 3 },
       ],
     },
     {
       key: "jobValue",
       question: "What's an average job worth to you?",
+      // The bottom of each band, so a money figure is always the conservative reading of
+      // what they told us. Never the top, never a midpoint we invented.
       options: [
-        { value: "under_500", label: "Under $500", low: 300 },
-        { value: "500_1500", label: "$500 to $1,500", low: 500 },
-        { value: "1500_5000", label: "$1,500 to $5,000", low: 1500 },
-        { value: "over_5000", label: "More than $5,000", low: 5000 },
+        { value: "under_1000", label: "Under $1,000", low: 600 },
+        { value: "1000_5000", label: "$1,000 to $5,000", low: 1000 },
+        { value: "5000_15000", label: "$5,000 to $15,000", low: 5000 },
+        { value: "over_15000", label: "More than $15,000", low: 15000 },
       ],
     },
   ];
@@ -99,7 +114,7 @@
       h("button", { class: "q-close", type: "button", "aria-label": "Close", text: "×" }),
       h("p", { class: "q-progress", text: progressLabel() }),
       index === 0
-        ? h("p", { class: "q-intro", text: "Three quick taps and your report gets built around your answers." })
+        ? h("p", { class: "q-intro", text: "Four quick taps and your report gets built around your answers." })
         : null,
       h("h2", { class: "q-title", id: "qHeading", text: q.question }),
       h("div", { class: "q-options" }, q.options.map((option) => {

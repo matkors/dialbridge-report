@@ -165,11 +165,14 @@
 
   // Everything above measures getting found. This measures what happens to a lead once it
   // arrives, which is the half no audit tool can see and the half we actually sell.
+  // Catching the lead is the first two answers: how fast they reply, and whether a quote
+  // gets chased. How they collect reviews is a different problem and scores nowhere near
+  // here; it belongs to getting chosen, and it shows up in the review findings.
   function leadResponseScore(answers) {
-    if (!answers || (!answers.afterHours && !answers.quoteFollowUp)) return null;
+    if (!answers || (!answers.leadResponse && !answers.quoteFollowUp)) return null;
     const leak = (v) => (typeof v === "number" ? v : 0);
     const worst = 6; // both questions at their worst
-    const total = leak(answers.afterHoursLeak) + leak(answers.quoteFollowUpLeak);
+    const total = leak(answers.leadResponseLeak) + leak(answers.quoteFollowUpLeak);
     return clamp(100 - (total / worst) * 100);
   }
 
@@ -196,9 +199,12 @@
 
   // What share of those jobs their own answers put at risk. Every rate is stated on the
   // page next to the result, so they can argue with the assumption instead of the total.
+  // The share of enquiries that walks, per answer. Deliberately modest: these are the
+  // numbers behind a figure we put in front of an owner, so they are chosen to be
+  // defensible at the low end rather than impressive.
   const LEAK_RATES = {
-    afterHours: { voicemail: 0.08, rings_out: 0.12, callback_later: 0.06 },
-    quoteFollowUp: { nothing: 0.08, when_remember: 0.05, call_once: 0.02 },
+    leadResponse: { same_day: 0.03, when_slammed: 0.08, fall_through: 0.14 },
+    quoteFollowUp: { once_or_twice: 0.02, when_remember: 0.05, nothing: 0.08 },
   };
 
   function leakMath(answers, profile) {
@@ -207,7 +213,7 @@
 
     const rate = Math.min(
       0.2,
-      (LEAK_RATES.afterHours[answers?.afterHours] || 0) + (LEAK_RATES.quoteFollowUp[answers?.quoteFollowUp] || 0)
+      (LEAK_RATES.leadResponse[answers?.leadResponse] || 0) + (LEAK_RATES.quoteFollowUp[answers?.quoteFollowUp] || 0)
     );
     if (!rate) return null;
 
@@ -400,7 +406,7 @@
     // Google and still lose the call, and this is the part they can feel.
     const leak = leakMath(answers, profile);
     // Paying for clicks that land on voicemail is the most expensive thing here.
-    const leaking = ["voicemail", "rings_out", "callback_later"].includes(answers?.afterHours)
+    const leaking = ["when_slammed", "fall_through"].includes(answers?.leadResponse)
       || ["nothing", "when_remember"].includes(answers?.quoteFollowUp);
     if (website.adsRunning && leaking) {
       out.push({
@@ -412,33 +418,99 @@
       });
     }
 
-    const AFTER_HOURS = {
-      voicemail: "You told us those calls go to voicemail.",
-      rings_out: "You told us those calls ring out with no voicemail at all.",
-      callback_later: "You told us you call them back later, usually the next day.",
+    // One finding per answer they gave, worded to their actual choice. A good answer gets
+    // no finding here; it turns up in the strengths instead, because a report that only
+    // ever tells somebody they are failing stops being believable.
+    const LEAD_RESPONSE = {
+      same_day: {
+        severity: "medium",
+        title: "A same-day reply loses the urgent jobs",
+        said: "You told us you usually get back to people the same day.",
+        why: "That is fine for a kitchen somebody is planning. It is too slow for a leak, a breakdown or a blocked drain, and those are the jobs that call three companies and take whoever answers.",
+      },
+      when_slammed: {
+        severity: "high",
+        title: "The busier you get, the more work you lose",
+        said: "You told us it depends how slammed you are.",
+        why: "So the enquiries slip on exactly the weeks you are earning most, and you never see the ones that went elsewhere. It is the leak that hides itself.",
+      },
+      fall_through: {
+        severity: "high",
+        title: "Some enquiries never get answered at all",
+        said: "You told us some fall through and you do not always catch them.",
+        why: "Every one of those was somebody who chose you first and got nothing back.",
+      },
     };
-    if (AFTER_HOURS[answers?.afterHours]) {
+    const responseFinding = LEAD_RESPONSE[answers?.leadResponse];
+    if (responseFinding) {
       out.push({
         area: "lead_follow_up",
-        severity: "high",
-        title: "The calls you already earned are going unanswered",
-        detail: `${AFTER_HOURS[answers.afterHours]} Homeowners with a problem today call the next company on the list instead of waiting.${leak ? ` Every one you lose is about ${dollars(leak.jobValue)} of work.` : ""}`,
-        fix: "Every call gets answered or texted back in seconds, day or night, and the conversation keeps going until it's booked.",
+        severity: responseFinding.severity,
+        title: responseFinding.title,
+        detail: `${responseFinding.said} ${responseFinding.why}${leak ? ` At ${dollars(leak.jobValue)} a job, each one is that much gone.` : ""}`,
+        fix: "Every enquiry gets an answer in seconds, day or night, and the conversation keeps going until it is booked.",
       });
     }
 
     const FOLLOW_UP = {
-      nothing: "You told us nothing happens after a quote goes out.",
-      when_remember: "You told us you follow up when you remember.",
-      call_once: "You told us you call or text once.",
+      once_or_twice: {
+        severity: "medium",
+        said: "You told us you follow up once or twice yourself.",
+        why: "Most quotes that close need more contact than that, and the ones you drop are the ones a competitor is still calling.",
+      },
+      when_remember: {
+        severity: "high",
+        said: "You told us you follow up if you remember.",
+        why: "Which means the busiest weeks, when you have quoted the most, are the weeks nothing gets chased.",
+      },
+      nothing: {
+        severity: "high",
+        said: "You told us nothing happens after a quote goes out.",
+        why: "Most quotes are won by whoever follows up, not whoever quoted first or cheapest.",
+      },
     };
-    if (FOLLOW_UP[answers?.quoteFollowUp]) {
+    const followFinding = FOLLOW_UP[answers?.quoteFollowUp];
+    if (followFinding) {
       out.push({
         area: "lead_follow_up",
-        severity: answers.quoteFollowUp === "call_once" ? "medium" : "high",
+        severity: followFinding.severity,
         title: "Quotes go quiet and stay quiet",
-        detail: `${FOLLOW_UP[answers.quoteFollowUp]} Most quotes are won by whoever follows up, not whoever quoted first or cheapest.${leak ? ` At ${dollars(leak.jobValue)} a job, every quote you let go cold is that much gone.` : ""}`,
-        fix: "We follow up every quote for you by text and email until they answer one way or the other.",
+        detail: `${followFinding.said} ${followFinding.why}${leak ? ` At ${dollars(leak.jobValue)} a job, every quote you let go cold is that much gone.` : ""}`,
+        fix: "Every quote gets followed up by text and email until they answer one way or the other.",
+      });
+    }
+
+    // How they ask for reviews explains the review count Google is already showing, so this
+    // sits with the reviews rather than with the lead handling.
+    const REVIEW_HABIT = {
+      in_person: {
+        severity: "medium",
+        title: "Asking in person gets a fraction of the reviews",
+        said: "You told us you ask in person here and there.",
+        why: "People agree to it standing in their driveway and then never do it. A link in their hand while they are still pleased is what actually gets written.",
+      },
+      mean_to: {
+        severity: "high",
+        title: "The reviews you meant to ask for never happened",
+        said: "You told us you mean to send something but rarely do.",
+        why: "Which is why the count sits still. Every finished job was a review you had already earned and did not collect.",
+      },
+      never: {
+        severity: "high",
+        title: "Nobody is asking your customers for a review",
+        said: "You told us you do not really ask.",
+        why: "Reviews are the biggest thing deciding where you sit on the map, and the only reliable way to get them is to ask every single time.",
+      },
+    };
+    const reviewFinding = REVIEW_HABIT[answers?.reviewHabit];
+    if (reviewFinding) {
+      const count = data.reviews?.googleReviewCount;
+      out.push({
+        area: "reviews",
+        severity: reviewFinding.severity,
+        title: reviewFinding.title,
+        detail: `${reviewFinding.said} ${reviewFinding.why}${num(count) !== null ? ` You are on ${count} right now.` : ""}`,
+        fix: "Every customer gets asked automatically by text the moment the job is marked done.",
       });
     }
 
