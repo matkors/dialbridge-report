@@ -646,6 +646,10 @@
     showBack(true);
 
     document.querySelector("main.hero").hidden = true;
+    // How-it-works lives outside the hero so it can be wider than it; that means it has to
+    // be hidden alongside it rather than with it.
+    const how = $("how");
+    if (how) how.hidden = true;
     $("scanDone").hidden = true;
     $("scan").hidden = false;
     $("scanTitle").textContent = `Scanning ${business.name}`;
@@ -784,6 +788,8 @@
     window.DialBridgeQuestions?.reset();
     $("scan").hidden = true;
     document.querySelector("main.hero").hidden = false;
+    const how = $("how");
+    if (how) how.hidden = false;
     document.getElementById("clearBtn")?.click();
     showBack(false);
     window.scrollTo({ top: 0 });

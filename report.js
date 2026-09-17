@@ -1049,6 +1049,8 @@
 
     const hero = document.querySelector("main.hero");
     if (hero) hero.hidden = true;
+    const how = $("how");
+    if (how) how.hidden = true;
     const back = document.getElementById("homeBack");
     if (back) back.hidden = false;
     const scan = $("scan");

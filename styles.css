@@ -86,7 +86,7 @@ body {
 .hero {
   max-width: 760px;
   margin: 0 auto;
-  padding: 56px 20px 96px;
+  padding: 56px 20px 40px;
   text-align: center;
 }
 
@@ -1255,7 +1255,7 @@ body.is-locked { overflow: hidden; }
 .how {
   max-width: 1260px;
   margin: 0 auto;
-  padding: 20px 20px 8px;
+  padding: 28px 20px 72px;
   text-align: left;
 }
 .how-title {
