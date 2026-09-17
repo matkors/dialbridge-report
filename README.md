@@ -98,4 +98,21 @@ Both values are visible to anyone who opens the live page, since the browser has
 
 - Set or change a secret: `gh secret set GOOGLE_MAPS_API_KEY --repo matkors/dialbridge-report` (same for `N8N_REPORT_WEBHOOK_URL`)
 - Redeploy without a code change: `gh workflow run deploy.yml --repo matkors/dialbridge-report`
-- The key's website restrictions must include `https://matviykorsunskiy.me/dialbridge-report/*`
+- The key's website restrictions must include **`https://matviykorsunskiy.me/*`**, not just
+  the `/dialbridge-report/` path.
+
+  **This is not optional and it is not a mobile-only problem.** Measured against real browser
+  engines on the live page:
+
+  | engine | referrer Google receives | result |
+  |---|---|---|
+  | Chromium (Chrome, Edge) | `https://matviykorsunskiy.me/dialbridge-report/` | 200 |
+  | WebKit (Safari, all iOS browsers) | `https://matviykorsunskiy.me/` | **403** |
+  | Firefox | `https://matviykorsunskiy.me/` | **403** |
+
+  WebKit and Firefox trim cross-origin referrers to the origin and there is nothing the page
+  can do about it. The `<meta name="referrer">` tag does not help, and neither does
+  `fetch(..., { referrerPolicy: "unsafe-url" })` — both were tested and both are ignored by
+  those engines. Every iPhone, every Safari and every Firefox visitor gets a dead search box
+  until the origin is on the allowlist. Adding `https://matviykorsunskiy.me/*` covers both
+  the origin and the full path, so Chromium keeps working too.

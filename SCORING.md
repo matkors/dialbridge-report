@@ -228,9 +228,31 @@ shape is `leadPayload()` in `report.js`:
 - `report` — the sub-scores, signals, map result, monthly loss, red and gold counts.
 - `answers` — the four quiz answers.
 
+The keyword and the classification both come from `DialBridge - Pick Search Keyword`
+(`2u0m8WpSrZ50mYpS`), one gpt-4o-mini call per audit, about $0.00005. The two answers are
+deliberately independent: the keyword has to make the report work for whoever turns up, and
+the classification is only the gate on the Meta send. Tying them together meant an ambiguous
+business got no keyword and therefore no map.
+
+The classifier is instructed to answer **true when unsure**, because dropping a real
+contractor costs far more than one wasted conversion. "Apex Contracting Group" was a false
+negative before that instruction went in.
+
+`DialBridge - Phone Unlock (OTP)` now catches all of it after `Respond Unlocked`, so the
+unlock stays instant: `Score The Lead` → `Save Lead Score` → `Tag Lead Quality`. Stored on
+the submission as `leadScore`, `leadBand`, `isHomeService`, `metaQualified` and a
+`leadSignals` JSON blob, and tagged on the GHL contact as `lead-hot` / `lead-warm` /
+`lead-cool` plus `meta-qualified` or `not-home-service`.
+
+**The Meta gate is `metaQualified`, and it is not the score.** Two conditions only: the phone
+was verified, and the model did not say this is something other than a contractor. Unknown
+counts as qualified. The score is the event *value*, not a second gate — sending only the
+best leads starves the algorithm, while sending every verified contractor with a value
+attached is what lets Meta learn which clicks are worth buying.
+
 Outstanding:
-1. **LLM classifier in n8n**, gating the Meta send.
-2. **Meta CAPI post** for leads that pass, with the score as the event value.
+1. **Meta CAPI post** for leads where `metaQualified` is true, with `leadScore` as the event
+   value. Needs a Pixel ID and a CAPI access token, which are not in n8n yet.
 3. **Growth Blueprint PDF** hosted on GHL, and the email workflow behind the form at the
    bottom of the report (it currently posts to the old `Report Email Capture` webhook, which
    stores the address but does not yet send a PDF).
