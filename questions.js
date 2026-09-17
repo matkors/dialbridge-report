@@ -15,12 +15,12 @@
   const QUESTIONS = [
     {
       key: "leadResponse",
-      question: "When someone calls or messages about a job, how fast do they hear back?",
+      question: "When someone reaches out about a job, what actually happens?",
       options: [
-        { value: "within_hour", label: "Within the hour, every time", leak: 0 },
-        { value: "same_day", label: "Same day, usually", leak: 1 },
-        { value: "when_slammed", label: "Depends how slammed we are", leak: 2 },
-        { value: "fall_through", label: "Some never hear back at all", leak: 3 },
+        { value: "within_hour", label: "Every inquiry gets a response within the hour", leak: 0 },
+        { value: "same_day", label: "We respond the same day, usually", leak: 1 },
+        { value: "when_slammed", label: "It depends how slammed we are", leak: 2 },
+        { value: "fall_through", label: "Some fall through and we don't always catch them", leak: 3 },
       ],
     },
     {
