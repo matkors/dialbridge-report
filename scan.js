@@ -170,6 +170,10 @@
     "service", "point of interest", "establishment", "store", "manufacturer", "corporate office",
     "business center", "consultant", "general contractor", "contractor",
     "home improvement store", "home goods store", "",
+    // Google files plenty of repair trades as a "supplier" or a "shop". "Midland Park Garage
+    // Door Repair" comes back as primaryType "supplier", category "Suppliers", and searching
+    // "suppliers" around a garage door company measures nothing anybody types.
+    "supplier", "wholesaler", "distributor", "shop", "repair service", "contractor service",
   ]);
 
   // "Services" and "service", "general_contractor" and "General Contractor" are the same
@@ -298,11 +302,69 @@
     return out.slice(0, 4);
   }
 
-  // The one the grid searches. Returns "" when we genuinely cannot tell, and an empty
-  // answer is the right answer: searching a business's own name back at Google either ranks
-  // it first for a term nobody types, or nowhere at all, and both make a liar of the map.
+  // The one our own rules would search. Returns "" when we genuinely cannot tell, and an
+  // empty answer is the right answer: searching a business's own name back at Google either
+  // ranks it first for a term nobody types, or nowhere at all, and both make a liar of the
+  // map. This is now the FALLBACK; pickKeyword below is what normally decides.
   function tradeOf(profile) {
     return tradesOf(profile)[0] || "";
+  }
+
+  // Google's own category is wrong often enough that rules cannot win here. "Midland Park
+  // Garage Door Repair" comes back as primaryType "supplier", category "Suppliers", and
+  // every fix is another entry in a blocklist that grows forever, because reading a trade
+  // out of a business name is a language problem. So n8n asks a model, which also answers
+  // whether this is a home service business at all.
+  //
+  // Everything about this is built to fail soft: a cap, a catch, and our own rules as the
+  // answer if anything goes wrong. A model outage must never take the scan with it.
+  const KEYWORD_CAP_MS = 5000;
+
+  async function pickKeyword(profile) {
+    const endpoint = window.DIALBRIDGE_CONFIG?.N8N_KEYWORD_URL || "";
+    const ours = tradesOf(profile);
+    const fallback = { keyword: ours[0] || "", alternates: ours.slice(1, 3), isHomeService: null, source: "rules" };
+    if (!endpoint || !profile?.name) return fallback;
+
+    try {
+      const res = await withCap(
+        fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: profile.name,
+            primaryType: profile.primaryType || "",
+            category: profile.category || "",
+            city: cityOf(profile.address),
+            website: profile.website || "",
+            description: profile.summary || "",
+            // What our rules guessed, so n8n can hand it straight back if the model is down.
+            fallback: fallback.keyword,
+          }),
+        }),
+        KEYWORD_CAP_MS,
+        null
+      );
+      if (!res || !res.ok) return fallback;
+      const data = await res.json();
+      const keyword = String(data?.keyword || "").trim();
+      if (!keyword) return fallback;
+      return {
+        keyword,
+        // Our own reading of the name is kept alongside the model's, so the report's
+        // "do you do more than one trade?" control still has somewhere to go.
+        alternates: [...(Array.isArray(data.alternates) ? data.alternates : []), ...ours]
+          .map((t) => String(t || "").trim().toLowerCase())
+          .filter((t, i, all) => t && t !== keyword.toLowerCase() && all.indexOf(t) === i)
+          .slice(0, 3),
+        isHomeService: typeof data.isHomeService === "boolean" ? data.isHomeService : null,
+        confidence: typeof data.confidence === "number" ? data.confidence : null,
+        source: data.source || "llm",
+      };
+    } catch (err) {
+      console.warn("Keyword lookup failed, using our own rules", err);
+      return fallback;
+    }
   }
 
   function toCompetitors(places, selfId) {
@@ -772,11 +834,20 @@
       console.warn("Competitor lookup failed", err);
       return [];
     });
-    // The grid needs the pin to search around and the competitor list to put names to the
-    // companies beating them, so it waits on both. Nine searches in parallel, about a
-    // second, and free: the field mask asks Google for place IDs and nothing else.
-    const rankingReady = Promise.all([profileReady, competitorsReady])
-      .then(([p, comps]) => window.DialBridgeEngine?.fetchRanking(p, tradeOf(p), comps) || null)
+    // What we search for. Kicked off the moment the profile lands, because the grid cannot
+    // start until it knows the term.
+    const keywordReady = profileReady.then(pickKeyword).catch((err) => {
+      console.warn("Keyword lookup failed", err);
+      return { keyword: "", alternates: [], isHomeService: null, source: "none" };
+    });
+
+    // The grid needs the pin to search around, the term to search for, and the competitor
+    // list to put names to the companies beating them, so it waits on all three. Nine
+    // searches in parallel, about a second, and free: the field mask asks Google for place
+    // IDs and nothing else.
+    const rankingReady = Promise.all([profileReady, keywordReady, competitorsReady])
+      .then(([p, picked, comps]) =>
+        window.DialBridgeEngine?.fetchRanking(p, picked.keyword, comps) || null)
       .catch((err) => {
         console.warn("Ranking grid failed", err);
         return null;
@@ -797,6 +868,7 @@
       profile: baseline,
       competitors: [],
       ranking: null,
+      keyword: null,
       website: { hasWebsite: Boolean(baseline.website), checked: false, url: baseline.website },
     };
 
@@ -817,7 +889,8 @@
           results.competitors = await withCap(competitorsReady, DATA_CAP_MS, []);
           showLive("Who homeowners compare you to", renderCompetitors(results.profile, results.competitors));
         } else if (step.key === "ranking") {
-          showLive("Searching from nine spots around you", waiting("Asking Google where you come up from each corner of your service area..."));
+          showLive("Searching from nine spots around you", waiting("Working out what a customer would type to find you, then asking Google where you come up..."));
+          results.keyword = await withCap(keywordReady, KEYWORD_CAP_MS + 1000, null);
           results.ranking = await withCap(rankingReady, DATA_CAP_MS, null);
           showLive("Where you show up on the map", renderRankGrid(results.ranking));
         } else if (step.key === "reviews") {
@@ -846,9 +919,19 @@
     // The trade we searched for, kept so the emailed ranking grid asks the same question.
     // Google's category is "service" for a lot of real trades, and a grid built on that
     // word finds nothing and reports the business as ranking nowhere.
-    // Every candidate trade goes with it, so the report can offer to re-measure the map on
-    // another one. The grid is free, so a second opinion costs nothing.
-    window.scanResult = { ...results, findings, trade: tradeOf(results.profile), trades: tradesOf(results.profile) };
+    // The chosen term and the runners-up go with it, so the report can offer to re-measure
+    // the map on another one. The grid is free, so a second opinion costs nothing.
+    const picked = results.keyword || { keyword: tradeOf(results.profile), alternates: [], isHomeService: null, source: "rules" };
+    window.scanResult = {
+      ...results,
+      findings,
+      trade: picked.keyword,
+      trades: [picked.keyword, ...(picked.alternates || [])].filter(Boolean),
+      // Carried through to the lead payload: ad traffic brings in people who are not
+      // contractors at all, and those must not go back to Meta as conversions.
+      isHomeService: picked.isHomeService,
+      keywordSource: picked.source,
+    };
     running = false;
 
     // Build the report right here from what we already pulled from Google, map included.
@@ -868,7 +951,7 @@
         competitors: results.competitors,
         website: results.website,
         ranking: results.ranking,
-        trade: tradeOf(results.profile),
+        trade: picked.keyword,
         answers: window.leadAnswers || {},
         submissionId: window.reportSubmissionId || null,
       });

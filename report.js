@@ -51,6 +51,10 @@
         description: scan.profile?.summary || "",
         address: report.profile?.address || "",
       },
+      // The model's verdict on whether this is a contractor at all, decided during the
+      // scan. n8n gates the Meta send on it.
+      isHomeService: scan.isHomeService ?? null,
+      keywordSource: scan.keywordSource || "",
       score: window.DialBridgeEngine?.leadScore(report) || null,
       report: {
         foundScore: report.foundScore,
@@ -765,23 +769,6 @@
     ]);
   }
 
-  function renderDownload(report) {
-    const name = report?.profile?.name || "your business";
-    const button = h("button", { class: "cta cta-ghost", type: "button", text: "Download this report as a PDF" });
-    button.addEventListener("click", () => {
-      const previous = document.title;
-      // The print dialog uses the page title as the suggested filename.
-      document.title = `Lost Job Report - ${name}`;
-      window.addEventListener("afterprint", () => { document.title = previous; }, { once: true });
-      window.print();
-    });
-    return h("section", { class: "report-download" }, [
-      button,
-      h("p", { class: "download-note", text: "Opens your print window. Choose Save as PDF as the destination." }),
-    ]);
-  }
-
-
   // Everything below the headline numbers is held back until they tell us who they are and
   // prove the phone is theirs. The code is generated and checked server side; the page only
   // ever sees whether it was right.
@@ -1117,6 +1104,8 @@
       answers: window.leadAnswers || null,
       scan: {
         website: window.scanResult?.website || null,
+        isHomeService: window.scanResult?.isHomeService ?? null,
+        keywordSource: window.scanResult?.keywordSource || "",
         // Enough of the profile to re-run the ranking grid after a refresh: the place id it
         // looks for and the pin it searches around. The reviews ride along for the report.
         profile: window.scanResult?.profile
@@ -1177,6 +1166,8 @@
       profile: state.scan?.profile || null,
       competitors: state.scan?.competitors || [],
       trades: state.scan?.trades || [],
+      isHomeService: state.scan?.isHomeService ?? null,
+      keywordSource: state.scan?.keywordSource || "",
     };
 
     const hero = document.querySelector("main.hero");
@@ -1231,7 +1222,6 @@
       ].filter(Boolean)),
       renderStrengths(summary),
       renderBlueprintOffer(report, summary),
-      renderDownload(report),
     ].filter(Boolean);
 
     const locked = h("div", { class: "locked-wrap" }, gated);

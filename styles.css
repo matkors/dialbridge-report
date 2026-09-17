@@ -1225,14 +1225,12 @@ body.is-locked { overflow: hidden; }
   .phone-frame { width: 150px; }
 }
 
-.report-download { text-align: center; padding: 4px 0 8px; }
 .cta-ghost {
   background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--rule);
 }
 .cta-ghost:hover { border-color: var(--accent); color: var(--accent-ink); }
-.download-note { margin: 10px 0 0; font-size: 0.8rem; color: var(--ink-3); }
 
 /* ============ PRINT: the report as a document ============ */
 @media print {
@@ -1247,7 +1245,6 @@ body.is-locked { overflow: hidden; }
   .scan-done,
   #questionsOverlay,
   .card-gate,
-  .report-download,
   .report-status,
   .cta,
   .cta-link { display: none !important; }
