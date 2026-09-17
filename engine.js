@@ -737,15 +737,26 @@
       });
     }
 
-    // ---- no website at all. Nothing else on this list matters as much.
+    // ---- three states here, not two. A listing with no website link is the common one and
+    //      it usually does NOT mean the business has no website.
     if (website && website.found === false) {
       add("no_website", 0, 9, {
         area: "foundation",
-        title: "You don't have a website for people to land on",
-        detail: "Your Google listing has nowhere to send anyone. Homeowners who cannot find a website almost always move to the next company on the list, and Google leans on a real site to decide who to show at all.",
+        title: "There's no website on your listing, and we couldn't find one",
+        detail: "Your Google listing has nowhere to send anyone, and a search for your business did not turn up a site either. Homeowners who cannot find a website almost always move to the next company on the list, and Google leans on a real site to decide who to show at all.",
         fix: "We build and host the site, and it is yours to keep.",
       });
     } else if (website && website.found) {
+      // The site exists but the listing does not link it. Cheap to fix, and it costs them
+      // twice while it is broken: the listing looks unfinished and the clicks go nowhere.
+      if (website.notOnListing) {
+        add("website_not_linked", 15, 8, {
+          area: "google_profile",
+          title: "Your website isn't on your Google listing",
+          detail: `We found your site at ${String(website.url || "").replace(/^https?:\/\//, "")}, but your Google listing has no link to it. Everybody who finds you on the map has nowhere to go, and Google counts a linked site when it decides who to show. This is the cheapest thing on this list to fix.`,
+          fix: "We add it to the listing, along with the services and areas that belong there.",
+        });
+      }
       // ---- the number on the site not matching the number on the listing
       if (website.callNumberMatchesGoogle === false) {
         add("nap_mismatch", 0, 8, {
@@ -1049,6 +1060,10 @@
         mobileLoadTime: website.loadTime || "",
         desktopScore: num(website.desktopScore),
         desktopLoadTime: website.desktopLoadTime || "",
+        // True when we had to go and find the site because the listing did not carry it.
+        // A different, better finding than "you have no website".
+        notOnListing: Boolean(website.notOnListing),
+        foundConfidence: website.foundConfidence || null,
         seoScore: num(website.seoScore),
         https: website.https ?? null,
         mobileFriendly: website.mobileFriendly ?? null,

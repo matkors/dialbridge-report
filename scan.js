@@ -320,6 +320,39 @@
   // answer if anything goes wrong. A model outage must never take the scan with it.
   const KEYWORD_CAP_MS = 5000;
 
+  // A missing website on a Google listing does not mean the business has no website. A1
+  // Progressive has one; it is just not linked. Calling that "you do not have a website" is
+  // wrong, and it is a worse finding than the truth: a site that exists but is not on the
+  // listing is a five-minute fix that helps the listing and the click-through at once.
+  //
+  // Only called when the listing has no website, so it costs nothing for the majority who
+  // do. Fails soft in every direction: cap, catch, and an empty answer is a fine answer.
+  const FINDSITE_CAP_MS = 6000;
+
+  async function findWebsite(profile) {
+    const endpoint = window.DIALBRIDGE_CONFIG?.N8N_FINDSITE_URL || "";
+    if (!endpoint || !profile?.name) return null;
+    try {
+      const res = await withCap(
+        fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: profile.name, city: cityOf(profile.address) }),
+        }),
+        FINDSITE_CAP_MS,
+        null
+      );
+      if (!res || !res.ok) return null;
+      const data = await res.json();
+      const url = safeUrl(String(data?.website || "").trim());
+      if (!url) return null;
+      return { url, confidence: data.confidence || "low", matched: data.matched || [], via: data.foundVia || "" };
+    } catch (err) {
+      console.warn("Website lookup failed", err);
+      return null;
+    }
+  }
+
   async function pickKeyword(profile) {
     const endpoint = window.DIALBRIDGE_CONFIG?.N8N_KEYWORD_URL || "";
     const ours = tradesOf(profile);
@@ -854,7 +887,17 @@
       });
 
     const websiteReady = profileReady.then(async (p) => {
-      const [site, extra] = await Promise.all([fetchWebsite(p.website), fetchSiteCheck(p.website)]);
+      // Which site to test. The listing's, or one we went looking for because the listing
+      // had none. Everything downstream then treats it as a real site, which it is.
+      let url = p.website;
+      let found = null;
+      if (!url) {
+        found = await findWebsite(p);
+        if (found) url = found.url;
+      }
+      const [site, extra] = await Promise.all([fetchWebsite(url), fetchSiteCheck(url)]);
+      site.notOnListing = Boolean(found);
+      site.foundConfidence = found ? found.confidence : null;
       if (!extra || !extra.checked) return site;
       // A tappable number that isn't the one on Google is worse than no number at all.
       const googleDigits = String(p.phone || "").replace(/\D/g, "").slice(-10);

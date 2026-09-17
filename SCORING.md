@@ -173,6 +173,58 @@ Verified end to end against fourteen real businesses: seven real maps, seven hon
 explanations, zero grids of X pins for a business that cannot be measured, zero sections
 that silently disappear.
 
+## "No website" is three states, not two
+
+A missing website link on a Google listing does **not** mean the business has no website.
+A1 Progressive has one; it is simply not linked. The report called that "you don't have a
+website" and landed a foundation-level finding, which is wrong and reads as if we never
+checked.
+
+`DialBridge - Find Website` (`D82795IfOpeUqBnu`) searches the web when the listing carries
+no link, on Brave via gateway credits. The three states now are:
+
+| state | finding |
+|---|---|
+| Linked on the listing | scored as before |
+| **Found by search, not linked** | "Your website isn't on your Google listing" — the cheapest fix on the list |
+| Nothing found anywhere | "There's no website on your listing, and we couldn't find one" |
+
+The middle state is a better finding than the one it replaces: the listing looks unfinished
+*and* every click from the map goes nowhere, and it takes five minutes to fix.
+
+**Precision is the whole game here**, because the wrong domain means running a speed test on
+a stranger's website and printing the score in this contractor's report. Empty is a perfectly
+good answer. Four real false positives shaped the rules:
+
+- **Directories outrank the business for its own name.** Every result for A1 Progressive was
+  dexknows, yellowpages, thumbtack, yelp, buildzoom, cylex, chamberofcommerce or mapquest.
+  The real domain was *inside* two of them — a cylex location link and a chamberofcommerce
+  FAQ answer — so domains are harvested from page text and location links, not only result
+  URLs.
+- **Only the registrable domain may earn a match.** `wheree.com` puts the whole business name
+  in a subdomain, so `mr-rooter-plumbing-of-central-new-jersey.wheree.com` sailed through on
+  "rooter". Matching the registrable part kills every directory that plays this trick.
+- **Trade words cannot earn a match.** A made-up "Zzqqx Nonexistent Fake Plumbing" matched
+  `benjaminfranklinplumbing.com` on "plumbing". A trade word says what they do, never which
+  business they are.
+- **Nor can geography.** "Jersey Shore Window Washing" matched
+  `jerseyshoreguttercleaning.com` — a different company sharing a regional prefix.
+
+A name made only of weak words has to match three of them, which is exactly what separates
+`jerseyshorewindowwashing.com` from `jerseyshoreguttercleaning.com`.
+
+Two implementation notes worth keeping. **Quoting the name in the query excluded the real
+site**, because a contractor's homepage rarely carries its full legal name as a phrase, so
+the quoted search returned only the directories that do. And **`new URL()` is not reliably
+available in the n8n code sandbox**: it threw, a `try/catch` swallowed it, and every business
+came back with results-found and zero candidates. Hosts are parsed by regex now, and parse
+failures are counted in the response rather than hidden.
+
+Verified: six of six real businesses found (`a1progressive.com`, `junkbustersremoval.com`,
+`jerseyshorewindowwashing.com`, `monmouthcountytree.com`, `mrrooter.com`,
+`precisiondoorjersey.com`) and three invented or wholly generic names correctly returned
+nothing.
+
 ## The worst-first list
 
 Candidates are built with their own sub-metric score; `severity = 100 - score`. Sorted by

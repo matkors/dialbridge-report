@@ -292,6 +292,9 @@
     if (web.found === false) {
       return { ok: false, detail: "No website for your listing to send anyone to" };
     }
+    if (web.notOnListing) {
+      return { ok: false, detail: "You have a website, but your listing does not link to it" };
+    }
     if (standing && !standing.enough) {
       return {
         ok: false,
