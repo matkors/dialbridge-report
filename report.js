@@ -699,7 +699,8 @@
         eyebrow: "Step 2 of 2",
         heading: "Check your phone",
         lead: "",
-        fine: () => ["The code lasts ten minutes."],
+        // Matches CODE_MINUTES in the Phone Unlock workflow. If one moves, both move.
+        fine: () => ["The code lasts five minutes."],
       },
     };
 
