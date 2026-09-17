@@ -1247,123 +1247,163 @@ body.is-locked { overflow: hidden; }
 
 
 /* ============ HOW IT WORKS (landing page, under the search) ============ */
+/* One row per step, the mockup and the words side by side, swapping sides as you go down.
+   The mockups are real markup rather than screenshots: they cannot go stale when the UI
+   changes, there is nothing to host, and they stay sharp on any screen. */
 .how {
-  max-width: 1180px;
+  max-width: 1140px;
   margin: 0 auto;
-  padding: 24px 20px 8px;
+  padding: 20px 20px 8px;
   text-align: left;
 }
 .how-title {
-  margin: 0 0 22px;
+  margin: 0 0 34px;
   text-align: center;
-  font-size: clamp(1.1rem, 2.6vw, 1.35rem);
+  font-size: clamp(1.15rem, 2.8vw, 1.45rem);
   letter-spacing: -0.02em;
 }
 
-.how-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 22px; }
-@media (min-width: 760px) {
-  .how-steps { grid-template-columns: repeat(2, 1fr); gap: 26px; }
-}
-@media (min-width: 1120px) {
-  .how-steps { grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.how-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 52px; }
+.how-step { display: grid; gap: 22px; align-items: center; }
+
+@media (min-width: 880px) {
+  .how-steps { gap: 76px; }
+  .how-step { grid-template-columns: 1.25fr 1fr; gap: 54px; }
+  /* Alternate, so the eye zigzags down the page instead of scanning one column. */
+  .how-step:nth-child(even) .how-frame { order: 2; }
 }
 
-.how-step {
-  padding: 18px 18px 20px;
-  border: 1px solid var(--rule);
-  border-radius: 14px;
-  background: var(--surface);
+.how-copy h3 {
+  margin: 8px 0 10px;
+  font-size: clamp(1.25rem, 3.2vw, 1.7rem);
+  line-height: 1.2;
+  letter-spacing: -0.03em;
 }
-.how-step h3 { margin: 6px 0 6px; font-size: 1rem; letter-spacing: -0.01em; }
-.how-step > p:last-child { margin: 0; font-size: 0.88rem; line-height: 1.55; color: var(--ink-2); }
+.how-copy > p:last-child { margin: 0; font-size: 0.97rem; line-height: 1.65; color: var(--ink-2); max-width: 46ch; }
 .how-num {
   margin: 0;
   font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.66rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--accent-ink);
 }
 
-/* The drawings. One idea each, and the only thing that moves is the thing being explained. */
-.how-art {
-  margin: -4px 0 12px;
-  border-radius: 10px;
-  background: var(--paper);
+/* The browser frame. Enough chrome to read as a screen, not enough to be the point. */
+.how-frame {
+  border-radius: 12px;
   overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  box-shadow: 0 18px 40px -28px rgba(15, 27, 45, 0.45);
 }
-.how-art svg { display: block; width: 100%; height: auto; }
-.how-art rect, .how-art circle, .how-art path { vector-effect: non-scaling-stroke; }
+.how-chrome { display: flex; gap: 6px; padding: 9px 12px; background: #647389; }
+.how-chrome i { width: 9px; height: 9px; border-radius: 50%; background: rgba(255, 255, 255, 0.55); }
+.how-screen { padding: 18px; min-height: 186px; }
 
-.how-field { fill: var(--surface); stroke: var(--rule); stroke-width: 1.5; }
-.how-lens { fill: none; stroke: var(--ink-3); stroke-width: 1.8; stroke-linecap: round; }
-.how-caret { fill: var(--accent); animation: how-blink 1.1s steps(1, end) infinite; }
-.how-suggest rect:first-child { fill: var(--surface); stroke: var(--rule); stroke-width: 1.2; }
-.how-suggest-line { fill: var(--ink-3); }
-.how-suggest { opacity: 0; animation: how-appear 3s ease-in-out infinite; }
+/* --- step 1: the search --- */
+.mock-field {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 9px 9px 13px;
+  border: 1px solid var(--rule); border-radius: 999px; background: var(--surface);
+}
+.mock-lens { width: 15px; height: 15px; flex: none; fill: none; stroke: var(--ink-3); stroke-width: 2; }
+.mock-typed { font-size: 0.84rem; color: var(--ink); white-space: nowrap; overflow: hidden; }
+.mock-caret { width: 1.5px; height: 15px; background: var(--accent); animation: how-blink 1.1s steps(1, end) infinite; }
+.mock-btn {
+  margin-left: auto; flex: none;
+  padding: 7px 13px; border-radius: 999px;
+  background: var(--accent); color: #fff;
+  font-size: 0.76rem; font-weight: 700; white-space: nowrap;
+}
+.mock-drop {
+  margin-top: 8px; border: 1px solid var(--rule); border-radius: 10px; overflow: hidden;
+  opacity: 0; animation: how-appear 4s ease-in-out infinite;
+}
+.mock-opt { padding: 9px 13px; border-bottom: 1px solid var(--rule); }
+.mock-opt:last-child { border-bottom: 0; }
+.mock-opt:first-child { background: #fdeee4; }
+.mock-opt strong { display: block; font-size: 0.82rem; letter-spacing: -0.01em; }
+.mock-opt span { display: block; margin-top: 1px; font-size: 0.73rem; color: var(--ink-3); }
 
-.how-row { fill: var(--surface); stroke: var(--rule); stroke-width: 1.4; }
-.how-row-pick { animation: how-pick 3s ease-in-out infinite; }
-.how-tick {
-  fill: none; stroke: var(--good); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round;
-  stroke-dasharray: 16; stroke-dashoffset: 16;
-  animation: how-draw 3s ease-in-out infinite;
+/* --- step 2: the questions --- */
+.mock-qstep {
+  margin: 0 0 6px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-3);
+}
+.mock-qtitle { margin: 0 0 12px; font-size: 0.95rem; font-weight: 700; line-height: 1.3; letter-spacing: -0.01em; }
+.mock-opts { display: grid; gap: 7px; }
+.mock-opts span {
+  padding: 9px 12px; border: 1px solid var(--rule); border-radius: 9px;
+  font-size: 0.8rem; color: var(--ink-2); background: var(--surface);
+}
+.mock-opts .is-pick {
+  border-color: var(--accent); background: #fdeee4; color: var(--ink); font-weight: 600;
+  animation: how-pickfade 4s ease-in-out infinite;
 }
 
-.how-dial-track { fill: none; stroke: var(--rule); stroke-width: 7; }
-.how-dial {
-  fill: none; stroke: var(--accent); stroke-width: 7; stroke-linecap: round;
-  transform: rotate(-90deg); transform-origin: 60px 40px;
-  stroke-dasharray: 151; stroke-dashoffset: 151;
-  animation: how-fill 3s ease-in-out infinite;
+/* --- step 3: the report --- */
+.mock-rings { display: flex; gap: 22px; align-items: center; }
+.mock-ring { display: flex; align-items: baseline; gap: 6px; }
+.mock-ring b { font-size: 1.6rem; letter-spacing: -0.03em; color: var(--good); }
+.mock-ring.is-bad b { color: var(--bad); }
+.mock-ring small { font-size: 0.7rem; color: var(--ink-3); }
+.mock-leak {
+  margin: 12px 0 10px; padding: 10px 13px; border-radius: 10px; background: #f8e7e2;
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
 }
-.how-bar { fill: var(--ink-3); }
-.how-bar-short { fill: var(--rule); }
+.mock-leak b { font-size: 1.15rem; color: var(--bad); letter-spacing: -0.02em; }
+.mock-leak span { font-size: 0.76rem; color: var(--ink-2); }
+.mock-find {
+  display: flex; align-items: center; gap: 9px;
+  padding: 8px 0; border-top: 1px solid var(--rule);
+}
+.mock-find i {
+  flex: none; width: 19px; height: 19px; border-radius: 50%;
+  background: var(--bad); color: #fff;
+  font-size: 0.68rem; font-weight: 700; font-style: normal;
+  display: grid; place-items: center;
+}
+.mock-find span { font-size: 0.8rem; }
 
-.how-pillar { fill: var(--rule); }
-.how-pillar-1 { animation: how-grow 3s ease-in-out infinite; }
-.how-pillar-2 { animation: how-grow 3s ease-in-out 0.18s infinite; }
-.how-pillar-3 { animation: how-grow 3s ease-in-out 0.36s infinite; }
-.how-rise {
-  fill: none; stroke: var(--accent); stroke-width: 2.4; stroke-linecap: round;
-  stroke-dasharray: 76; stroke-dashoffset: 76;
-  animation: how-draw 3s ease-in-out 0.3s infinite;
+/* --- step 4: the plan --- */
+.mock-plan { display: grid; gap: 9px; }
+.mock-pillar {
+  position: relative;
+  padding: 11px 13px; border: 1px solid var(--rule); border-radius: 10px; background: var(--surface);
+}
+.mock-pillar.is-start { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.mock-pillar em {
+  display: block; font-style: normal;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.63rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--accent-ink);
+}
+.mock-pillar b { display: block; margin-top: 3px; font-size: 0.84rem; letter-spacing: -0.01em; }
+.mock-flag {
+  position: absolute; top: 10px; right: 11px;
+  padding: 2px 8px; border-radius: 999px; background: var(--accent);
+  font-size: 0.6rem; font-weight: 700; color: #fff;
 }
 
 @keyframes how-blink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
 @keyframes how-appear {
-  0%, 18% { opacity: 0; transform: translateY(-3px); }
-  34%, 82% { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-3px); }
+  0%, 16% { opacity: 0; transform: translateY(-4px); }
+  30%, 84% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-4px); }
 }
-@keyframes how-pick {
-  0%, 22% { fill: var(--surface); stroke: var(--rule); }
-  40%, 84% { fill: #fdeee4; stroke: var(--accent); }
-  100% { fill: var(--surface); stroke: var(--rule); }
+@keyframes how-pickfade {
+  0%, 20% { border-color: var(--rule); background: var(--surface); }
+  36%, 86% { border-color: var(--accent); background: #fdeee4; }
+  100% { border-color: var(--rule); background: var(--surface); }
 }
-@keyframes how-draw {
-  0%, 26% { stroke-dashoffset: var(--len, 16); }
-  52%, 86% { stroke-dashoffset: 0; }
-  100% { stroke-dashoffset: var(--len, 16); }
-}
-@keyframes how-fill {
-  0%, 16% { stroke-dashoffset: 151; }
-  60%, 86% { stroke-dashoffset: 56; }
-  100% { stroke-dashoffset: 151; }
-}
-@keyframes how-grow {
-  0%, 16% { transform: scaleY(0.35); }
-  54%, 86% { transform: scaleY(1); }
-  100% { transform: scaleY(0.35); }
-}
-.how-pillar { transform-origin: 50% 66px; }
 
 /* Three true numbers. No invented count of businesses: a made-up figure on a page aimed at
    prospects is a lie with a legal edge on it, and these are checkable in the code. */
 .how-stats {
   list-style: none;
-  margin: 30px 0 0;
-  padding: 22px 0 0;
+  margin: 56px 0 0;
+  padding: 26px 0 0;
   border-top: 1px solid var(--rule);
   display: grid;
   gap: 18px;
@@ -1382,13 +1422,9 @@ body.is-locked { overflow: hidden; }
 
 /* Anyone who asked for less motion gets the finished state, not the loop. */
 @media (prefers-reduced-motion: reduce) {
-  .how-caret, .how-suggest, .how-row-pick, .how-tick, .how-dial,
-  .how-pillar-1, .how-pillar-2, .how-pillar-3, .how-rise { animation: none; }
-  .how-suggest { opacity: 1; }
-  .how-tick, .how-rise { stroke-dashoffset: 0; }
-  .how-dial { stroke-dashoffset: 56; }
-  .how-row-pick { fill: #fdeee4; stroke: var(--accent); }
-  .how-caret { opacity: 1; }
+  .mock-caret, .mock-drop, .mock-opts .is-pick { animation: none; }
+  .mock-drop { opacity: 1; }
+  .mock-caret { opacity: 1; }
 }
 
 @media print { .how { display: none !important; } }
