@@ -1248,13 +1248,13 @@ body.is-locked { overflow: hidden; }
 
 /* ============ HOW IT WORKS (landing page, under the search) ============ */
 .how {
-  max-width: 1040px;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: 64px 20px 8px;
+  padding: 24px 20px 8px;
   text-align: left;
 }
 .how-title {
-  margin: 0 0 26px;
+  margin: 0 0 22px;
   text-align: center;
   font-size: clamp(1.1rem, 2.6vw, 1.35rem);
   letter-spacing: -0.02em;
@@ -1264,7 +1264,7 @@ body.is-locked { overflow: hidden; }
 @media (min-width: 760px) {
   .how-steps { grid-template-columns: repeat(2, 1fr); gap: 26px; }
 }
-@media (min-width: 1040px) {
+@media (min-width: 1120px) {
   .how-steps { grid-template-columns: repeat(4, 1fr); gap: 20px; }
 }
 
