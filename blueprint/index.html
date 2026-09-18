@@ -1,0 +1,710 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contractor Growth Blueprint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  /* Paper, deliberately. This gets printed to PDF and emailed to contractors, so the sheets
+     stay white the way a PDF does and only the surround follows the reader's theme.
+
+     Written for somebody reading it at the end of a twelve-hour day, on a phone, in a van.
+     So: one idea per page, one picture doing the explaining, short sentences, and every
+     picture told in words what to look at. Every page is built to the A4 text block,
+     184mm x 271mm, which is 695 x 1024 CSS pixels at 96dpi. */
+  :root {
+    --ink: #12202f;
+    --ink-2: #4a5a6b;
+    --ink-3: #7b8896;
+    --paper: #ffffff;
+    --tint: #f2f5f7;
+    --tint-2: #e9eef2;
+    --rule: #dde3e8;
+    --accent: #e8702a;
+    --accent-ink: #b8531a;
+    --accent-soft: #fdefe6;
+    --good: #1f7a4d;
+    --good-soft: #e7f3ec;
+    --bad: #a33a22;
+    --bad-soft: #fbeae5;
+    --surround: #e4e9ed;
+
+    --display: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --surround: #1b2430; }
+  }
+  :root[data-theme="dark"] { --surround: #1b2430; }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--surround);
+    color: var(--ink);
+    font-family: var(--display);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  img { max-width: 100%; display: block; }
+
+  .deck {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 22px; padding-block: 26px 40px; padding-left: 16px; padding-right: 16px;
+  }
+
+  .sheet {
+    width: 100%; max-width: 780px; background: var(--paper);
+    padding: 42px 46px 46px;
+    box-shadow: 0 1px 2px rgba(18, 32, 47, 0.08), 0 10px 30px rgba(18, 32, 47, 0.07);
+    display: flex; flex-direction: column;
+  }
+
+  /* ---------- type ---------- */
+  h1, h2, h3, h4 { margin: 0; text-wrap: balance; letter-spacing: -0.02em; }
+  h1 { font-size: 2.2rem; font-weight: 800; line-height: 1.1; }
+  h2 { font-size: 1.6rem; font-weight: 800; line-height: 1.16; }
+  h3 { font-size: 1.02rem; font-weight: 700; }
+  h4 { font-size: 0.86rem; font-weight: 700; }
+  p { margin: 0; }
+  strong, b { font-weight: 700; }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 0.66rem; font-weight: 500;
+    letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-ink);
+  }
+  /* One opening line per page, then get out of the way. */
+  .lede { font-size: 1.12rem; line-height: 1.55; color: var(--ink-2); max-width: 52ch; }
+  .say { font-size: 1.01rem; line-height: 1.55; color: var(--ink-2); max-width: 56ch; }
+  .say b { color: var(--ink); }
+  .fine { font-size: 0.78rem; line-height: 1.5; color: var(--ink-3); }
+
+  .stack { display: flex; flex-direction: column; }
+  .gap-6 { gap: 6px; } .gap-10 { gap: 10px; } .gap-14 { gap: 14px; }
+  .gap-18 { gap: 18px; } .gap-20 { gap: 20px; } .gap-24 { gap: 24px; }
+  .gap-28 { gap: 28px; } .gap-36 { gap: 36px; }
+
+  /* ---------- cover ---------- */
+  .brand { display: flex; align-items: center; gap: 9px; }
+  .brand-mark {
+    width: 26px; height: 26px; border-radius: 7px; background: var(--ink); color: var(--paper);
+    display: grid; place-items: center; font-size: 0.7rem; font-weight: 800; letter-spacing: -0.03em;
+  }
+  .brand-name { font-size: 0.9rem; font-weight: 700; letter-spacing: -0.01em; }
+
+  .stages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .stage { background: var(--paper); padding: 15px 16px; display: flex; flex-direction: column; gap: 3px; }
+  .stage-n { font-family: var(--mono); font-size: 0.68rem; font-weight: 600; color: var(--accent-ink); }
+  .stage-t { font-size: 0.98rem; font-weight: 700; }
+  .stage-d { font-size: 0.82rem; line-height: 1.45; color: var(--ink-2); }
+
+  .contents { display: flex; flex-direction: column; border-top: 1px solid var(--rule); }
+  .c-row { display: grid; grid-template-columns: 32px 1fr auto; gap: 12px; align-items: baseline;
+           padding: 9px 0; border-bottom: 1px solid var(--rule); }
+  .c-n { font-family: var(--mono); font-size: 0.68rem; font-weight: 600; color: var(--accent-ink); }
+  .c-t { font-size: 0.88rem; font-weight: 600; }
+  .c-t span { font-weight: 400; color: var(--ink-2); }
+  .c-p { font-family: var(--mono); font-size: 0.72rem; color: var(--ink-3); }
+
+  /* ---------- page heading ---------- */
+  .sec-head { display: flex; gap: 16px; align-items: flex-start; }
+  .sec-n {
+    flex: none; width: 38px; height: 38px; border-radius: 10px;
+    background: var(--accent-soft); color: var(--accent-ink);
+    display: grid; place-items: center; font-family: var(--mono); font-size: 0.95rem; font-weight: 600;
+  }
+
+  /* ---------- the funnel: where a hundred searches end up ---------- */
+  .funnel { display: flex; flex-direction: column; gap: 0; }
+  .fn-stage { display: flex; }
+  .fn-bar {
+    background: var(--ink); color: #fff; padding: 12px 18px;
+    display: flex; align-items: baseline; gap: 10px;
+    font-size: 0.95rem; line-height: 1.25; white-space: nowrap;
+  }
+  .fn-bar b { font-family: var(--mono); font-size: 1.4rem; font-weight: 600; letter-spacing: -0.02em; }
+  .fn-bar.is-end { background: var(--good); }
+
+  .fn-leak {
+    display: grid; grid-template-columns: 24px auto 1fr auto; gap: 12px;
+    align-items: center; padding: 9px 0 9px 6px;
+  }
+  .fn-arrow { font-size: 1.1rem; color: var(--bad); text-align: center; line-height: 1; }
+  .fn-loss {
+    font-family: var(--mono); font-size: 0.82rem; font-weight: 600; color: var(--bad);
+    background: var(--bad-soft); padding: 3px 9px; white-space: nowrap;
+  }
+  .fn-why { font-size: 0.88rem; line-height: 1.35; color: var(--ink-2); }
+  .fn-fix {
+    font-family: var(--mono); font-size: 0.65rem; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--accent-ink); background: var(--accent-soft);
+    padding: 4px 9px; white-space: nowrap;
+  }
+
+  /* ---------- screenshots ---------- */
+  .figure { display: flex; flex-direction: column; gap: 10px; }
+  .shot { width: 100%; border: 1px solid var(--rule); }
+  .cap { font-size: 0.82rem; line-height: 1.5; color: var(--ink-3); }
+  .cap b { color: var(--ink-2); font-weight: 600; }
+
+  /* Told in words what to look at. Every picture in here gets one of these. */
+  .read { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .read-item { display: flex; gap: 10px; align-items: flex-start; }
+  .pin {
+    flex: none; width: 24px; height: 24px; border-radius: 50%;
+    display: grid; place-items: center; color: #fff;
+    font-family: var(--mono); font-size: 0.72rem; font-weight: 600;
+  }
+  .pin.is-top { background: #1f7a4d; }
+  .pin.is-mid { background: #e8702a; }
+  .pin.is-none { background: #8c2f16; }
+  .read-t { font-size: 0.83rem; font-weight: 700; line-height: 1.3; }
+  .read-d { font-size: 0.79rem; line-height: 1.4; color: var(--ink-2); }
+
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start;
+             width: 100%; max-width: 545px; margin: 0 auto; }
+  .panel { border: 1px solid var(--rule); background: var(--paper); display: flex; flex-direction: column; }
+  .panel-tag {
+    padding: 7px 12px; font-family: var(--mono); font-size: 0.62rem; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase; display: flex; align-items: center; gap: 7px;
+  }
+  .panel-tag.is-bad { background: var(--bad-soft); color: var(--bad); }
+  .panel-tag.is-good { background: var(--good-soft); color: var(--good); }
+  .panel .shot { border: 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+  .panel-list { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .panel-list span { font-size: 0.78rem; line-height: 1.35; display: flex; gap: 7px; }
+  .panel-list span i { font-style: normal; flex: none; font-weight: 700; }
+  .panel-list .miss i { color: var(--bad); }
+  .panel-list .has i { color: var(--good); }
+
+  /* a phone big enough to read, with a few lines beside it */
+  .showcase { display: grid; grid-template-columns: 318px 1fr; gap: 26px; align-items: center; }
+  .showcase.wide { grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  .device { border: 1px solid #c9d0d7; border-radius: 16px; overflow: hidden; background: #fff;
+            box-shadow: 0 1px 3px rgba(18, 32, 47, 0.1); }
+  .device img { width: 100%; }
+  .showcase-text { display: flex; flex-direction: column; gap: 13px; }
+
+  /* ---------- two timelines: the whole review argument ---------- */
+  .tl { display: flex; flex-direction: column; gap: 1px; background: var(--rule); border: 1px solid var(--rule); }
+  .tl-row { background: var(--paper); padding: 13px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .tl-tag { font-size: 0.86rem; font-weight: 700; }
+  .tl-track { display: flex; align-items: stretch; }
+  .tl-step {
+    flex: none; padding: 7px 12px; font-size: 0.8rem; font-weight: 600;
+    background: var(--tint-2); color: var(--ink); display: flex; align-items: center;
+  }
+  /* One dashed rule with the wait written on it. A tight repeating gradient across the
+     whole span reads as a barcode, not as time passing. */
+  .tl-wait { flex: 1; position: relative; display: flex; align-items: center; justify-content: center; }
+  .tl-wait::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 50%;
+    border-top: 1px dashed #c3cdd6;
+  }
+  .tl-wait span {
+    position: relative; background: var(--paper); padding: 0 12px;
+    font-size: 0.78rem; color: var(--ink-3);
+  }
+  .tl-end { flex: none; padding: 7px 14px; font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; }
+  .tl-end.is-bad { background: var(--bad-soft); color: var(--bad); }
+  .tl-end.is-good { background: var(--good-soft); color: var(--good); }
+
+  /* ---------- what you get: short lines, not paragraphs ---------- */
+  .gets { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--rule); }
+  .get { display: grid; grid-template-columns: 9px 1fr; gap: 14px; padding: 11px 0;
+         border-bottom: 1px solid var(--rule); align-items: start; }
+  .get-dot { width: 9px; height: 9px; border-radius: 2px; background: var(--accent); margin-top: 6px; }
+  .get-t { font-size: 0.93rem; font-weight: 700; }
+  .get-d { font-size: 0.86rem; line-height: 1.5; color: var(--ink-2); max-width: 62ch; }
+
+  /* ---------- start here ---------- */
+  .steps { display: flex; flex-direction: column; gap: 16px; }
+  .step { display: grid; grid-template-columns: 32px 1fr; gap: 14px; align-items: start; }
+  .step-n {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: #fff;
+    display: grid; place-items: center; font-family: var(--mono); font-size: 0.8rem; font-weight: 600;
+  }
+  .step-t { font-size: 1rem; font-weight: 700; margin-bottom: 3px; }
+  .step-d { font-size: 0.9rem; line-height: 1.5; color: var(--ink-2); max-width: 58ch; }
+  .step-d b { color: var(--ink); }
+
+  .close { background: var(--ink); color: #fff; padding: 26px 28px; display: flex; flex-direction: column; gap: 10px; }
+  .close h3 { color: #fff; font-size: 1.14rem; }
+  .close p { color: rgba(255, 255, 255, 0.84); font-size: 0.95rem; line-height: 1.55; max-width: 54ch; }
+
+  .footer { display: flex; justify-content: space-between; gap: 12px; align-items: baseline;
+            margin-top: auto; padding-top: 18px; }
+  .footer span { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+
+  /* ---------- narrow ---------- */
+  @media (max-width: 680px) {
+    .sheet { padding: 26px 20px 30px; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.24rem; }
+    .stages, .compare, .read { grid-template-columns: 1fr; }
+    .showcase, .showcase.wide { grid-template-columns: 1fr; }
+    .device { max-width: 300px; }
+    .fn-bar { white-space: normal; }
+    .fn-leak { grid-template-columns: 20px auto 1fr; }
+    .fn-fix { grid-column: 2 / -1; justify-self: start; }
+    .sec-head { gap: 12px; }
+  }
+
+  /* ---------- print: one sheet per page ---------- */
+  @media print {
+    @page { size: A4; margin: 13mm; }
+    /* Bigger on paper than it needs to be on screen. The reader is tired and the page has
+       the room: fewer words per page means the words that are left can be larger.
+       It has to go on the root element, because every size in here is in rem. */
+    html { font-size: 13pt; }
+    body { background: #fff; }
+    .deck { gap: 0; padding: 0; }
+    .sheet {
+      max-width: none; width: 100%; min-height: 269mm;
+      box-shadow: none; padding: 0;
+      break-after: page; page-break-after: always;
+      /* Spread whatever height is left between the blocks instead of dumping all of it
+         above the footer, which leaves half a page of nothing. */
+      justify-content: space-between;
+    }
+    .sheet:last-child { break-after: auto; page-break-after: auto; }
+    .footer { margin-top: 0; }
+    .sec-head, .compare, .panel, .showcase, .funnel, .tl, .get, .step, .close, .figure, .read {
+      break-inside: avoid; page-break-inside: avoid;
+    }
+    .showcase.wide .device { max-width: 308px; margin: 0 auto; }
+  }
+
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="deck">
+
+  <!-- ============ 1: cover ============ -->
+  <section class="sheet stack gap-28">
+    <div class="stack gap-24">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">DB</span>
+        <span class="brand-name">DialBridge</span>
+      </div>
+
+      <div class="stack gap-14">
+        <p class="eyebrow">Growth Blueprint</p>
+        <h1>Three things decide whether a job is yours</h1>
+        <p class="lede">
+          Your report showed you where the work is going. This shows you what to do about it.
+        </p>
+      </div>
+    </div>
+
+    <div class="stages">
+      <div class="stage">
+        <span class="stage-n">01</span>
+        <span class="stage-t">Get found</span>
+        <span class="stage-d">They search. You come up.</span>
+      </div>
+      <div class="stage">
+        <span class="stage-n">02</span>
+        <span class="stage-t">Get chosen</span>
+        <span class="stage-d">They see you. They pick you.</span>
+      </div>
+      <div class="stage">
+        <span class="stage-n">03</span>
+        <span class="stage-t">Catch the job</span>
+        <span class="stage-d">They call. You land it.</span>
+      </div>
+    </div>
+
+    <p class="say">
+      Every company beating you locally does these three well, whether they meant to or not.
+      None of it is clever. It just has to happen <b>every day</b>, which is the part that
+      breaks.
+    </p>
+
+    <div class="contents">
+      <div class="c-row">
+        <span class="c-n">&mdash;</span>
+        <span class="c-t">Where the work actually goes <span>&mdash; the whole thing on one page</span></span>
+        <span class="c-p">2</span>
+      </div>
+      <div class="c-row">
+        <span class="c-n">01</span>
+        <span class="c-t">Get found <span>&mdash; the map, then the listing that decides it</span></span>
+        <span class="c-p">3</span>
+      </div>
+      <div class="c-row">
+        <span class="c-n">02</span>
+        <span class="c-t">Get chosen <span>&mdash; reviews, and when to ask</span></span>
+        <span class="c-p">5</span>
+      </div>
+      <div class="c-row">
+        <span class="c-n">03</span>
+        <span class="c-t">Catch the job <span>&mdash; the calls you never hear about</span></span>
+        <span class="c-p">6</span>
+      </div>
+      <div class="c-row">
+        <span class="c-n">&mdash;</span>
+        <span class="c-t">Where to start <span>&mdash; in the order that pays</span></span>
+        <span class="c-p">7</span>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>DialBridge LLC</span>
+      <span>Page 1 of 7</span>
+    </div>
+  </section>
+
+  <!-- ============ 2: the funnel ============ -->
+  <section class="sheet stack gap-28">
+    <div class="stack gap-10">
+      <p class="eyebrow">The whole thing on one page</p>
+      <h2>A hundred people look. Six of them hire you.</h2>
+    </div>
+
+    <p class="say">
+      The other ninety-four do not vanish. They leak out in three specific places, and each
+      place has a name.
+    </p>
+
+    <div class="funnel">
+      <div class="fn-stage">
+        <div class="fn-bar"><b>100</b> homeowners search for your trade nearby</div>
+      </div>
+      <div class="fn-leak">
+        <span class="fn-arrow" aria-hidden="true">&#8600;</span>
+        <span class="fn-loss">60 gone</span>
+        <span class="fn-why">You are not in the top three where they are standing</span>
+        <span class="fn-fix">01 Get found</span>
+      </div>
+
+      <div class="fn-stage">
+        <div class="fn-bar" style="width: 62%"><b>40</b> actually see you</div>
+      </div>
+      <div class="fn-leak">
+        <span class="fn-arrow" aria-hidden="true">&#8600;</span>
+        <span class="fn-loss">25 gone</span>
+        <span class="fn-why">The company beside you has more reviews, and newer ones</span>
+        <span class="fn-fix">02 Get chosen</span>
+      </div>
+
+      <div class="fn-stage">
+        <div class="fn-bar" style="width: 40%"><b>15</b> reach out</div>
+      </div>
+      <div class="fn-leak">
+        <span class="fn-arrow" aria-hidden="true">&#8600;</span>
+        <span class="fn-loss">9 gone</span>
+        <span class="fn-why">Nobody got back to them before somebody else did</span>
+        <span class="fn-fix">03 Catch the job</span>
+      </div>
+
+      <div class="fn-stage">
+        <div class="fn-bar is-end" style="width: 26%"><b>6</b> become jobs</div>
+      </div>
+    </div>
+
+    <p class="fine">
+      Round numbers, to show the shape. What matters is where the losses sit: most of the work
+      is gone before anybody has spoken to you.
+    </p>
+
+    <p class="say">
+      Which is why the order matters. Paying for more searches while nobody answers the phone
+      is paying for the <b>same leak twice</b>.
+    </p>
+
+    <div class="footer">
+      <span>Where the work goes</span>
+      <span>Page 2 of 7</span>
+    </div>
+  </section>
+
+  <!-- ============ 3: get found, the map ============ -->
+  <section class="sheet stack gap-20">
+    <div class="sec-head">
+      <span class="sec-n" aria-hidden="true">01</span>
+      <div class="stack gap-6">
+        <p class="eyebrow">Get found</p>
+        <h2>Third at home, invisible four miles away</h2>
+      </div>
+    </div>
+
+    <p class="say">
+      Where you come up depends on where the person searching is standing. You only ever
+      search from your own address, where you look fine.
+    </p>
+
+    <img class="shot" src="img/heatmap-real.png" alt="A Google map of an area of New Jersey with nine numbered circles marking where one company ranked for the same search made at nine points around its address: a green 3 at the centre, orange numbers from 10 to 18 around it, and two dark red X pins where it did not appear at all.">
+
+    <p class="cap">
+      <b>How to read it.</b> One company, one search, nine places a homeowner might be standing
+      when they make it. Each circle is one of those places, and the number in it is where this
+      company came up in the results.
+    </p>
+
+    <div class="read">
+      <div class="read-item">
+        <span class="pin is-top">3</span>
+        <div>
+          <p class="read-t">Green: in the top three</p>
+          <p class="read-d">Only at its own address. This is the one it can see itself.</p>
+        </div>
+      </div>
+      <div class="read-item">
+        <span class="pin is-mid">14</span>
+        <div>
+          <p class="read-t">Orange: tenth to eighteenth</p>
+          <p class="read-d">On the map, but four pages down. Nobody scrolls that far.</p>
+        </div>
+      </div>
+      <div class="read-item">
+        <span class="pin is-none">X</span>
+        <div>
+          <p class="read-t">Red X: not there at all</p>
+          <p class="read-d">Two towns it happily drives to, where it does not exist.</p>
+        </div>
+      </div>
+    </div>
+
+    <p class="say">
+      Twelfth is not a slightly worse month. It is <b>no calls at all</b> from that
+      neighbourhood. Your report has this same map for your own business.
+    </p>
+
+    <div class="footer">
+      <span>Get found</span>
+      <span>Page 3 of 7</span>
+    </div>
+  </section>
+
+  <!-- ============ 4: get found, the listing ============ -->
+  <section class="sheet stack gap-18">
+    <div class="stack gap-6">
+      <p class="eyebrow">Get found</p>
+      <h2>Your Google listing decides more than your website does</h2>
+    </div>
+
+    <p class="say">
+      Two real listings, photographed from Google. Same state, same kind of trade, same
+      homeowner choosing between them.
+    </p>
+
+    <div class="compare">
+      <div class="panel">
+        <div class="panel-tag is-bad"><span aria-hidden="true">&#10005;</span> Never touched again</div>
+        <img class="shot" src="img/panel-thin.png" alt="A real Google Maps listing for a garage door company: five stars, the category garage door supplier, an address, closed now, a phone number, a section headed Add missing information offering to add a website, and an empty photo strip.">
+        <div class="panel-list">
+          <span class="miss"><i>&#10005;</i> No website. Google is offering to add one.</span>
+          <span class="miss"><i>&#10005;</i> No photos. Not one, ever.</span>
+          <span class="miss"><i>&#10005;</i> Filed as a supplier. It is a repair company.</span>
+          <span class="miss"><i>&#10005;</i> Closed, and only three reviews.</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-tag is-good"><span aria-hidden="true">&#10003;</span> Worked on</div>
+        <img class="shot" src="img/panel-complete.png" alt="A real Google Maps listing for a plumbing company: a photo of a branded van and a uniformed technician, 4.8 stars, the category plumber, a Book online button, an address, open 24 hours, two website links and a phone number.">
+        <div class="panel-list">
+          <span class="has"><i>&#10003;</i> Its own van, and a person in uniform.</span>
+          <span class="has"><i>&#10003;</i> Open 24 hours, when emergencies happen.</span>
+          <span class="has"><i>&#10003;</i> Book online, without leaving Google.</span>
+          <span class="has"><i>&#10003;</i> 4.8 stars from thousands of reviews.</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="say">
+      A homeowner decides between those two in about four seconds. Google reads the same
+      fields to decide who to put on the map in the first place.
+    </p>
+
+    <p class="fine">Real businesses, so the name on the left is blurred. Nothing else is changed.</p>
+
+    <div class="footer">
+      <span>Get found</span>
+      <span>Page 4 of 7</span>
+    </div>
+  </section>
+
+  <!-- ============ 5: get chosen ============ -->
+  <section class="sheet stack gap-24">
+    <div class="sec-head">
+      <span class="sec-n" aria-hidden="true">02</span>
+      <div class="stack gap-6">
+        <p class="eyebrow">Get chosen</p>
+        <h2>Reviews are won in the two hours after the job</h2>
+      </div>
+    </div>
+
+    <div class="tl">
+      <div class="tl-row">
+        <span class="tl-tag">Asked whenever you remember</span>
+        <div class="tl-track">
+          <span class="tl-step">Job done</span>
+          <span class="tl-wait"><span>three days go by</span></span>
+          <span class="tl-end is-bad">Nothing</span>
+        </div>
+      </div>
+      <div class="tl-row">
+        <span class="tl-tag">Asked every single time</span>
+        <div class="tl-track">
+          <span class="tl-step">Job done</span>
+          <span class="tl-wait"><span>two hours</span></span>
+          <span class="tl-end is-good">Review</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="showcase">
+      <div class="device">
+        <img src="img/thread-review.png" alt="A phone screenshot of a text thread. In the morning the company texts that Mike is twenty minutes out. That afternoon it says the job is all done and asks whether she would mind leaving Mike a quick review, with a review link underneath. She replies that she just left one.">
+      </div>
+      <div class="showcase-text">
+        <p class="cap">
+          <b>What she gets.</b> The same thread that told her the van was twenty minutes out,
+          now asking for a review, with the link right there to tap.
+        </p>
+        <p class="say">
+          A link in their hand while they are still pleased gets written. The same ask on
+          Monday does not.
+        </p>
+        <p class="say">
+          So it goes out on its own, a couple of hours after you close the job, in your name.
+          And it asks <b>everyone</b>, which is the part that changes the number.
+        </p>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>Get chosen</span>
+      <span>Page 5 of 7</span>
+    </div>
+  </section>
+
+  <!-- ============ 6: catch the job ============ -->
+  <section class="sheet stack gap-18">
+    <div class="sec-head">
+      <span class="sec-n" aria-hidden="true">03</span>
+      <div class="stack gap-6">
+        <p class="eyebrow">Catch the job</p>
+        <h2>The leak you never see, because the phone just stops ringing</h2>
+      </div>
+    </div>
+
+    <p class="say">
+      Somebody with a leak tonight rings three companies and hires whoever gets back first.
+      Not the cheapest. The first.
+    </p>
+
+    <div class="showcase wide">
+      <div class="figure">
+        <div class="device">
+          <img src="img/thread-missed-call.png" alt="A phone screenshot from the homeowner's side. Fourteen seconds after her call rang out, a text arrives from the plumbing company asking what is going on and which town she is in. She replies that her water heater is leaking across the basement floor. Two appointment times are offered, she picks one, and the job is booked.">
+        </div>
+        <p class="cap">
+          <b>Her phone.</b> Her call rang out, and fourteen seconds later she is being asked
+          what is wrong. Four messages later the job is booked and she has been told to shut
+          the valve.
+        </p>
+      </div>
+      <div class="figure">
+        <div class="device">
+          <img src="img/thread-owner.png" alt="A phone screenshot from the contractor's side at 11:48 at night. Two jobs have been booked while he was out, each listed with the name, town, problem and time. The second asks him to reply Y to confirm the held slot, he replies Y, and is told it is confirmed and that four jobs have been booked out of hours this week.">
+        </div>
+        <p class="cap">
+          <b>Your phone.</b> Quarter to midnight. The name, the town, the problem and the time,
+          already asked for. One letter to confirm it.
+        </p>
+      </div>
+    </div>
+
+    <p class="say">
+      Behind it, an assistant picks up the calls you cannot, and says so up front. Quotes that
+      go quiet get chased until you have a <b>yes or a no</b>.
+    </p>
+
+    <div class="footer">
+      <span>Catch the job</span>
+      <span>Page 6 of 7</span>
+    </div>
+  </section>
+
+  <!-- ============ 7: where to start ============ -->
+  <section class="sheet stack gap-28">
+    <div class="stack gap-24">
+      <div class="stack gap-10">
+        <p class="eyebrow">Where to start</p>
+        <h1>In the order that pays</h1>
+        <p class="lede">If you only do one of these, do the first.</p>
+      </div>
+
+      <div class="steps">
+        <div class="step">
+          <span class="step-n" aria-hidden="true">1</span>
+          <div>
+            <p class="step-t">Stop the leak</p>
+            <p class="step-d">
+              Answer every missed call and form with a text, in seconds. It works on the
+              enquiries you <b>already</b> have, so you can tell within a fortnight whether any
+              of this is worth your time.
+            </p>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-n" aria-hidden="true">2</span>
+          <div>
+            <p class="step-t">Start asking for reviews</p>
+            <p class="step-d">
+              Next, because it needs months to compound. Every week you wait is a week of
+              finished jobs you cannot get back. Then finish the listing, which feeds the same
+              result.
+            </p>
+          </div>
+        </div>
+        <div class="step">
+          <span class="step-n" aria-hidden="true">3</span>
+          <div>
+            <p class="step-t">Then turn up the volume</p>
+            <p class="step-d">
+              Website and ads last. Sending more people at a business that catches what it
+              earns is worth doing. Sending them at one that does not is the same leak, twice.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="say">
+      Every fix in here is one you could do yourself, with a free Google account and enough
+      evenings. What we sell is that it <b>keeps happening</b> on the weeks you are flat out,
+      which is exactly when it stops.
+    </p>
+
+    <div class="close">
+      <h3>Want a hand with any of it?</h3>
+      <p>
+        Reply to the text we sent. We will tell you what we would fix first and roughly what it
+        takes. If it is not for you, no harm done, and the report and this plan are yours
+        either way.
+      </p>
+    </div>
+
+    <div class="footer">
+      <span>DialBridge LLC &middot; dialbridge.ai</span>
+      <span>Page 7 of 7</span>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

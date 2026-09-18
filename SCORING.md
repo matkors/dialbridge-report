@@ -340,3 +340,49 @@ Outstanding:
    bottom of the report (it currently posts to the old `Report Email Capture` webhook, which
    stores the address but does not yet send a PDF).
 4. `owner_reply_rate` via Apify if we want that 0.15 back.
+
+## The Growth Blueprint PDF
+
+`blueprint/index.html` is the source; `blueprint/DialBridge-Growth-Blueprint.pdf` is what
+leads receive. Both ship with the site, so the PDF has a real public URL at
+`/blueprint/DialBridge-Growth-Blueprint.pdf` and the capture workflow emails a link rather
+than an attachment.
+
+**One static PDF for everyone, deliberately.** Per-lead generation would need a headless
+Chromium service, which n8n cloud cannot run, and it would add nothing: the personalised
+artefact is the report, where they already saw their own heat map. The map in the PDF is a
+real audit of a real area with no business named on it.
+
+Every picture in it is a real screenshot, captured by the scripts in the scratchpad:
+
+| Image | Where it comes from |
+| --- | --- |
+| `heatmap-real.png` | The production engine against real Places data, rendered with the real `.heat` markup and CSS, then photographed. |
+| `panel-complete.png` | Google Maps, a national franchise's listing. Photo, 4.8 from 2,315, 24 hours, website, Book online. |
+| `panel-thin.png` | Google Maps, a real small contractor. No website, no photos, wrong category. **Name and logo blurred**, because naming a real business as the bad example in a document sent to its neighbours is not on. Nothing else in the frame is altered. |
+| `thread-*.png` | iOS Messages built to the platform's real measurements (393pt, 19pt radius, #E9E9EB in, SMS green out), rendered and photographed rather than drawn. |
+
+**Pagination is measured, not hoped for.** Each sheet is built to the A4 text block, 184mm x
+271mm = 695 x 1024 CSS px at 96dpi. `makepdf.cjs` prints the file and then reports every
+sheet's height against that budget, because a page 40px too long does not look slightly
+wrong, it pushes a footer onto a blank sheet. Two traps cost time: measuring at 794px (the
+full 210mm sheet) understates every page by about 100px, and a print `body { font-size }`
+does nothing when every size in the stylesheet is in `rem` - it has to go on `html`.
+
+## Meta Conversions API
+
+`DialBridge - Phone Unlock (OTP)` ends with `Meta Settings` -> `Send To Meta?` ->
+`Build Meta Event` -> `Hash The Phone` -> `Post Lead To Meta`.
+
+It is **inert until a Pixel ID and a Conversions API access token are pasted into
+`Meta Settings`**. The gate requires both to be non-empty, so while they are blank nothing is
+sent and nothing errors.
+
+- Gate: OTP-verified (implied by the branch) **and** `metaQualified` is `"true"`. Unknown
+  counts as qualified, because dropping a real contractor costs more than one wasted event.
+- Value: `leadScore`. The score is the event value, never a second gate - sending only the
+  best leads starves the algorithm.
+- Identity: SHA-256 of the phone as country code plus digits, via the Crypto node, plus IP
+  and user agent.
+- `event_id` is the `submissionId`, so a retry or a second unlock on the same report is
+  deduplicated by Meta instead of counted twice.
