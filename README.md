@@ -92,7 +92,8 @@ Every push to `main` runs `.github/workflows/deploy.yml`, which writes `config.j
 - `N8N_REPORT_WEBHOOK_URL`: n8n workflow "DialBridge - Report Request Intake" (validates the submission and saves it to the `dialbridge_report_submissions` data table)
 - `N8N_SITE_CHECK_URL`: n8n workflow "Site Check (page)" — fetches the contractor's page source, which a browser cannot read cross-origin
 - `N8N_UNLOCK_SEND_URL` / `N8N_UNLOCK_VERIFY_URL`: n8n workflow "DialBridge - Phone Unlock (OTP)". The code is generated and checked server side; the page only ever learns whether it was right
-- `N8N_REPORT_STATUS_URL` and `N8N_REPORT_EMAIL_URL` are still written into `config.js` but nothing reads them. The status endpoint is archived and the email gate is gone.
+- `N8N_REPORT_EMAIL_URL`: n8n workflow "DialBridge - Growth Blueprint Capture". The email form at the bottom of the unlocked report posts here; it saves the address on the submission and the GHL contact, tags `blueprint-requested`, and emails the Growth Blueprint PDF at `/dialbridge-report/blueprint/DialBridge-Growth-Blueprint.pdf`
+- `N8N_REPORT_STATUS_URL` is still written into `config.js` but nothing reads it; the status endpoint is archived
 
 Both values are visible to anyone who opens the live page, since the browser has to use them. The Google key is locked to this site by referrer restriction; the n8n webhook only accepts this site's origin, rejects bots via a hidden `company_fax` field, and validates every field.
 

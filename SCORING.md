@@ -344,9 +344,13 @@ Outstanding:
 ## The Growth Blueprint PDF
 
 `blueprint/index.html` is the source; `blueprint/DialBridge-Growth-Blueprint.pdf` is what
-leads receive. Both ship with the site, so the PDF has a real public URL at
-`/blueprint/DialBridge-Growth-Blueprint.pdf` and the capture workflow emails a link rather
-than an attachment.
+leads receive. Both ship with the site, so the PDF has a real public URL and the capture
+workflow emails a link rather than an attachment:
+
+    https://matviykorsunskiy.me/dialbridge-report/blueprint/DialBridge-Growth-Blueprint.pdf
+
+Note the `/dialbridge-report/` subpath. Pages serves the repo from there; the domain root is
+a different site, so a link without it 404s. That cost one bad send to find.
 
 **One static PDF for everyone, deliberately.** Per-lead generation would need a headless
 Chromium service, which n8n cloud cannot run, and it would add nothing: the personalised
