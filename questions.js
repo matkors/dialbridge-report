@@ -128,7 +128,6 @@
         });
         return button;
       })),
-      h("p", { class: "q-note", text: "Your answers get built into the report. Google can show us how you turn up in search. Only you can tell us what happens after someone reaches out." }),
       index > 0 ? h("button", { class: "link q-back", type: "button", text: "Back" }) : null,
     ].filter(Boolean));
     card.querySelector(".q-close")?.addEventListener("click", cancel);

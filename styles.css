@@ -574,7 +574,7 @@ h1 {
   box-shadow: var(--shadow);
   padding: 24px 26px;
 }
-.scan-done h2 { margin: 0 0 14px; font-size: clamp(1.25rem, 3vw, 1.6rem); letter-spacing: -0.02em; text-wrap: balance; }
+.scan-done h2 { margin: 0 0 14px; font-size: clamp(1.25rem, 3vw, 1.6rem); letter-spacing: -0.02em; text-wrap: pretty; }
 .findings { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 10px; }
 .finding { padding: 12px 14px; border-radius: 10px; font-weight: 600; }
 .finding-bad { background: var(--bad-soft); color: var(--bad); }
@@ -653,7 +653,7 @@ h1 {
 .report-hero-top { display: flex; flex-wrap: wrap; gap: 24px; align-items: center; }
 .report-hero-text { flex: 1 1 280px; min-width: 0; }
 .report-hero .eyebrow { margin: 0 0 6px; }
-.report-hero h2 { margin: 0 0 10px; font-size: clamp(1.35rem, 3.4vw, 1.9rem); letter-spacing: -0.03em; text-wrap: balance; }
+.report-hero h2 { margin: 0 0 10px; font-size: clamp(1.35rem, 3.4vw, 1.9rem); letter-spacing: -0.03em; text-wrap: pretty; }
 .report-hero .lead { margin: 0; color: var(--ink-2); font-size: 1rem; }
 
 .stat-row {
@@ -940,7 +940,7 @@ h1 {
   letter-spacing: 0.12em;
   color: var(--accent-ink);
 }
-.q-title { margin: 0 0 18px; font-size: clamp(1.1rem, 2.6vw, 1.35rem); letter-spacing: -0.02em; text-wrap: balance; }
+.q-title { margin: 0 0 18px; font-size: clamp(1.1rem, 2.6vw, 1.35rem); letter-spacing: -0.02em; text-wrap: pretty; }
 .q-options { display: grid; gap: 10px; }
 .q-option {
   width: 100%;
@@ -959,7 +959,7 @@ h1 {
 .q-option:hover { border-color: var(--accent); background: var(--surface); }
 .q-option:active { transform: translateY(1px); }
 .q-option:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-.q-note { margin: 16px 0 0; font-size: 0.82rem; color: var(--ink-3); }
+.q-intro { margin: 0 0 14px; font-size: 0.92rem; color: var(--ink-2); }
 
 /* two scores side by side: getting found, and catching the lead */
 .hero-rings { display: flex; flex-wrap: wrap; gap: 20px; }
@@ -989,7 +989,6 @@ h1 {
 }
 .q-overlay .questions { margin: auto; width: 100%; max-width: 560px; }
 body.is-locked { overflow: hidden; }
-.q-intro { margin: 0 0 14px; font-size: 0.92rem; color: var(--ink-2); }
 .questions { position: relative; }
 .q-close {
   position: absolute;
