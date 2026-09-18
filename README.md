@@ -99,6 +99,27 @@ Both values are visible to anyone who opens the live page, since the browser has
 
 - Set or change a secret: `gh secret set GOOGLE_MAPS_API_KEY --repo matkors/dialbridge-report` (same for `N8N_REPORT_WEBHOOK_URL`)
 - Redeploy without a code change: `gh workflow run deploy.yml --repo matkors/dialbridge-report`
+## Testing the live flow
+
+Every webhook has `ignoreBots: true`, which rejects any request whose user agent looks
+automated and answers `403 {"message":"Authorization data is wrong!"}`. That includes `curl`
+**and headless Chromium**, which announces itself as `HeadlessChrome`.
+
+So an automated test of the live page has to set a normal browser user agent, or all three
+calls come back 403 and it looks exactly like an outage:
+
+```js
+await browser.newContext({
+  userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+             "(KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
+});
+```
+
+Verified live with that set (2026-09-17): `submit` 200 with a submissionId, `site-check` 200,
+`keyword` 200 returning `plumber` from the model, the gate up asking for `unlockName` and
+`unlockPhone`, two score rings, the rest blurred, nine heat pins. The OTP step needs a real
+phone, so it cannot be automated past the gate.
+
 - The key's website restrictions must include **`https://matviykorsunskiy.me/*`**, not just
   the `/dialbridge-report/` path.
 
