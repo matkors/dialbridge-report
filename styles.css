@@ -1797,17 +1797,20 @@ body.is-locked { overflow: hidden; }
    there is something here, and it opens where you are rather than in an inbox. */
 .plan-locked { display: grid; gap: 14px; margin-top: 18px; transition: filter 0.55s ease, opacity 0.55s ease; }
 .plan-locked.is-locked {
-  max-height: 260px;
+  max-height: 320px;
   overflow: hidden;
   position: relative;
-  filter: blur(6px);
-  opacity: 0.55;
+  /* Heavy enough that it reads as "there is something real behind this" rather than as a
+     slightly soft paragraph. At blur(6px) the words were still half-legible, which makes
+     the gate feel like a formality instead of a trade. */
+  filter: blur(11px);
+  opacity: 0.42;
   pointer-events: none;
   user-select: none;
 }
 .plan-locked.is-locked::after {
   content: "";
-  position: absolute; inset: auto 0 0 0; height: 140px;
+  position: absolute; inset: auto 0 0 0; height: 170px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0), var(--surface));
 }
 
@@ -1824,3 +1827,54 @@ body.is-locked { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .plan-locked { transition: none; }
 }
+
+/* ============ THE CENTRE PIN IS THEM ============ */
+/* The caption already said the middle one is their address and it still was not obvious:
+   people read the map before the sentence under it. */
+.heat-pin.is-you {
+  box-shadow: 0 0 0 3px var(--surface), 0 0 0 6px var(--ink);
+  z-index: 3;
+}
+.heat-pin.is-you::after {
+  content: "YOUR BUSINESS";
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+@media (max-width: 560px) {
+  .heat-pin.is-you::after { content: "YOU"; font-size: 0.55rem; padding: 2px 6px; }
+}
+.map-legend .is-you-key::before {
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+/* ============ THE PLAN GATE ============ */
+/* Centred, and the blur has to read as "there is something real behind this" rather than
+   as a slightly soft paragraph. */
+.card-plan { text-align: center; }
+.card-plan .eyebrow { text-align: center; }
+.card-plan h3 {
+  margin: 6px auto 12px;
+  font-size: clamp(1.45rem, 3.6vw, 2rem);
+  letter-spacing: -0.03em;
+  max-width: 26ch;
+  text-wrap: balance;
+}
+.card-plan .plan-lead { margin: 0 auto; max-width: 52ch; font-size: 1.02rem; }
+.card-plan .plan-form { margin: 22px auto 0; max-width: 520px; }
+.card-plan .plan-form-label { display: block; text-align: center; }
+.card-plan .gate-note { text-align: center; }
+.card-plan .gate-fine { max-width: 60ch; margin-left: auto; margin-right: auto; }
+
+/* The plan itself stays left-aligned once it is open; centred body copy is hard to read. */
+.plan-locked { text-align: left; }

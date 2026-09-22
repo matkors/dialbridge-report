@@ -534,7 +534,8 @@
       // to scale with it or they drift off their spots on a narrow screen.
       ...map.pins.map((pin) =>
         h("span", {
-          class: `heat-pin tone-${pin.tone}`,
+          class: `heat-pin tone-${pin.tone}${pin.isCentre ? " is-you" : ""}`,
+          ...(pin.isCentre ? { "data-you": "YOUR BUSINESS" } : {}),
           style: `left: ${(50 + (pin.x / map.width) * 100).toFixed(3)}%; top: ${(50 + (pin.y / map.height) * 100).toFixed(3)}%`,
           text: pin.label,
         })
@@ -632,6 +633,7 @@
             h("li", { class: "tone-good", text: "Top 3, they see you" }),
             h("li", { class: "tone-warn", text: "4 or lower, most people never scroll there" }),
             h("li", { class: "tone-bad", text: "X, you don't come up at all" }),
+            h("li", { class: "is-you-key", text: "The ringed pin is your address" }),
           ]),
         ])
       : null;
@@ -851,7 +853,7 @@
     const worst = (summary?.findings || [])[0];
     const focus = BLUEPRINT_FOCUS[worst?.area];
     const form = h("form", { class: "plan-form", novalidate: "" }, [
-      h("label", { class: "plan-form-label", for: "planEmail", text: "Your email, and it opens right here" }),
+      h("label", { class: "plan-form-label", for: "planEmail", text: "Enter your email to unlock it" }),
       h("div", { class: "plan-form-row" }, [
         h("input", { id: "planEmail", type: "email", name: "email", placeholder: "you@yourcompany.com", autocomplete: "email", required: "" }),
         h("button", { class: "cta", type: "submit", text: "Show me the plan" }),
@@ -898,7 +900,7 @@
         planLock.classList.remove("is-locked");
         planLock.removeAttribute("aria-hidden");
         form.replaceChildren();
-        note.textContent = "Unlocked below. We have emailed you the link so you can come back to it.";
+        note.textContent = "Unlocked. Your plan is below.";
         note.className = "gate-note is-good";
       } catch (err) {
         console.warn("Blueprint request failed", err);
@@ -915,12 +917,14 @@
 
     return h("section", { class: "card card-wide card-plan", id: "blueprintOffer" }, [
       h("p", { class: "eyebrow", text: "Your plan" }),
-      h("h3", { text: capacity ? "What to fix first, in the order that pays" : "Your Growth Plan, free" }),
+      h("h3", { text: capacity
+        ? "You already earn the work. Here is what to stop losing."
+        : "Here is exactly what to fix, and in what order." }),
       h("p", { class: "plan-lead", text: capacity
-        ? "Everything above is measured. This is what we would do about it, worst first, and what each fix actually looks like."
+        ? "Built from your own numbers, worst first, with what each fix actually looks like."
         : focus
-          ? `This report told you what is broken. This is the plan for fixing it, in the order that pays, starting with ${focus}.`
-          : "This report told you where you stand. This is the plan, in the order that pays." }),
+          ? `Built from your own numbers, worst first, starting with ${focus}.`
+          : "Built from your own numbers, worst first, in the order that pays." }),
       form,
       note,
       planLock,

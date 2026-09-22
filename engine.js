@@ -255,6 +255,10 @@
         const rank = num(point.rank);
         const { x, y } = pixelOffset(point, center, zoom);
         return {
+          // The middle pin is their own address. Saying so in the caption was not enough:
+          // people read the map before they read the sentence under it, so it has to be
+          // marked on the map itself.
+          isCentre: Math.abs(x) < 3 && Math.abs(y) < 3,
           // A real number whenever there is one, whatever its length, because we are
           // drawing the circle ourselves now. X only ever means "does not come up here".
           label: rank ? String(rank) : "X",
