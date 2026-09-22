@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DialBridge Design System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  /* This document is built from the same tokens it documents, so it doubles as a
+     specimen. Every hex, size and snippet below is copied out of the live styles.css
+     rather than written from memory. A4 text block is 184mm x 271mm = 695 x 1024 px. */
+  :root {
+    --ink: #0f1b2d;
+    --ink-2: #44526a;
+    --ink-3: #7b879a;
+    --paper: #f6f7f4;
+    --surface: #ffffff;
+    --rule: #dde2e8;
+    --accent: #e8702a;
+    --accent-ink: #b9531a;
+    --focus: #2f6fdf;
+    --good: #1f7a4d;
+    --good-soft: #e7f3ec;
+    --warn: #b8860b;
+    --warn-soft: #fdf4e3;
+    --bad: #a33a22;
+    --bad-soft: #f8e7e2;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(15, 27, 45, 0.06), 0 12px 32px rgba(15, 27, 45, 0.08);
+    --display: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+
+  body {
+    margin: 0;
+    background: #e4e6e2;
+    color: var(--ink);
+    font-family: var(--display);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  img { max-width: 100%; display: block; }
+
+  .deck { display: flex; flex-direction: column; align-items: center;
+          gap: 22px; padding-block: 26px 40px; padding-left: 16px; padding-right: 16px; }
+  .sheet { width: 100%; max-width: 780px; background: var(--paper);
+           padding: 42px 46px 46px; box-shadow: var(--shadow);
+           display: flex; flex-direction: column; }
+
+  h1, h2, h3 { margin: 0; letter-spacing: -0.02em; text-wrap: pretty; }
+  h1 { font-size: 2.2rem; font-weight: 800; line-height: 1.1; }
+  h2 { font-size: 1.5rem; font-weight: 800; line-height: 1.18; }
+  h3 { font-size: 1rem; font-weight: 700; }
+  p { margin: 0; }
+
+  .eyebrow { font-family: var(--mono); font-size: 0.66rem; font-weight: 500;
+             letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent-ink); }
+  .lede { font-size: 1.08rem; line-height: 1.55; color: var(--ink-2); max-width: 56ch; }
+  .say { font-size: 0.95rem; line-height: 1.6; color: var(--ink-2); max-width: 66ch; }
+  .say b { color: var(--ink); }
+  .fine { font-size: 0.78rem; line-height: 1.5; color: var(--ink-3); }
+
+  .stack { display: flex; flex-direction: column; }
+  .g8 { gap: 8px; } .g12 { gap: 12px; } .g16 { gap: 16px; }
+  .g22 { gap: 22px; } .g28 { gap: 28px; }
+  .rule { height: 1px; background: var(--rule); border: 0; margin: 0; }
+
+  .card { background: var(--surface); border: 1px solid var(--rule);
+          border-radius: var(--radius); padding: 18px 20px; }
+
+  /* swatches */
+  .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .sw { border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; background: var(--surface); }
+  .sw-chip { height: 44px; }
+  .sw-meta { padding: 8px 10px; display: flex; flex-direction: column; gap: 1px; }
+  .sw-name { font-size: 0.76rem; font-weight: 700; }
+  .sw-hex { font-family: var(--mono); font-size: 0.68rem; color: var(--ink-3); }
+
+  /* type specimen */
+  .spec { display: grid; grid-template-columns: 150px 1fr; gap: 10px 18px; align-items: baseline; }
+  .spec-k { font-family: var(--mono); font-size: 0.7rem; color: var(--ink-3); }
+
+  /* code */
+  code, pre { font-family: var(--mono); }
+  pre { margin: 0; background: #0f1b2d; color: #e8eef7; border-radius: 10px;
+        padding: 11px 14px; font-size: 0.69rem; line-height: 1.5; overflow: hidden;
+        white-space: pre-wrap; }
+  pre b { color: #ffb37a; font-weight: 600; }
+  .inline { background: #eceef1; border-radius: 4px; padding: 1px 5px; font-size: 0.82em; }
+
+  /* component demos */
+  .demo { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .cta { border: 0; border-radius: 10px; padding: 12px 18px; background: var(--accent);
+         color: #fff; font: inherit; font-weight: 700; }
+  .badge { border-radius: 999px; padding: 4px 11px; font-size: 0.74rem; font-weight: 700; }
+  .badge-good { background: var(--good-soft); color: var(--good); }
+  .badge-warn { background: var(--warn-soft); color: var(--warn); }
+  .badge-bad { background: var(--bad-soft); color: var(--bad); }
+  .ring { --tone: var(--warn); --pct: 72; position: relative; width: 84px; height: 84px;
+          border-radius: 50%; background: conic-gradient(var(--tone) calc(var(--pct) * 1%), var(--rule) 0);
+          display: grid; place-items: center; }
+  .ring::after { content: ""; position: absolute; inset: 9px; border-radius: 50%; background: var(--surface); }
+  .ring b { position: relative; z-index: 1; font-size: 1.3rem; font-weight: 800; }
+  .ring.tone-good { --tone: var(--good); }
+  .ring.tone-bad { --tone: var(--bad); }
+
+  /* rules list */
+  .rules { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--rule); }
+  .r { display: grid; grid-template-columns: 30px 1fr; gap: 14px; padding: 13px 0;
+       border-bottom: 1px solid var(--rule); align-items: start; }
+  .r-n { font-family: var(--mono); font-size: 0.78rem; font-weight: 600; color: var(--accent-ink); padding-top: 2px; }
+  .r-t { font-size: 0.95rem; font-weight: 700; margin-bottom: 3px; }
+  .r-d { font-size: 0.88rem; line-height: 1.55; color: var(--ink-2); max-width: 62ch; }
+
+  /* gotchas */
+  .got { border-left: 3px solid var(--bad); background: var(--bad-soft);
+         padding: 13px 16px; display: flex; flex-direction: column; gap: 7px; }
+  .got-t { font-size: 0.92rem; font-weight: 700; color: var(--bad); }
+  .got-d { font-size: 0.86rem; line-height: 1.55; color: var(--ink-2); }
+
+  .check { display: flex; flex-direction: column; gap: 0; border-top: 1px solid var(--rule); }
+  .ck { display: grid; grid-template-columns: 22px 1fr; gap: 12px; padding: 10px 0;
+        border-bottom: 1px solid var(--rule); align-items: start; }
+  .ck-box { width: 15px; height: 15px; border: 2px solid var(--ink-3); border-radius: 4px; margin-top: 3px; }
+  .ck-d { font-size: 0.89rem; line-height: 1.5; color: var(--ink-2); }
+  .ck-d b { color: var(--ink); }
+
+  .footer { display: flex; justify-content: space-between; gap: 12px; align-items: baseline;
+            margin-top: auto; padding-top: 18px; }
+  .footer span { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em;
+                 text-transform: uppercase; color: var(--ink-3); }
+
+  @media (max-width: 680px) {
+    .sheet { padding: 26px 20px 30px; }
+    .swatches { grid-template-columns: repeat(2, 1fr); }
+    .spec { grid-template-columns: 1fr; }
+    h1 { font-size: 1.6rem; }
+  }
+
+  @media print {
+    @page { size: A4; margin: 13mm; }
+    html { font-size: 12.2pt; }
+    body { background: #fff; }
+    .deck { gap: 0; padding: 0; }
+    .sheet { max-width: none; width: 100%; min-height: 269mm; box-shadow: none;
+             padding: 0; background: #fff;
+             break-after: page; page-break-after: always; justify-content: space-between; }
+    .sheet:last-child { break-after: auto; page-break-after: auto; }
+    .footer { margin-top: 0; }
+    .card, .got, .r, .ck, pre, .swatches, .spec { break-inside: avoid; page-break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<div class="deck">
+
+  <!-- 1 -->
+  <section class="sheet stack g28">
+    <div class="stack g22">
+      <div class="stack g12">
+        <p class="eyebrow">DialBridge</p>
+        <h1>Design system</h1>
+        <p class="lede">
+          Everything in here is lifted from the live Lost Job Report, not written from
+          memory. Same tokens, same components, same rules. This document is set in them,
+          so it doubles as a specimen.
+        </p>
+      </div>
+    </div>
+
+    <div class="card stack g12">
+      <h3>What this covers</h3>
+      <p class="say">
+        The report landing page and the scanner at
+        <b>matviykorsunskiy.me/dialbridge-report</b>. Colour, type, spacing and components
+        are pages two and three. The part worth reading twice is page four, the interaction
+        rules, and page five, the things that broke.
+      </p>
+    </div>
+
+    <div class="stack g16">
+      <h2>The short version</h2>
+      <div class="rules">
+        <div class="r">
+          <span class="r-n">01</span>
+          <div>
+            <p class="r-t">One warm neutral ground, one orange</p>
+            <p class="r-d">The page sits on off-white paper, not white. Orange appears only on things you can act on. Green, amber and red mean a judgement about the business, never decoration.</p>
+          </div>
+        </div>
+        <div class="r">
+          <span class="r-n">02</span>
+          <div>
+            <p class="r-t">One typeface, fluid sizes</p>
+            <p class="r-d">Plus Jakarta Sans throughout, weights 400 to 800. Headings use clamp so they shrink on a phone without a media query.</p>
+          </div>
+        </div>
+        <div class="r">
+          <span class="r-n">03</span>
+          <div>
+            <p class="r-t">Cards are white on paper, radius 14</p>
+            <p class="r-d">One card style, one radius, one shadow. Depth comes from the paper-to-white contrast, not from stacking shadows.</p>
+          </div>
+        </div>
+        <div class="r">
+          <span class="r-n">04</span>
+          <div>
+            <p class="r-t">Built phone-first, tested on a laptop</p>
+            <p class="r-d">Contractors read this on a phone in a van. Every layout decision was checked at 390px before it was checked at 1280.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer"><span>DialBridge</span><span>Page 1 of 6</span></div>
+  </section>
+
+  <!-- 2 -->
+  <section class="sheet stack g22">
+    <div class="stack g8">
+      <p class="eyebrow">Foundations</p>
+      <h2>Colour</h2>
+    </div>
+
+    <div class="stack g12">
+      <p class="fine">Surface and ink</p>
+      <div class="swatches">
+        <div class="sw"><div class="sw-chip" style="background:#f6f7f4"></div><div class="sw-meta"><span class="sw-name">paper</span><span class="sw-hex">#f6f7f4</span></div></div>
+        <div class="sw"><div class="sw-chip" style="background:#ffffff"></div><div class="sw-meta"><span class="sw-name">surface</span><span class="sw-hex">#ffffff</span></div></div>
+        <div class="sw"><div class="sw-chip" style="background:#dde2e8"></div><div class="sw-meta"><span class="sw-name">rule</span><span class="sw-hex">#dde2e8</span></div></div>
+        <div class="sw"><div class="sw-chip" style="background:#0f1b2d"></div><div class="sw-meta"><span class="sw-name">ink</span><span class="sw-hex">#0f1b2d</span></div></div>
+        <div class="sw"><div class="sw-chip" style="background:#44526a"></div><div class="sw-meta"><span class="sw-name">ink-2</span><span class="sw-hex">#44526a</span></div></div>
+        <div class="sw"><div class="sw-chip" style="background:#7b879a"></div><div class="sw-meta"><span class="sw-name">ink-3</span><span class="sw-hex">#7b879a</span></div></div>
+        <div class="sw"><div class="sw-chip" style="background:#e8702a"></div><div class="sw-meta"><span class="sw-name">accent</span><span class="sw-hex">#e8702a</span></div></div>
+        <div class="sw"><div class="sw-chip" style="background:#b9531a"></div><div class="sw-meta"><span class="sw-name">accent-ink</span><span class="sw-hex">#b9531a</span></div></div>
+      </div>
+    </div>
+
+    <div class="stack g12">
+      <p class="fine">Judgement, and the soft fill each one sits on</p>
+      <div class="swatches">
+        <div class="sw"><div class="sw-chip" style="background:#1f7a4d"></div><div class="sw-meta"><span class="sw-name">good</span><span class="sw-hex">#1f7a4d</span></div></div>
+        <div class="sw"><div class="sw-chip" style="background:#e7f3ec"></div><div class="sw-meta"><span class="sw-name">good-soft</span><span class="sw-hex">#e7f3ec</span></div></div>
+        <div class="sw"><div class="sw-chip" style="background:#b8860b"></div><div class="sw-meta"><span class="sw-name">warn</span><span class="sw-hex">#b8860b</span></div></div>
+        <div class="sw"><div class="sw-chip" style="background:#fdf4e3"></div><div class="sw-meta"><span class="sw-name">warn-soft</span><span class="sw-hex">#fdf4e3</span></div></div>
+        <div class="sw"><div class="sw-chip" style="background:#a33a22"></div><div class="sw-meta"><span class="sw-name">bad</span><span class="sw-hex">#a33a22</span></div></div>
+        <div class="sw"><div class="sw-chip" style="background:#f8e7e2"></div><div class="sw-meta"><span class="sw-name">bad-soft</span><span class="sw-hex">#f8e7e2</span></div></div>
+        <div class="sw"><div class="sw-chip" style="background:#2f6fdf"></div><div class="sw-meta"><span class="sw-name">focus</span><span class="sw-hex">#2f6fdf</span></div></div>
+        <div class="sw"><div class="sw-chip" style="background:#e4e6e2"></div><div class="sw-meta"><span class="sw-name">surround</span><span class="sw-hex">#e4e6e2</span></div></div>
+      </div>
+    </div>
+
+    <div class="card stack g8">
+      <h3>The one colour rule</h3>
+      <p class="say">
+        Orange is <b>action</b>. Green, amber and red are <b>verdicts about the business</b>.
+        Never let a verdict colour a button, and never let orange imply something is good or
+        bad. The moment those mix, a red card reads as a thing to click.
+      </p>
+    </div>
+
+    <pre>:root {
+  <b>--ink</b>: #0f1b2d;   <b>--ink-2</b>: #44526a;   <b>--ink-3</b>: #7b879a;
+  <b>--paper</b>: #f6f7f4; <b>--surface</b>: #ffffff; <b>--rule</b>: #dde2e8;
+  <b>--accent</b>: #e8702a; <b>--accent-ink</b>: #b9531a; <b>--focus</b>: #2f6fdf;
+  <b>--good</b>: #1f7a4d;  <b>--warn</b>: #b8860b;    <b>--bad</b>: #a33a22;
+  <b>--radius</b>: 14px;
+  <b>--shadow</b>: 0 1px 2px rgba(15,27,45,.06), 0 12px 32px rgba(15,27,45,.08);
+}</pre>
+
+    <div class="footer"><span>Foundations</span><span>Page 2 of 6</span></div>
+  </section>
+
+  <!-- 3 -->
+  <section class="sheet stack g22">
+    <div class="stack g8">
+      <p class="eyebrow">Foundations</p>
+      <h2>Type, shape and components</h2>
+    </div>
+
+    <div class="stack g12">
+      <p class="fine">Plus Jakarta Sans, 400 to 800. Headings clamp so they fit a phone without a breakpoint.</p>
+      <div class="spec">
+        <span class="spec-k">hero</span>
+        <span style="font-size:1.9rem;font-weight:800;letter-spacing:-.03em">clamp(2.1rem, 6vw, 3.6rem)</span>
+        <span class="spec-k">section h2</span>
+        <span style="font-size:1.35rem;font-weight:800;letter-spacing:-.02em">clamp(1.35rem, 3.4vw, 1.9rem)</span>
+        <span class="spec-k">card h3</span>
+        <span style="font-size:1.05rem;font-weight:700">clamp(1.15rem, 2.8vw, 1.45rem)</span>
+        <span class="spec-k">body</span>
+        <span style="font-size:.95rem;color:var(--ink-2)">0.95rem on a 16px root, line-height 1.55</span>
+        <span class="spec-k">label / eyebrow</span>
+        <span class="eyebrow">0.66rem mono, 0.16em tracking, uppercase</span>
+      </div>
+    </div>
+
+    <hr class="rule">
+
+    <div class="stack g12">
+      <p class="fine">Components</p>
+      <div class="demo">
+        <button class="cta" type="button">Get my report</button>
+        <span class="badge badge-good">Good</span>
+        <span class="badge badge-warn">Needs work</span>
+        <span class="badge badge-bad">Losing jobs</span>
+        <div class="ring tone-good" style="--pct:81"><b>81</b></div>
+        <div class="ring" style="--pct:59"><b>59</b></div>
+        <div class="ring tone-bad" style="--pct:30"><b>30</b></div>
+      </div>
+      <p class="fine">
+        The score ring is a conic-gradient on a circle with a surface-coloured hole punched
+        by <span class="inline">::after</span>. No SVG, no library.
+      </p>
+    </div>
+
+    <pre>.card { background: var(--surface); border: 1px solid var(--rule);
+        border-radius: var(--radius); padding: 22px 24px; }
+
+.cta  { border: 0; border-radius: 10px; padding: 12px 18px;
+        background: var(--accent); color: #fff; font-weight: 700; }
+
+.ring { --tone: var(--warn);
+        background: conic-gradient(var(--tone) calc(var(--pct) * 1%), var(--rule) 0);
+        border-radius: 50%; display: grid; place-items: center; }
+.ring::after { content:""; position:absolute; inset:9px;
+               border-radius:50%; background: var(--surface); }
+<b>.ring.tone-good { --tone: var(--good); }</b>
+<b>.ring.tone-bad  { --tone: var(--bad);  }</b></pre>
+
+    <div class="footer"><span>Foundations</span><span>Page 3 of 6</span></div>
+  </section>
+
+  <!-- 4 -->
+  <section class="sheet stack g22">
+    <div class="stack g8">
+      <p class="eyebrow">The part that matters</p>
+      <h2>Interaction rules</h2>
+    </div>
+    <p class="say">
+      These are the decisions that made the scanner work, and they transfer to the new site
+      more usefully than any hex value.
+    </p>
+
+    <div class="rules">
+      <div class="r">
+        <span class="r-n">01</span>
+        <div>
+          <p class="r-t">One question per screen</p>
+          <p class="r-d">Four questions, four taps, one idea each, no scrolling and no form. A contractor answers it at a red light. A single page with four fields would not get finished.</p>
+        </div>
+      </div>
+      <div class="r">
+        <span class="r-n">02</span>
+        <div>
+          <p class="r-t">Earn the wait, do not hide it</p>
+          <p class="r-d">The scan shows seven named steps completing in real time, because it really is calling Google seven ways. Showing the work is what makes the result feel measured rather than generated. A spinner would have wasted the same thirty seconds and bought nothing.</p>
+        </div>
+      </div>
+      <div class="r">
+        <span class="r-n">03</span>
+        <div>
+          <p class="r-t">Give the proof away, gate the explanation</p>
+          <p class="r-d">The two scores are free and visible. Everything under them is blurred, not hidden. The blur is the point: it proves there is something there, which is what makes a phone number feel worth giving.</p>
+        </div>
+      </div>
+      <div class="r">
+        <span class="r-n">04</span>
+        <div>
+          <p class="r-t">Never show a number you cannot defend</p>
+          <p class="r-d">When Google cannot return a service-area business, the page explains why instead of drawing nine "not found" pins. A confident wrong answer costs more trust than an honest gap.</p>
+        </div>
+      </div>
+      <div class="r">
+        <span class="r-n">05</span>
+        <div>
+          <p class="r-t">Their words, not ours</p>
+          <p class="r-d">"Your Google Maps position when someone searched plumber", not "SERP grid ranking". And money is always a monthly figure. Never ask the reader to do arithmetic to feel the point.</p>
+        </div>
+      </div>
+      <div class="r">
+        <span class="r-n">06</span>
+        <div>
+          <p class="r-t">The logo goes home</p>
+          <p class="r-d">Small thing, constantly got wrong. The brand mark is a real button that resets the scan, with a visible back control beside it for anyone who does not think to try the logo.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card stack g8">
+      <h3>Focus is visible, always</h3>
+      <p class="say">
+        Every interactive element gets
+        <span class="inline">outline: 3px solid var(--focus); outline-offset: 3px</span>
+        on <span class="inline">:focus-visible</span>. Never remove an outline without
+        replacing it with something equally obvious.
+      </p>
+    </div>
+
+    <div class="footer"><span>Interaction</span><span>Page 4 of 6</span></div>
+  </section>
+
+  <!-- 5 -->
+  <section class="sheet stack g16">
+    <div class="stack g8">
+      <p class="eyebrow">Learned the hard way</p>
+      <h2>Six things that broke</h2>
+    </div>
+    <p class="say">Each of these cost real debugging time on the report. None are obvious.</p>
+
+    <div class="got">
+      <p class="got-t">1. [hidden] loses to any display rule</p>
+      <p class="got-d">A element marked <span class="inline">hidden</span> stayed on screen because a class set <span class="inline">display: grid</span>. Put <span class="inline">[hidden] { display: none !important; }</span> in the reset and never think about it again.</p>
+    </div>
+
+    <div class="got">
+      <p class="got-t">2. minmax(430px, 1fr) does not shrink</p>
+      <p class="got-d">A card grid using <span class="inline">minmax(430px, 1fr)</span> pushed the whole report off every phone, because minmax will not go below its floor. Use <span class="inline">minmax(min(430px, 100%), 1fr)</span>.</p>
+    </div>
+
+    <div class="got">
+      <p class="got-t">3. text-wrap: balance leaves short lines</p>
+      <p class="got-d">Balance evens line lengths, which looks deliberate on a big centred headline and looks like wasted space on a left-aligned heading in a card. Those were using 58 to 69 percent of the width. <span class="inline">text-wrap: pretty</span> fills the line and only prevents a one-word last line.</p>
+    </div>
+
+    <div class="got">
+      <p class="got-t">4. A custom property set once never changes</p>
+      <p class="got-d">The score rings never changed colour. <span class="inline">.ring { --tone: var(--warn) }</span> was set, and the <span class="inline">.tone-good</span> and <span class="inline">.tone-bad</span> classes existed but nothing ever redefined the variable. Declaring a token is not the same as reading it.</p>
+    </div>
+
+    <div class="got">
+      <p class="got-t">5. A centred modal covers the thing it is selling</p>
+      <p class="got-d">The unlock dialog sat over the two scores on a 1366 by 768 laptop, which left nothing to unlock for. It became a bottom sheet under 820px of height, with no dark scrim, so the scores stay readable behind it.</p>
+    </div>
+
+    <div class="got">
+      <p class="got-t">6. Safari and Firefox trim the referrer</p>
+      <p class="got-d">Both send only the origin on cross-origin requests, so a Google Maps key restricted to a subpath returns 403 on every iPhone. <span class="inline">meta referrer</span> and <span class="inline">referrerPolicy</span> are both ignored. The key restriction has to include the bare origin with a wildcard.</p>
+    </div>
+
+    <div class="footer"><span>Gotchas</span><span>Page 5 of 6</span></div>
+  </section>
+
+  <!-- 6 -->
+  <section class="sheet stack g22">
+    <div class="stack g8">
+      <p class="eyebrow">For the rebuild</p>
+      <h2>Checklist</h2>
+    </div>
+
+    <div class="check">
+      <div class="ck"><span class="ck-box"></span><p class="ck-d">Copy the <b>token block</b> from page two verbatim. Do not re-pick the orange.</p></div>
+      <div class="ck"><span class="ck-box"></span><p class="ck-d">Load <b>Plus Jakarta Sans</b> 400 to 800 with a real fallback stack, and use it for everything.</p></div>
+      <div class="ck"><span class="ck-box"></span><p class="ck-d"><b>One card style, one radius, one shadow.</b> If a second card style appears, one of them is wrong.</p></div>
+      <div class="ck"><span class="ck-box"></span><p class="ck-d">Headings on <b>clamp</b>, body on rem. No fixed pixel type outside labels.</p></div>
+      <div class="ck"><span class="ck-box"></span><p class="ck-d"><b>Orange only on actions.</b> Green, amber and red only on verdicts.</p></div>
+      <div class="ck"><span class="ck-box"></span><p class="ck-d">Design at <b>390px first</b>, then check 1280. Not the other way round.</p></div>
+      <div class="ck"><span class="ck-box"></span><p class="ck-d">Visible <b>:focus-visible</b> outline on every interactive element.</p></div>
+      <div class="ck"><span class="ck-box"></span><p class="ck-d">Every grid minmax uses <b>min(px, 100%)</b> as its floor.</p></div>
+      <div class="ck"><span class="ck-box"></span><p class="ck-d">Put <b>[hidden] { display: none !important }</b> in the reset.</p></div>
+      <div class="ck"><span class="ck-box"></span><p class="ck-d">The <b>logo goes home</b>, and there is a second visible way back.</p></div>
+      <div class="ck"><span class="ck-box"></span><p class="ck-d">Any Google Maps key is restricted to the <b>bare origin with a wildcard</b>, or half your mobile traffic gets a 403.</p></div>
+    </div>
+
+    <div class="card stack g8">
+      <h3>If in doubt</h3>
+      <p class="say">
+        The report works because it shows its working and refuses to claim anything it has
+        not measured. Carry that across and the visual details matter much less than they
+        look like they do.
+      </p>
+    </div>
+
+    <div class="footer"><span>DialBridge</span><span>Page 6 of 6</span></div>
+  </section>
+
+</div>
+</body>
+</html>
