@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DialBridge Design System</title>
+<title>DialBridge Build Handbook</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -70,7 +70,7 @@
 
   .stack { display: flex; flex-direction: column; }
   .g8 { gap: 8px; } .g12 { gap: 12px; } .g16 { gap: 16px; }
-  .g22 { gap: 22px; } .g28 { gap: 28px; }
+  .g18 { gap: 18px; } .g22 { gap: 22px; } .g28 { gap: 28px; }
   .rule { height: 1px; background: var(--rule); border: 0; margin: 0; }
 
   .card { background: var(--surface); border: 1px solid var(--rule);
@@ -117,6 +117,9 @@
   .r { display: grid; grid-template-columns: 30px 1fr; gap: 14px; padding: 13px 0;
        border-bottom: 1px solid var(--rule); align-items: start; }
   .r-n { font-family: var(--mono); font-size: 0.78rem; font-weight: 600; color: var(--accent-ink); padding-top: 2px; }
+  /* Skill names are words, not step numbers, so they get a column wide enough to hold them. */
+  .rules-wide .r { grid-template-columns: 148px 1fr; }
+  .rules-wide .r-n { font-size: 0.72rem; word-break: break-word; }
   .r-t { font-size: 0.95rem; font-weight: 700; margin-bottom: 3px; }
   .r-d { font-size: 0.88rem; line-height: 1.55; color: var(--ink-2); max-width: 62ch; }
 
@@ -165,63 +168,214 @@
 
   <!-- 1 -->
   <section class="sheet stack g28">
-    <div class="stack g22">
-      <div class="stack g12">
-        <p class="eyebrow">DialBridge</p>
-        <h1>Design system</h1>
-        <p class="lede">
-          Everything in here is lifted from the live Lost Job Report, not written from
-          memory. Same tokens, same components, same rules. This document is set in them,
-          so it doubles as a specimen.
-        </p>
-      </div>
+    <div class="stack g12">
+      <p class="eyebrow">DialBridge</p>
+      <h1>How the report page is built</h1>
+      <p class="lede">
+        The stack, the GitHub setup, the skills in our Claude Code system, and the design
+        system itself. Everything here is read out of the live repo, not written from memory.
+      </p>
     </div>
 
     <div class="card stack g12">
-      <h3>What this covers</h3>
+      <h3>What it is</h3>
       <p class="say">
-        The report landing page and the scanner at
-        <b>matviykorsunskiy.me/dialbridge-report</b>. Colour, type, spacing and components
-        are pages two and three. The part worth reading twice is page four, the interaction
-        rules, and page five, the things that broke.
+        <b>matviykorsunskiy.me/dialbridge-report</b> is the free Lost Job Report. A contractor
+        types their business name, answers four questions, and watches a live seven step scan
+        build a scored audit of their Google presence. Two scores are free; the rest unlocks
+        behind a phone verification.
       </p>
     </div>
 
     <div class="stack g16">
-      <h2>The short version</h2>
+      <h2>What is in here</h2>
+      <div class="rules">
+        <div class="r"><span class="r-n">02</span><div><p class="r-t">The stack</p><p class="r-d">Seven files, no framework, no build step, and why that is deliberate.</p></div></div>
+        <div class="r"><span class="r-n">03</span><div><p class="r-t">GitHub and deploy</p><p class="r-d">Pages, the Actions workflow, how secrets stay out of the repo, cache-busting.</p></div></div>
+        <div class="r"><span class="r-n">04</span><div><p class="r-t">Skills in our system</p><p class="r-d">What is installed, and which one to reach for on a given job.</p></div></div>
+        <div class="r"><span class="r-n">05</span><div><p class="r-t">The build loop</p><p class="r-d">How work actually gets verified here, which is the part most setups skip.</p></div></div>
+        <div class="r"><span class="r-n">06-10</span><div><p class="r-t">The design system</p><p class="r-d">Colour, type, components, interaction rules, and the six things that broke.</p></div></div>
+      </div>
+    </div>
+
+    <div class="footer"><span>DialBridge</span><span>Page 1 of 10</span></div>
+  </section>
+
+  <!-- 1b -->
+  <section class="sheet stack g22">
+    <div class="stack g8">
+      <p class="eyebrow">Build</p>
+      <h2>The stack</h2>
+    </div>
+
+    <p class="say">
+      Seven files. No React, no Tailwind, no bundler, no npm install. The whole page is
+      static assets plus fetch calls.
+    </p>
+
+    <div class="spec">
+      <span class="spec-k">index.html</span><span class="say">256 lines. Markup and nothing else.</span>
+      <span class="spec-k">styles.css</span><span class="say">1,693 lines. Every token and component.</span>
+      <span class="spec-k">app.js</span><span class="say">372. Search, autocomplete, picking the business.</span>
+      <span class="spec-k">questions.js</span><span class="say">172. The four question popup.</span>
+      <span class="spec-k">scan.js</span><span class="say">1,033. The seven step scan and all Google calls.</span>
+      <span class="spec-k">engine.js</span><span class="say">1,134. Scoring, the money maths, the heat map.</span>
+      <span class="spec-k">report.js</span><span class="say">1,359. Rendering, the gate, the blueprint form.</span>
+    </div>
+
+    <div class="card stack g8">
+      <h3>Why no framework</h3>
+      <p class="say">
+        The reader is a contractor on a phone, often on bad signal, and the page has to paint
+        before they lose interest. A framework adds a few hundred kilobytes and a build step
+        to a page that renders a handful of components.
+      </p>
+    </div>
+
+    <div class="stack g12">
+      <h3>What runs where</h3>
+      <div class="rules">
+        <div class="r"><span class="r-n">1</span><div><p class="r-t">Browser</p><p class="r-d">Google Places API for the business, the competitors and the nine point ranking grid. Google Static Maps for the heat map image. All the scoring maths.</p></div></div>
+        <div class="r"><span class="r-n">2</span><div><p class="r-t">n8n</p><p class="r-d">Anything needing a secret or a server: OTP send and verify, the LLM keyword picker, fetching the contractor page source which a browser cannot read cross-origin, Brave search for a missing website, and every write to GHL.</p></div></div>
+        <div class="r"><span class="r-n">3</span><div><p class="r-t">GoHighLevel</p><p class="r-d">CRM, contact records, tags, and the outbound text and email.</p></div></div>
+      </div>
+      <p class="fine">
+        Rule of thumb: if it needs a key the user must not see, it is an n8n webhook. If it
+        only needs the public Maps key, it stays in the browser and costs nothing to run.
+      </p>
+    </div>
+
+    <div class="footer"><span>Build</span><span>Page 2 of 10</span></div>
+  </section>
+
+  <!-- 1c -->
+  <section class="sheet stack g22">
+    <div class="stack g8">
+      <p class="eyebrow">Build</p>
+      <h2>GitHub and deploy</h2>
+    </div>
+
+    <div class="spec">
+      <span class="spec-k">repo</span><span class="say">github.com/matkors/dialbridge-report</span>
+      <span class="spec-k">visibility</span><span class="say">Public. Pages cannot host a private repo on the free plan.</span>
+      <span class="spec-k">host</span><span class="say">GitHub Pages, served at the <b>/dialbridge-report/</b> subpath.</span>
+      <span class="spec-k">trigger</span><span class="say">Push to main, or run the workflow by hand.</span>
+    </div>
+
+    <div class="stack g12">
+      <h3>Four things the workflow does</h3>
       <div class="rules">
         <div class="r">
           <span class="r-n">01</span>
-          <div>
-            <p class="r-t">One warm neutral ground, one orange</p>
-            <p class="r-d">The page sits on off-white paper, not white. Orange appears only on things you can act on. Green, amber and red mean a judgement about the business, never decoration.</p>
-          </div>
+          <div><p class="r-t">Writes config.js from repository secrets</p>
+          <p class="r-d">The Maps key and all eight n8n webhook URLs are GitHub secrets, printed into a config.js at build time. <span class="inline">config.js</span> is gitignored and <span class="inline">config.example.js</span> is the committed template, so no key has ever been in a commit.</p></div>
         </div>
         <div class="r">
           <span class="r-n">02</span>
-          <div>
-            <p class="r-t">One typeface, fluid sizes</p>
-            <p class="r-d">Plus Jakarta Sans throughout, weights 400 to 800. Headings use clamp so they shrink on a phone without a media query.</p>
-          </div>
+          <div><p class="r-t">Copies the site and the PDF</p>
+          <p class="r-d">The seven source files plus the blueprint folder, so the lead magnet PDF has a real public URL to email.</p></div>
         </div>
         <div class="r">
           <span class="r-n">03</span>
-          <div>
-            <p class="r-t">Cards are white on paper, radius 14</p>
-            <p class="r-d">One card style, one radius, one shadow. Depth comes from the paper-to-white contrast, not from stacking shadows.</p>
-          </div>
+          <div><p class="r-t">Touches .nojekyll</p>
+          <p class="r-d">Without it Pages runs Jekyll and silently drops anything starting with an underscore.</p></div>
         </div>
         <div class="r">
           <span class="r-n">04</span>
-          <div>
-            <p class="r-t">Built phone-first, tested on a laptop</p>
-            <p class="r-d">Contractors read this on a phone in a van. Every layout decision was checked at 390px before it was checked at 1280.</p>
-          </div>
+          <div><p class="r-t">Cache-busts every asset</p>
+          <p class="r-d">Appends the commit SHA and run number to every script and stylesheet, so nobody is ever running yesterday JavaScript against today HTML.</p></div>
         </div>
       </div>
     </div>
 
-    <div class="footer"><span>DialBridge</span><span>Page 1 of 6</span></div>
+    <div class="card stack g8">
+      <h3>Set or change a secret</h3>
+      <p class="say"><span class="inline">gh secret set GOOGLE_MAPS_API_KEY --repo matkors/dialbridge-report</span></p>
+    </div>
+
+    <div class="footer"><span>Build</span><span>Page 3 of 10</span></div>
+  </section>
+
+  <!-- 1d -->
+  <section class="sheet stack g18">
+    <div class="stack g8">
+      <p class="eyebrow">Tooling</p>
+      <h2>Skills in our system</h2>
+    </div>
+    <p class="say">What is installed, and which one to reach for. Type the slash name in Claude Code.</p>
+
+    <div class="stack g12">
+      <p class="fine">Design and UI</p>
+      <div class="rules rules-wide">
+        <div class="r"><span class="r-n">/design</span><div><p class="r-t">Open Design studio</p><p class="r-d">Local studio, 129 built-in design systems. Landing pages, dashboards, apps, decks. The one for generating a page from scratch.</p></div></div>
+        <div class="r"><span class="r-n">artifact-design</span><div><p class="r-t">Loads on its own</p><p class="r-d">Palette, typography, layout, dark mode, CDN allowlist, mobile rules. Why the report page looks coherent instead of default.</p></div></div>
+        <div class="r"><span class="r-n">artifact-diagramming</span><div><p class="r-t">Diagrams worth drawing</p><p class="r-d">For when a picture earns its place. Inline SVG that stays legible in both themes.</p></div></div>
+        <div class="r"><span class="r-n">dataviz</span><div><p class="r-t">Charts, with a validator</p><p class="r-d">Chart-type heuristics plus a runnable colourblind-safety validator. Load before any chart, graph or stat tile.</p></div></div>
+        <div class="r"><span class="r-n">/miro</span><div><p class="r-t">Read and build Miro boards</p><p class="r-d">Added 2026-09-22. Reads boards, builds frames and diagrams, and pulls board specs into local files.</p></div></div>
+      </div>
+    </div>
+
+    <div class="stack g12">
+      <p class="fine">Code quality, used on this repo</p>
+      <div class="rules rules-wide">
+        <div class="r"><span class="r-n">/code-review</span><div><p class="r-t">Find real bugs in the diff</p><p class="r-d">Low to ultra. Ultra runs a multi-agent review in the cloud against the branch or a PR.</p></div></div>
+        <div class="r"><span class="r-n">/simplify</span><div><p class="r-t">Reuse and cleanup</p><p class="r-d">Quality only, no bug hunting. Worth running before a push.</p></div></div>
+        <div class="r"><span class="r-n">/security-review</span><div><p class="r-t">Security pass on the branch</p><p class="r-d">Run it on anything that touches keys or webhooks.</p></div></div>
+      </div>
+    </div>
+
+    <p class="fine">
+      Also installed: openseo (eleven skills, keyword research and local SEO), /ads, /gtm,
+      /blog-writer, /retell. Full list is in the Claude Code skill menu.
+    </p>
+
+    <div class="footer"><span>Tooling</span><span>Page 4 of 10</span></div>
+  </section>
+
+  <!-- 1e -->
+  <section class="sheet stack g22">
+    <div class="stack g8">
+      <p class="eyebrow">Tooling</p>
+      <h2>The build loop</h2>
+    </div>
+    <p class="say">
+      This is the part most setups skip, and it is the reason the page works. Nothing ships
+      on the strength of looking right in the editor.
+    </p>
+
+    <div class="rules">
+      <div class="r">
+        <span class="r-n">01</span>
+        <div><p class="r-t">Drive the real page in a real browser</p>
+        <p class="r-d">Playwright loads the actual files, runs the actual flow and screenshots at 390px and 1280px. Every layout claim in this document was checked that way.</p></div>
+      </div>
+      <div class="r">
+        <span class="r-n">02</span>
+        <div><p class="r-t">Measure, do not eyeball</p>
+        <p class="r-d">Read getBoundingClientRect and compare against the budget. That is how the overflowing cards, the clipped dialog and the wrapped headings were all caught before anyone saw them.</p></div>
+      </div>
+      <div class="r">
+        <span class="r-n">03</span>
+        <div><p class="r-t">Run the whole funnel against production</p>
+        <p class="r-d">Search, pick, answer, scan, gate, unlock, email. End to end on the live site, watching every webhook response.</p></div>
+      </div>
+      <div class="r">
+        <span class="r-n">04</span>
+        <div><p class="r-t">Spoof the user agent when testing live</p>
+        <p class="r-d">Our n8n webhooks have ignoreBots on, and headless Chromium announces itself as HeadlessChrome. Without a normal user agent every call returns 403 and it looks exactly like an outage. This cost a full debugging cycle.</p></div>
+      </div>
+    </div>
+
+    <div class="card stack g8">
+      <h3>The rule behind all four</h3>
+      <p class="say">
+        If a claim can be checked, check it. The report tells contractors things about their
+        own business, so anything we cannot verify does not go on the page, and anything we
+        cannot verify about the page does not get pushed.
+      </p>
+    </div>
+
+    <div class="footer"><span>Tooling</span><span>Page 5 of 10</span></div>
   </section>
 
   <!-- 2 -->
@@ -277,7 +431,7 @@
   <b>--shadow</b>: 0 1px 2px rgba(15,27,45,.06), 0 12px 32px rgba(15,27,45,.08);
 }</pre>
 
-    <div class="footer"><span>Foundations</span><span>Page 2 of 6</span></div>
+    <div class="footer"><span>Foundations</span><span>Page 6 of 10</span></div>
   </section>
 
   <!-- 3 -->
@@ -336,7 +490,7 @@
 <b>.ring.tone-good { --tone: var(--good); }</b>
 <b>.ring.tone-bad  { --tone: var(--bad);  }</b></pre>
 
-    <div class="footer"><span>Foundations</span><span>Page 3 of 6</span></div>
+    <div class="footer"><span>Foundations</span><span>Page 7 of 10</span></div>
   </section>
 
   <!-- 4 -->
@@ -405,7 +559,7 @@
       </p>
     </div>
 
-    <div class="footer"><span>Interaction</span><span>Page 4 of 6</span></div>
+    <div class="footer"><span>Interaction</span><span>Page 8 of 10</span></div>
   </section>
 
   <!-- 5 -->
@@ -446,7 +600,7 @@
       <p class="got-d">Both send only the origin on cross-origin requests, so a Google Maps key restricted to a subpath returns 403 on every iPhone. <span class="inline">meta referrer</span> and <span class="inline">referrerPolicy</span> are both ignored. The key restriction has to include the bare origin with a wildcard.</p>
     </div>
 
-    <div class="footer"><span>Gotchas</span><span>Page 5 of 6</span></div>
+    <div class="footer"><span>Gotchas</span><span>Page 9 of 10</span></div>
   </section>
 
   <!-- 6 -->
@@ -479,7 +633,7 @@
       </p>
     </div>
 
-    <div class="footer"><span>DialBridge</span><span>Page 6 of 6</span></div>
+    <div class="footer"><span>DialBridge</span><span>Page 10 of 10</span></div>
   </section>
 
 </div>
