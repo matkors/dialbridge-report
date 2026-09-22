@@ -9,9 +9,16 @@
   const $ = (id) => document.getElementById(id);
   const h = (...args) => window.DialBridgeScan.h(...args);
 
-  // Four questions, and every answer has to land somewhere in the report. The first two
-  // price the leak, the third explains a review count, and the fourth is what turns a
-  // percentage into money. The leak numbers are a 0 to 3 severity, not a guess at dollars.
+  // Four questions, and the rule for what earns a slot is: ask only what Google cannot tell
+  // us. Response time and quote follow-up are invisible from outside. Job value is
+  // invisible. Job volume is invisible, and guessing it was the single worst number in the
+  // report: inferred from the five reviews the Places API returns, a junk hauler with 107
+  // reviews came out at five jobs a month and "losing $300", which to a real operator reads
+  // as proof we do not know their business.
+  //
+  // The review habit question that used to sit here is gone, because we can already see it:
+  // reviews per year and the last ninety days are both computed from their own profile.
+  // Asking about the measurable and guessing at the unmeasurable was exactly backwards.
   const QUESTIONS = [
     {
       key: "leadResponse",
@@ -34,13 +41,17 @@
       ],
     },
     {
-      key: "reviewHabit",
-      question: "After the job's done, how do you get reviews?",
+      key: "jobsPerMonth",
+      question: "Roughly how many jobs do you do in a normal month?",
+      // Bands, because this stays a one-tap question like the other three, and because the
+      // error we are fixing is five versus forty, not thirty-eight versus forty-two. The
+      // bottom of each band is what the money is calculated on, so the figure on the page
+      // is always the conservative reading of what they told us.
       options: [
-        { value: "automatic", label: "Automatic request goes out right after every job", leak: 0 },
-        { value: "in_person", label: "I ask in person here and there", leak: 1 },
-        { value: "mean_to", label: "I mean to send something but rarely do", leak: 2 },
-        { value: "never", label: "We don't really ask", leak: 3 },
+        { value: "under_10", label: "Fewer than 10", jobs: 6 },
+        { value: "10_30", label: "10 to 30", jobs: 10 },
+        { value: "30_60", label: "30 to 60", jobs: 30 },
+        { value: "over_60", label: "More than 60", jobs: 60 },
       ],
     },
     {
@@ -123,6 +134,7 @@
           answers[q.key] = option.value;
           if (typeof option.leak === "number") answers[`${q.key}Leak`] = option.leak;
           if (typeof option.low === "number") answers.jobValueLow = option.low;
+          if (typeof option.jobs === "number") answers.jobsPerMonthLow = option.jobs;
           index += 1;
           render();
         });

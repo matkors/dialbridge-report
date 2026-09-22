@@ -14,8 +14,13 @@
   // for a name or a rating here and all nine calls jump to a paid SKU. Names for the table
   // come from the competitor lookup the scan has already run and paid for.
   const GRID_FIELDS = "places.id";
-  const GRID_SIZE = 3; // 3 x 3 points
-  const GRID_SPACING_M = 3000; // 3km between points, about 2 miles
+  // 5 x 5 at two miles is what the grid-rank tools settled on for suburban service-area
+  // businesses, and 3 x 3 is the minimum they offer rather than a sensible default. The old
+  // grid was a 3.7 mile box centred on the business, which is home turf: everybody looked
+  // good on it. This one covers roughly 8 miles across, which is a real service area.
+  // Twenty-five points still cost nothing, because the grid mask is places.id only.
+  const GRID_SIZE = 5; // 5 x 5 points
+  const GRID_SPACING_M = 3200; // about 2 miles between points
   const SEARCH_RADIUS_M = 3000;
   const RESULTS_PER_POINT = 20;
 
@@ -215,7 +220,7 @@
   // and the projection is uniform, so the frame's shape is what decides how spread out the
   // circles look: a wide frame puts margin either side of a square grid. That reads as
   // bunched at a small size and fine at card width, where the gaps are over 120px.
-  function rankingMap(ranking, { width = 900, height = 440 } = {}) {
+  function rankingMap(ranking, { width = 900, height = 560 } = {}) {
     const points = (ranking?.points || []).filter((p) => num(p.lat) !== null && num(p.lng) !== null);
     const center = ranking?.center;
     if (!points.length || !center || num(center.lat) === null || !apiKey()) return null;
@@ -301,6 +306,9 @@
   const quizScore = (leak) => (typeof leak === "number" && QUIZ_CURVE[leak] !== undefined ? QUIZ_CURVE[leak] : null);
 
   const DAY = 86400000;
+  // Roughly one review per seven finished jobs is what a business asking every time lands
+  // on. Anything near that reads as a habit; a tenth of it reads as nobody asking.
+  const REVIEW_CAPTURE_TARGET = 0.15;
   const REVIEWS_PER_YEAR_BENCHMARK = 18; // healthy for a local service business; roofing and HVAC run higher
 
   function rankingScore(ranking) {
@@ -515,8 +523,13 @@
     // Always a monthly figure. Their own review pace when it is readable, otherwise the
     // typical month for their job size, and the page labels which of the two it used so the
     // assumption is on the screen rather than buried in here.
-    const measured = jobsPerMonth(profile);
-    const jobs = measured || TYPICAL_JOBS[band] || null;
+    // What they told us, then what their review pace suggests, then the typical month for
+    // their job size. Their own answer wins because it is the only one that is not a guess:
+    // the review-pace estimate reads five reviews and routinely lands an order of magnitude
+    // low for anyone who does not ask for reviews, which is most of them.
+    const told = Number(answers?.jobsPerMonthLow) || null;
+    const measured = told ? null : jobsPerMonth(profile);
+    const jobs = told || measured || TYPICAL_JOBS[band] || null;
     if (!jobs) return { jobValue, rate, jobs: null, perMonth: null, basis: "none" };
 
     const perMonth = Math.round((jobs * jobValue * rate) / 100) * 100;
@@ -525,7 +538,7 @@
       rate,
       jobs,
       perMonth,
-      basis: measured ? "reviews" : "typical",
+      basis: told ? "answered" : measured ? "reviews" : "typical",
       lostJobs: Math.round(jobs * rate * 10) / 10,
     };
   }
@@ -564,9 +577,22 @@
     const count = reviews.googleReviewCount || 0;
 
     // 0 at no reviews, 100 at 120. Past that it stops telling us anything new about size.
+    // Monthly revenue is the honest size signal now that we ask for job volume, and it
+    // fixes a real defect: review count used to drive half of capacity while also driving
+    // most of foundScore, which feeds pain. The two largest terms of the lead score were
+    // cancelling each other out, and every lead landed in the forties.
+    //
+    // $5,000 a month is a one-truck operation, $120,000 is a business with staff. Log,
+    // because the gap between 5k and 20k matters far more than 100k to 120k.
+    const monthly = leak?.jobs && leak?.jobValue ? leak.jobs * leak.jobValue : null;
+    const sizeByRevenue =
+      monthly === null
+        ? null
+        : clamp(((Math.log10(Math.max(5000, monthly)) - Math.log10(5000)) / (Math.log10(120000) - Math.log10(5000))) * 100);
+
     const capacity = weighted([
-      { w: 0.50, v: scale(Math.min(count, 120), 0, 120) },
-      { w: 0.30, v: JOB_VALUE_CAPACITY[leak?.jobValue] ?? null },
+      { w: 0.55, v: sizeByRevenue },
+      { w: 0.25, v: JOB_VALUE_CAPACITY[leak?.jobValue] ?? null },
       { w: 0.20, v: report?.website?.found ? 100 : 40 },
     ]);
 
@@ -602,6 +628,8 @@
       value,
       // The facts behind it, so a decision made on this score can be argued with later.
       reasons: {
+        track: report?.track || null,
+        monthlyRevenue: monthly,
         reviewCount: count,
         jobValue: leak?.jobValue ?? null,
         monthlyLoss: leak?.perMonth ?? null,
@@ -670,24 +698,6 @@
     },
   };
 
-  const REVIEW_HABIT_COPY = {
-    automatic: null,
-    in_person: {
-      title: "Asking in person gets a fraction of the reviews",
-      said: "You told us you ask in person here and there.",
-      why: "People agree to it standing in their driveway and then never do it. A link in their hand while they are still pleased is what actually gets written.",
-    },
-    mean_to: {
-      title: "The reviews you meant to ask for never happened",
-      said: "You told us you mean to send something but rarely do.",
-      why: "Which is why the count sits still. Every finished job was a review you had already earned and did not collect.",
-    },
-    never: {
-      title: "Nobody is asking your customers for a review",
-      said: "You told us you do not really ask.",
-      why: "Reviews are the biggest thing deciding where you sit on the map, and the only reliable way to get them is to ask every single time.",
-    },
-  };
 
   function findingsFor(data, answers, trade = "") {
     const { profile, ranking, website } = data;
@@ -727,13 +737,23 @@
       });
     }
 
-    const habitCopy = REVIEW_HABIT_COPY[answers?.reviewHabit];
-    if (habitCopy) {
-      add("review_request", quizScore(answers.reviewHabitLeak), 7, {
+    // ---- reviews against jobs. This only became possible once we started asking how many
+    //      jobs they do, and it is the sharpest line in the report for a business that is
+    //      already doing well: they cannot argue with it, because both numbers are theirs.
+    const jobsYear = Number(answers?.jobsPerMonthLow) ? Number(answers.jobsPerMonthLow) * 12 : null;
+    const perYearNow = signals.reviewsPerYear;
+    if (jobsYear && perYearNow !== null && perYearNow >= 0) {
+      const rate = perYearNow / jobsYear;
+      const oneIn = perYearNow > 0 ? Math.round(jobsYear / perYearNow) : null;
+      add("review_capture", Math.min(100, (rate / REVIEW_CAPTURE_TARGET) * 100), 7, {
         area: "reviews",
-        title: habitCopy.title,
-        detail: `${habitCopy.said} ${habitCopy.why} You are on ${reviewWord(count)} right now.`,
-        fix: "Every customer gets asked automatically by text the moment the job is marked done.",
+        title: oneIn
+          ? `About one review for every ${oneIn} jobs`
+          : "Hundreds of finished jobs, no reviews to show for them",
+        detail: oneIn
+          ? `You told us roughly ${answers.jobsPerMonthLow} jobs a month, so about ${jobsYear} a year, and your profile is collecting around ${reviewWord(Math.round(perYearNow))} a year. Every one of those jobs was a review you had already earned.`
+          : `You told us roughly ${answers.jobsPerMonthLow} jobs a month. None of them turned into a review in the last year.`,
+        fix: "Every finished job asks automatically, a couple of hours later, in your name.",
       });
     }
 
@@ -970,6 +990,20 @@
 
   // ============ BUILD ============
 
+  // Strong at being found and weaker at catching means the work is arriving and leaking on
+  // the way in: the capacity story. Weak at being found means the work never arrives at all:
+  // the presence story. Strong at both is a business neither offer suits, and saying so is
+  // worth more than pretending otherwise.
+  const FOUND_STRONG = 70;
+  const CATCHING_STRONG = 75;
+
+  function trackFor(foundScore, responseScore) {
+    if (num(foundScore) === null) return "presence";
+    if (foundScore < FOUND_STRONG) return "presence";
+    if (num(responseScore) !== null && responseScore >= CATCHING_STRONG) return "none";
+    return "capacity";
+  }
+
   function buildReport({ profile, competitors = [], website, answers = {}, ranking = null, trade = "", submissionId = null }) {
     const scores = {
       "Google Maps ranking": rankingScore(ranking),
@@ -1001,6 +1035,15 @@
     const responseScore = scores["Catching the lead"];
     const overallScore = foundScore;
 
+    // Which of the two problems this business actually has. A contractor already sitting in
+    // the top three across eight miles does not have a visibility problem, and telling them
+    // they do is how you lose somebody who has spent years earning that position. What they
+    // have is a capacity problem: every enquiry still runs through the owner.
+    //
+    // Rules, not a model, because this decides which report somebody sees. It has to be the
+    // same every run and arguable afterwards.
+    const track = trackFor(foundScore, responseScore);
+
     const data = {
       submissionId,
       source: "dialbridge",
@@ -1008,6 +1051,7 @@
       overallScore,
       foundScore,
       responseScore,
+      track,
       leak: leakMath(answers, profile),
       grades,
       subScores: {
