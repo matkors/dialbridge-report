@@ -17,7 +17,7 @@
   // store the exact wording somebody saw with their submission. A screenshot of today's
   // page is no use in six months when the copy has changed.
   const EMAIL_CONSENT =
-    "By tapping Send me the plan you agree that DialBridge LLC may email you your Growth Blueprint and occasional advice for local contractors. Unsubscribe any time from the footer of any email.";
+    "By tapping Show me the plan you agree that DialBridge LLC may email you about your report and occasional advice for local contractors. Unsubscribe any time from the footer of any email.";
 
   const SMS_CONSENT =
     "By tapping Text me the code you agree that DialBridge LLC may text and call you at this number about your report and our services, including by automated means. Consent is not a condition of any purchase. Message frequency varies, and message and data rates may apply. Reply STOP to opt out or HELP for help.";
@@ -804,6 +804,18 @@
   // Naming the worst area in the sentence, not the worst finding's TITLE. The titles are
   // whole sentences ("You're not in the top 3 anywhere nearby"), so splicing one into a
   // clause produced "what to do about you're not in the top 3 anywhere nearby first".
+  // For a capacity business this runs above everything else. It is the difference between
+  // a report that reads as an audit and one that reads as an accusation.
+  function renderWon(report, summary) {
+    const won = (summary?.strengths || []).slice(0, 3);
+    if (!won.length) return null;
+    return h("section", { class: "card card-wide card-won" }, [
+      h("p", { class: "eyebrow", text: "What you have already built" }),
+      h("ul", { class: "won-list" }, won.map((line) => h("li", { text: line }))),
+      h("p", { class: "won-note", text: "None of that is luck, and none of it is what is holding you back. The rest of this is about what happens after somebody finds you." }),
+    ]);
+  }
+
   const BLUEPRINT_FOCUS = {
     map_ranking: "where you show up on the map",
     reviews: "your review count",
@@ -815,14 +827,34 @@
 
   const planPoint = (name, rest) => h("li", {}, [h("strong", { text: name }), ` — ${rest}`]);
 
+  // The plan, built from their own findings rather than a generic document. Worst first,
+  // because that is the order that pays, and every step carries the fix we would apply.
+  function renderPlanSteps(report, summary) {
+    const findings = (summary?.findings || []).slice(0, 4);
+    if (!findings.length) {
+      return [h("p", { class: "plan-lead", text: "Nothing on your profile is currently costing you work. The plan here is to keep it that way and start collecting reviews at the pace your job volume deserves." })];
+    }
+    return [
+      h("ol", { class: "plan-steps" }, findings.map((finding, i) =>
+        h("li", { class: "plan-step" }, [
+          h("span", { class: "plan-step-n", "aria-hidden": "true", text: String(i + 1) }),
+          h("div", { class: "plan-step-body" }, [
+            h("p", { class: "plan-step-t", text: finding.title }),
+            finding.fix ? h("p", { class: "plan-step-fix", text: finding.fix }) : null,
+          ].filter(Boolean)),
+        ])
+      )),
+    ];
+  }
+
   function renderBlueprintOffer(report, summary) {
     const worst = (summary?.findings || [])[0];
     const focus = BLUEPRINT_FOCUS[worst?.area];
     const form = h("form", { class: "plan-form", novalidate: "" }, [
-      h("label", { class: "plan-form-label", for: "planEmail", text: "Where should we send it?" }),
+      h("label", { class: "plan-form-label", for: "planEmail", text: "Your email, and it opens right here" }),
       h("div", { class: "plan-form-row" }, [
         h("input", { id: "planEmail", type: "email", name: "email", placeholder: "you@yourcompany.com", autocomplete: "email", required: "" }),
-        h("button", { class: "cta", type: "submit", text: "Send me the plan" }),
+        h("button", { class: "cta", type: "submit", text: "Show me the plan" }),
       ]),
     ]);
     const note = h("p", { class: "gate-note", role: "status", "aria-live": "polite" });
@@ -844,7 +876,7 @@
         return;
       }
       button.disabled = true;
-      button.textContent = "Sending...";
+      button.textContent = "Unlocking...";
       try {
         const res = await fetch(PLAN_URL(), {
           method: "POST",
@@ -860,31 +892,38 @@
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.ok) throw new Error(data.error || `Request failed (${res.status})`);
+        // It unlocks here rather than landing in an inbox. They are already reading, already
+        // convinced enough to hand over an address, and every extra step after that is a
+        // chance to lose them.
+        planLock.classList.remove("is-locked");
+        planLock.removeAttribute("aria-hidden");
         form.replaceChildren();
-        note.textContent = `On its way to ${email}.`;
+        note.textContent = "Unlocked below. We have emailed you the link so you can come back to it.";
         note.className = "gate-note is-good";
       } catch (err) {
         console.warn("Blueprint request failed", err);
         note.textContent = "That didn't go through. Try again.";
         note.className = "gate-note is-bad";
         button.disabled = false;
-        button.textContent = "Send me the plan";
+        button.textContent = "Show me the plan";
       }
     });
 
+    const capacity = report?.track === "capacity";
+    const planLock = h("div", { class: "plan-locked is-locked", "aria-hidden": "true" },
+      renderPlanSteps(report, summary));
+
     return h("section", { class: "card card-wide card-plan", id: "blueprintOffer" }, [
-      h("p", { class: "eyebrow", text: "The other half of this" }),
-      h("h3", { text: "Your Growth Blueprint, free" }),
-      h("p", { class: "plan-lead", text: focus
-        ? `This report told you what is broken. The Blueprint is the plan for fixing it, in the order that pays, starting with ${focus}.`
-        : "This report told you where you stand. The Blueprint is the plan: the three things that decide whether a job is yours, and which to do first." }),
-      h("ul", { class: "plan-points" }, [
-        planPoint("Get found", "the listing and website work that puts you on the map"),
-        planPoint("Get chosen", "a review habit that doesn't depend on remembering to ask"),
-        planPoint("Capture the lead", "so nothing that comes in goes unanswered"),
-      ]),
+      h("p", { class: "eyebrow", text: "Your plan" }),
+      h("h3", { text: capacity ? "What to fix first, in the order that pays" : "Your Growth Plan, free" }),
+      h("p", { class: "plan-lead", text: capacity
+        ? "Everything above is measured. This is what we would do about it, worst first, and what each fix actually looks like."
+        : focus
+          ? `This report told you what is broken. This is the plan for fixing it, in the order that pays, starting with ${focus}.`
+          : "This report told you where you stand. This is the plan, in the order that pays." }),
       form,
       note,
+      planLock,
       h("p", { class: "gate-fine" }, consentNodes(EMAIL_CONSENT)),
     ]);
   }
@@ -1331,7 +1370,27 @@
     // Everything that explains them. Blurred, inert and hidden from screen readers until
     // the phone is verified. The money line leads, because it is the answer to the
     // question the two scores just raised.
-    const gated = [
+    // A capacity business reads about the leak and the response first, because that is
+    // their story, and the map comes later as evidence they already won. A presence
+    // business gets the map up front, because that is theirs.
+    const capacityTrack = report?.track === "capacity";
+    const gated = capacityTrack ? [
+      renderWon(report, summary),
+      renderLeak(report?.leak),
+      renderJourney(report),
+      renderFindings(summary),
+      renderBlueprintNudge(),
+      renderPhoneShot(report),
+      renderRanking(report),
+      renderNumbers(report),
+      renderGrades(report),
+      h("div", { class: "card-grid" }, [
+        renderReviews(report),
+        renderWebsite(report),
+        renderListings(report),
+      ].filter(Boolean)),
+      renderBlueprintOffer(report, summary),
+    ].filter(Boolean) : [
       renderLeak(report?.leak),
       renderJourney(report),
       renderFindings(summary),

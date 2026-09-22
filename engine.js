@@ -971,11 +971,11 @@
   function headlineFor(findings, profile, scores = {}) {
     const first = findings[0];
     if (!first) return `${profile.name} is in good shape online`;
-    // The most valuable thing we can tell a strong business: the problem is not being found.
-    if (first.area !== "foundation" && scores.found !== null && scores.found >= 70
-      && scores.response !== null && scores.response <= 50) {
-      return "You're easy to find and hard to reach";
-    }
+    // A business already sitting in the top three across eight miles does not have a
+    // visibility problem, and opening on one is how you lose somebody who spent years
+    // earning that position. Lead on what they built; the gap comes straight after.
+    if (scores.track === "capacity") return "You've won the hard part. Now you're the bottleneck.";
+    if (scores.track === "none") return "There is not much wrong here, and that is worth knowing";
     const byArea = {
       foundation: "You're missing the pieces that bring the jobs in",
       map_ranking: "Homeowners nearby are seeing your competitors first",
@@ -1130,7 +1130,7 @@
 
     const { findings, redCount, goldCount } = findingsFor(data, answers, trade);
     const summary = {
-      headline: headlineFor(findings, profile, { found: foundScore, response: responseScore }),
+      headline: headlineFor(findings, profile, { found: foundScore, response: responseScore, track }),
       summary: summaryLine(data, findings, redCount, goldCount),
       findings,
       redCount,
