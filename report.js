@@ -1009,8 +1009,10 @@
           console.warn("Unlock send failed", err);
           say(
             err.message === "too_soon"
-              ? "A code is already on its way. Give it a few seconds."
-              : "We couldn't text that number. Check it and try again.",
+              ? "We just texted that number. Give it a few seconds."
+              : err.message === "too_many"
+                ? "That is as many codes as we can send for this report."
+                : "We couldn't text that number. Check it and try again.",
             "bad"
           );
           button.disabled = false;
@@ -1090,8 +1092,10 @@
         } catch (err) {
           say(
             err.message === "too_soon"
-              ? "A code is already on its way. Give it a few seconds."
-              : "We couldn't send another code. Try again in a minute.",
+              ? "We just texted that number. Give it a few seconds."
+              : err.message === "too_many"
+                ? "That is as many codes as we can send for this report."
+                : "We couldn't send another code. Try again in a minute.",
             "bad"
           );
         }
@@ -1359,14 +1363,10 @@
       gateClose = null;
       locked.classList.remove("is-locked");
       locked.removeAttribute("aria-hidden");
+      // The strip lighting up is the acknowledgement. A congratulations line that fades out
+      // five seconds later is noise on top of the thing they actually came for.
       const strip = document.getElementById("nextUp");
       strip?.classList.add("is-ready");
-      const hello = h("p", { class: "unlock-welcome", role: "status" }, [
-        h("strong", { text: firstName ? `Thanks ${firstName}.` : "Thanks." }),
-        " Your full report is open below, and your Growth Blueprint is at the end of it.",
-      ]);
-      locked.before(hello);
-      setTimeout(() => hello.remove(), 5000);
     }
 
     if (gateReady && !alreadyUnlocked) {

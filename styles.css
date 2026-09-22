@@ -1408,16 +1408,6 @@ body.is-locked { overflow: hidden; }
 }
 .unlock-leave { display: block; margin: 16px 0 0; font-size: 0.82rem; color: var(--ink-3); }
 
-.unlock-welcome {
-  margin: 0;
-  padding: 13px 16px;
-  border-radius: 10px;
-  background: var(--good-soft);
-  color: var(--good);
-  font-size: 0.95rem;
-}
-.unlock-welcome strong { font-weight: 800; }
-
 .card-unlock { border-top: 4px solid var(--accent); background: linear-gradient(180deg, #fff, var(--paper)); }
 .card-unlock h3 { margin: 4px 0 8px; font-size: clamp(1.15rem, 2.8vw, 1.4rem); letter-spacing: -0.02em; }
 .unlock-lead { margin: 0 0 16px; color: var(--ink-2); font-size: 0.95rem; line-height: 1.6; max-width: 62ch; }
