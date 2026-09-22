@@ -153,11 +153,111 @@
 
   function scoreRing(score, caption, size = "lg") {
     const value = num(score);
-    return h("div", { class: `ring ring-${size} tone-${scoreTone(value)}`, style: `--pct:${value ?? 0}` },
+    // Rendered empty with the real number parked in data-pct. animateReport fills it once
+    // it is on screen; if that never runs, the failsafe there plants the final value, so
+    // the page is never left showing a zero.
+    return h("div", {
+        class: `ring ring-${size} tone-${scoreTone(value)}`,
+        style: "--pct:0",
+        "data-pct": value === null ? "" : String(value),
+      },
       h("span", { class: "ring-inner" }, [
-        h("strong", { text: value === null ? "?" : String(value) }),
+        h("strong", { text: value === null ? "?" : "0" }),
         h("small", { text: caption }),
       ]));
+  }
+
+  // The Growth Blueprint is the tenth section down a long report, so most people never
+  // learn it exists. This is the credited-step pattern from onboarding: the report they
+  // already have arrives ticked, and the second row reads as a reward they have earned
+  // rather than a step they still owe us. Deliberately quiet, and deliberately not a card:
+  // it is a signpost, and a loud one here would pull people past the report into the form
+  // before anything has convinced them.
+  function renderNextUp() {
+    return h("div", { class: "nextup", id: "nextUp" }, [
+      h("div", { class: "nextup-row is-done" }, [
+        h("span", { class: "nextup-mark is-tick", "aria-hidden": "true", text: "\u2713" }),
+        h("span", { class: "nextup-name", text: "Lost Job Report" }),
+        h("span", { class: "nextup-state", text: "Ready below" }),
+      ]),
+      h("a", { class: "nextup-row is-next", href: "#blueprintOffer" }, [
+        h("span", { class: "nextup-mark", text: "2" }),
+        h("span", { class: "nextup-name", text: "Growth Blueprint" }),
+        h("span", { class: "nextup-state", text: "Yours free, at the end" }),
+        h("span", { class: "nextup-go", "aria-hidden": "true", text: "\u2192" }),
+      ]),
+    ]);
+  }
+
+  // A second mention, placed where conviction peaks rather than only at the bottom, for
+  // everyone who reads the findings and then stops scrolling.
+  function renderBlueprintNudge() {
+    return h("p", { class: "blueprint-nudge" }, [
+      "When you have read this, ",
+      h("a", { href: "#blueprintOffer", text: "your Growth Blueprint" }),
+      " is waiting at the end. It is the plan for fixing what is above, in the order that pays.",
+    ]);
+  }
+
+  // Motion earns its place here or it does not go in. The rings fill because the report
+  // claims to have measured something. Sections lift because a long report reads better
+  // arriving than dumped. Everything is off under prefers-reduced-motion, and every
+  // starting state is recoverable if the JavaScript never runs.
+  function animateReport(root) {
+    const rings = Array.from(root.querySelectorAll(".ring[data-pct]"));
+    const settle = () => {
+      rings.forEach((ring) => {
+        const to = Number(ring.getAttribute("data-pct"));
+        if (!Number.isFinite(to)) return;
+        ring.style.setProperty("--pct", String(to));
+        const digits = ring.querySelector("strong");
+        if (digits) digits.textContent = String(to);
+      });
+    };
+
+    if (REDUCED_MOTION) {
+      settle();
+      return;
+    }
+
+    rings.forEach((ring) => {
+      const to = Number(ring.getAttribute("data-pct"));
+      if (!Number.isFinite(to)) return;
+      const digits = ring.querySelector("strong");
+      window.requestAnimationFrame(() => ring.style.setProperty("--pct", String(to)));
+      const started = performance.now();
+      const DURATION = 1100;
+      const step = (now) => {
+        const t = Math.min(1, (now - started) / DURATION);
+        // The same ease as the CSS transition, so the arc and the digits land together.
+        const eased = 1 - Math.pow(1 - t, 3);
+        if (digits) digits.textContent = String(Math.round(to * eased));
+        if (t < 1) window.requestAnimationFrame(step);
+      };
+      window.requestAnimationFrame(step);
+    });
+
+    const sections = Array.from(root.querySelectorAll(".locked-wrap > *, .report-hero, .nextup"));
+    if (!("IntersectionObserver" in window)) return;
+    sections.forEach((el) => el.classList.add("will-rise"));
+
+    const observer = new IntersectionObserver(
+      (entries, obs) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("is-in");
+          obs.unobserve(entry.target);
+        });
+      },
+      { rootMargin: "0px 0px -6% 0px", threshold: 0.04 }
+    );
+    sections.forEach((el) => observer.observe(el));
+
+    // If anything about the observer goes wrong, nothing stays invisible.
+    window.setTimeout(() => {
+      sections.forEach((el) => el.classList.add("is-in"));
+      settle();
+    }, 2500);
   }
 
   // The browser already ran its own phone speed test during the scan. If GHL's website
@@ -772,7 +872,7 @@
       }
     });
 
-    return h("section", { class: "card card-wide card-plan" }, [
+    return h("section", { class: "card card-wide card-plan", id: "blueprintOffer" }, [
       h("p", { class: "eyebrow", text: "The other half of this" }),
       h("h3", { text: "Your Growth Blueprint, free" }),
       h("p", { class: "plan-lead", text: focus
@@ -1222,7 +1322,7 @@
     if (title) title.textContent = report?.profile?.name ? `Lost Job Report for ${report.profile.name}` : "Your Lost Job Report";
 
     // Free, and all of it: the two scores and the line naming which one is the problem.
-    const free = [renderHero(summary, report)].filter(Boolean);
+    const free = [renderHero(summary, report), renderNextUp()].filter(Boolean);
 
     // Everything that explains them. Blurred, inert and hidden from screen readers until
     // the phone is verified. The money line leads, because it is the answer to the
@@ -1231,6 +1331,7 @@
       renderLeak(report?.leak),
       renderJourney(report),
       renderFindings(summary),
+      renderBlueprintNudge(),
       renderRanking(report),
       renderNumbers(report),
       renderPhoneShot(report),
@@ -1258,9 +1359,11 @@
       gateClose = null;
       locked.classList.remove("is-locked");
       locked.removeAttribute("aria-hidden");
+      const strip = document.getElementById("nextUp");
+      strip?.classList.add("is-ready");
       const hello = h("p", { class: "unlock-welcome", role: "status" }, [
         h("strong", { text: firstName ? `Thanks ${firstName}.` : "Thanks." }),
-        " Your full report is open below.",
+        " Your full report is open below, and your Growth Blueprint is at the end of it.",
       ]);
       locked.before(hello);
       setTimeout(() => hello.remove(), 5000);
@@ -1272,6 +1375,7 @@
     }
     body.replaceChildren(...free, locked);
     body.hidden = false;
+    animateReport(body);
     setStatus("");
     $("report").hidden = false;
     lastPayload = payload;
