@@ -1372,27 +1372,25 @@
     return Math.round(jobsPerMonth * months * CAPTURE_RATE);
   }
 
+  // Six blocks, about forty words each. The earlier version carried ninety: four checks
+  // written as full sentences, a result paragraph and a footnote, which is a brochure.
+  // Alan's reference runs at twenty-five. The picture is the argument; the words label it.
+
+  const money = (x) => "$" + Number(x).toLocaleString("en-US");
+  const fmt = (x) => Number(x).toLocaleString("en-US");
+
   function playListing(report, n) {
     const p = report?.profile || {};
     const gaps = [];
-    if (!report?.website?.found) gaps.push("no website link");
-    if ((p.photoCount || 0) < 5) gaps.push(p.photoCount ? `only ${p.photoCount} photos` : "no photos");
-    if (!p.hasHours) gaps.push("no opening hours");
-
+    if (!report?.website?.found) gaps.push("website link");
+    if ((p.photoCount || 0) < 5) gaps.push("photos");
+    if (!p.hasHours) gaps.push("opening hours");
     return featureBlock({
       letter: n,
       name: "Google Business Profile, optimized",
-      issue: gaps.length
-        ? `Your Google listing has ${listWords(gaps)}. Google reads the blanks to decide who it shows.`
-        : "Your listing is filled in. Keeping it that way is the job, because one that stops moving slips down.",
-      includes: [
-        "Photos off your real jobs, added and kept current",
-        "The right category, your services and your hours",
-        "A site that loads on a phone and takes bookings",
-        "Checked and topped up every month",
-      ],
-      result: "A finished profile is the first thing both Google and the AI tools read. It is also the fastest part of this to fix.",
-      resultNote: "Profiles touched in the last 30 days get cited roughly 3x more often by AI assistants.",
+      issue: gaps.length ? `Missing on your listing: ${listWords(gaps)}.` : "Your listing is filled in. It has to stay that way.",
+      includes: ["Real job photos, kept current", "Category, hours and services", "Checked every month"],
+      result: "The first thing Google and the AI tools read.",
       visual: visualMyListing(report) || visualListings(),
     });
   }
@@ -1404,15 +1402,9 @@
     return featureBlock({
       letter: n,
       name: "Google Maps ranking, tracked monthly",
-      issue: r.pointsInTop3
-        ? `You are in the top three at ${r.pointsInTop3} of the ${total} spots we checked. At the other ${total - r.pointsInTop3}, the call goes to somebody else.`
-        : `We searched from ${total} spots around you. You were not in the top three at one of them.`,
-      includes: [
-        "Profile and review work aimed at the streets you actually serve",
-        "The same 25 point grid re-run every month so you can watch it move",
-        "Your main keyword tracked against the shops beating you",
-      ],
-      result: "The top three take nearly all the calls, and that is the target. You see the grid go green from the middle out.",
+      issue: `Top three at ${r.pointsInTop3 || 0} of the ${total} spots we checked.`,
+      includes: ["25-point grid, re-run monthly", "Your main keyword tracked", "The shops beating you, watched"],
+      result: "The top three take nearly every call.",
       visual: visualSearchList(report),
     });
   }
@@ -1421,43 +1413,30 @@
     const rep = visualAiAnswer(report);
     if (!rep) return null;
     const rating = num(report?.reviews?.googleRating);
-    const under = rating !== null && rating < 3.4;
-
+    const kw = report?.ranking?.keyword || "contractor";
     return featureBlock({
       letter: n,
       name: "DialBridge AEO, getting named by the AI",
-      issue: "Homeowners ask ChatGPT and Gemini for a name now, and those answers are not bought. They are built from your rating, your review count, and whether your details say the same thing everywhere.",
+      issue: `People ask ChatGPT for a ${kw} now. You are not in the answer.`,
       includes: [
-        "Your name, number and address made identical across Google, your site and the directories",
-        "Review volume and rating pushed above the bar these tools use",
-        "Profile and site content refreshed monthly, which is what gets cited",
-        "LocalBusiness markup on your site so the tools can read it cleanly",
+        "Same details everywhere",
+        rating !== null && rating < 3.4 ? `Rating above the 3.4 line (you: ${rating.toFixed(1)})` : "Rating and reviews above the bar",
+        "Monthly content refresh",
       ],
-      result: under
-        ? `The businesses these tools recommend average 4.3 stars. Under 3.4 they effectively stop, and you are at ${rating.toFixed(1)}. Getting above that line is what makes you eligible to be named at all.`
-        : "The businesses these tools recommend average 4.3 stars and have details that agree everywhere. That is the bar, and it is the same work that moves Google.",
-      resultNote: "SOCi's 2026 Local Visibility Index, about 350,000 locations.",
+      result: "Recommended shops average 4.3 stars. That is the bar.",
+      resultNote: "SOCi 2026 Local Visibility Index, about 350,000 locations.",
       visual: rep,
     });
   }
 
   function playBooking(report, n) {
-    const leak = report?.leak || {};
-    const v = leak.jobValue ? Number(leak.jobValue) : null;
-    const money = (x) => `$${Number(x).toLocaleString("en-US")}`;
+    const v = num(report?.leak?.jobValue);
     return featureBlock({
       letter: n,
       name: "Missed call text back and online booking",
-      issue: `You told us calls wait when the day gets busy.${v ? ` One of those is about ${money(v)} gone to whoever picked up.` : ""}`,
-      includes: [
-        "A missed call gets a text back within seconds",
-        "She picks a slot from your real calendar, no phone tag",
-        "Calls, texts, web chat and Facebook all in one inbox",
-        "The booking writes itself into your CRM",
-      ],
-      result: v
-        ? `Pulling back one call a month is ${money(v * 12)} a year at your ticket. That is arithmetic on your own numbers, not a projection.`
-        : "Nothing that comes in goes unanswered, including the calls that land while you are under a sink.",
+      issue: v ? `Calls wait when you are busy. Each one is about ${money(v)}.` : "Calls wait when you are busy.",
+      includes: ["Text back in seconds", "She books herself in", "Lands in your calendar and CRM"],
+      result: v ? `One recovered call a month is ${money(v * 12)} a year.` : "Nothing that comes in goes unanswered.",
       visual: twoTrack(
         "What happens now", ["Call comes in", "You are on a job", "You ring back at 6pm"], "Already booked someone",
         "What happens with it running", ["Call comes in", "Text back in 8 seconds", "She picks a slot"], "In your calendar",
@@ -1470,14 +1449,9 @@
     return featureBlock({
       letter: n,
       name: "DialBridge Quote Follow-Up",
-      issue: "You told us quotes get chased when you remember. Every estimate sitting quiet is work you already paid to win.",
-      includes: [
-        "Every open estimate tracked without you keeping a list",
-        "Texts that check in until you get a yes or a no",
-        "Won jobs update in your CRM, dead ones close themselves",
-        "Past customers get the same treatment on a schedule",
-      ],
-      result: "Quotes stop dying of silence, and the customers who used you two years ago hear from you before they go looking for somebody else.",
+      issue: "Quotes get chased when you remember.",
+      includes: ["Every open estimate tracked", "Texts until it is a yes or a no", "Past customers, on a schedule"],
+      result: "Quotes stop dying of silence.",
       visual: visualQuoteTrack(),
     });
   }
@@ -1488,23 +1462,13 @@
     const jobs = num(report?.leak?.jobs);
     const q = reviewsIn(3, jobs);
     const y = reviewsIn(12, jobs);
-
     return featureBlock({
       letter: n,
       name: "DialBridge Review Automation",
-      issue: rival && rival > mine
-        ? `The shop ranking above you has ${rival} reviews. You have ${mine}, and the gap is what a homeowner reads first.`
-        : "Your rating is fine. It is the count, and how fast it moves, that a homeowner reads before calling.",
-      includes: [
-        "A review text goes out after every completed job",
-        "Sent in your name about two hours after you close it out",
-        "Every customer, not the ones you remember on a good week",
-        "Bad ones routed to you privately before they land in public",
-      ],
-      result: q && y
-        ? `At ${jobs} jobs a month that is roughly ${q} new reviews in the first 90 days and about ${y} over a year, without you asking once.`
-        : "Reviews arrive on their own after every job, which is the only thing that moves a count.",
-      resultNote: q ? "Assumes one in four customers leaves one, which is normal once the ask is automatic and immediate." : null,
+      issue: rival && rival > mine ? `They have ${fmt(rival)}. You have ${fmt(mine)}.` : "The count, and how fast it moves, is what gets read.",
+      includes: ["A text after every job", "In your name, two hours later", "Every customer, automatic"],
+      result: q && y ? `About ${q} reviews in 90 days, ${y} in a year.` : "Reviews arrive after every job, on their own.",
+      resultNote: q ? `At ${jobs} jobs a month, if one in four leaves one.` : null,
       visual: visualReviewGap(report),
     });
   }
@@ -1582,7 +1546,7 @@
   function renderPlanClose(report, count) {
     const g = report?.growth;
     const money = g
-      ? `Four of these a month is ${"$" + Number(g.perMonth).toLocaleString("en-US")}. That is the whole point of the order above, and none of it is a number we made up: it is your job value and your job count.`
+      ? `Four of these a month is ${"$" + Number(g.perMonth).toLocaleString("en-US")}. Your job value, your job count, nothing invented.`
       : "";
 
     const step = (when, what) =>
@@ -1594,9 +1558,9 @@
     return h("div", { class: "plan-close" }, [
       h("p", { class: "eyebrow", text: "The order it gets built in" }),
       h("ol", { class: "seq" }, [
-        step("Week one", "The listing gets finished and the leaks that cost nothing to plug get plugged. This is the part that moves first."),
-        step("Weeks two to six", "Booking, quote chasing and review requests go on automatically and connect to your calendar and CRM. Nothing new to learn, and nothing that depends on you remembering."),
-        step("Every week after", "The map climbs on the back of the reviews, and your old customers hear from you before they go looking. That is the part that makes next quarter predictable instead of hopeful."),
+        step("Week one", "Listing finished. The free leaks plugged."),
+        step("Weeks two to six", "Booking, quotes and reviews go automatic, wired to your calendar and CRM."),
+        step("Every week after", "The map climbs. Old customers hear from you first."),
       ]),
       money ? h("p", { class: "plan-money", text: money }) : null,
       h("div", { class: "plan-ask" }, [
