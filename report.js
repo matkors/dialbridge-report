@@ -336,12 +336,18 @@
       h("div", { class: "leak-math" }, [
         h("p", { class: "leak-math-head", text: "How we got there" }),
         h("p", { class: "leak-eq" }, [
-          term(String(leak.jobs), "jobs a month"),
+          term(String(leak.calls), "calls a month"),
           times(),
           term(money(leak.jobValue), "a job"),
           times(),
-          term(percent, "at risk"),
+          term(percent, "slip away"),
         ]),
+        // The assumption goes on the page rather than inside the code. A contractor who
+        // closes two in ten, or eight in ten, can see straight away which way this moves,
+        // and the whole number is checkable instead of asserted.
+        leak.jobs && leak.closeRate
+          ? h("p", { class: "leak-note", text: `You told us about ${leak.jobs} jobs a month. Most contractors win about ${Math.round(leak.closeRate * 10)} in 10 of the people who ask for a price, so it takes roughly ${leak.calls} calls to get there. If you close more than that, this number is smaller. If you close less, it's bigger.` })
+          : null,
       ]),
     ]);
   }
@@ -640,7 +646,7 @@
 
     return h("section", { class: "card card-wide" }, [
       h("div", { class: "card-head" }, [
-        h("h3", { text: `Your spot on Google Maps when someone searches "${r.keyword}"` }),
+        h("h3", { text: `When someone types "${r.keyword}", here's where you come up` }),
         // An average position that only averages the points they actually appeared at is a
         // flattering lie: two second places and seven no-shows came out as a green
         // "Average position 2" beside a finding saying they were missing at seven spots.
@@ -649,8 +655,8 @@
       ]),
       visual,
       h("p", { class: "muted", text: r.centerSource === "competitors"
-        ? "Each circle is a spot where someone searches. Your Google listing has no pin on the map, so this is centred on your service area. The number is your position from there, and an X means you don't come up at all."
-        : "Each circle is a spot near you where someone searches, and your address is the middle one. The number is your position on Google Maps from there, and an X means you don't come up at all." }),
+        ? "We checked 25 spots around your service area. Each circle is one of them, and the number is where you came up when we searched from there. An X means you didn't come up at all."
+        : "We stood in 25 spots around you and searched. Each circle is one of them, your own address is the middle one, and the number is where you came up from there. An X means you didn't come up at all." }),
       keywordSwitch(report),
       competitors.length
         ? h("div", { class: "table-wrap" }, h("table", { class: "cmp" }, [
@@ -827,8 +833,6 @@
     foundation: "the groundwork",
   };
 
-  const planPoint = (name, rest) => h("li", {}, [h("strong", { text: name }), ` — ${rest}`]);
-
   // "a, b and c" rather than "a, b, c", because these land mid-sentence.
   function listWords(items) {
     if (items.length <= 1) return items[0] || "";
@@ -869,6 +873,23 @@
     ]);
   }
 
+  // The third beat, and the one the old version was missing entirely. Problem, then the
+  // mechanism, then the thing that runs it. Without this last line the plan reads as
+  // homework somebody else has to do; with it, it reads as a product.
+  function playUs(text) {
+    return h("div", { class: "play-us" }, [
+      h("span", { class: "play-us-tag", text: "What we do" }),
+      h("p", { text }),
+    ]);
+  }
+
+  function playProblem(text) {
+    return h("p", { class: "play-you" }, [
+      h("span", { class: "play-you-tag", text: "The problem" }),
+      text,
+    ]);
+  }
+
   // ---- the two Google listings, side by side. Both are real listings, and the difference
   //      between them is not taste, it is which fields somebody filled in.
   function visualListings() {
@@ -902,33 +923,46 @@
     ]);
   }
 
-  // ---- the same search, three doorsteps. Built from their real grid: the centre point is
-  //      their address, and the points either side of it are roughly two and four miles
-  //      out, so these are their own ranks, not an illustration.
-  function visualDoorsteps(report) {
-    const ranks = report?.ranking?.ranks || [];
-    if (ranks.length < 25) return null;
-    // 5 x 5 grid, row-major. 12 is the centre, 13 is one step east, 14 is two steps east.
-    const picks = [
-      { i: 12, where: "At your address" },
-      { i: 13, where: "Two miles out" },
-      { i: 14, where: "Four miles out" },
-    ];
-    const say = (r) =>
-      !r ? "You don't come up" : r <= 3 ? "They see you" : r <= 10 ? "Page one, barely" : "Nobody scrolls here";
+  // ---- what the homeowner actually sees. Three abstract cards reading "#19 / X / X" meant
+  //      nothing to a contractor: it is a scoreboard for a game nobody explained. The thing
+  //      they understand on sight is the list itself, with the names of the companies taking
+  //      their calls and their own line sitting under it.
+  function visualSearchList(report) {
+    const rivals = (report?.ranking?.topCompetitors || report?.competitors || []).slice(0, 3);
+    if (!rivals.length) return null;
+    const kw = report?.ranking?.keyword || "your trade";
+    const ranks = (report?.ranking?.ranks || []).filter((r) => Number(r) > 0);
+    const best = ranks.length ? Math.min(...ranks) : null;
 
-    return h("div", { class: "play-visual doorsteps" }, [
-      h("div", { class: "door-road", "aria-hidden": "true" }),
-      h("ul", { class: "door-row" }, picks.map(({ i, where }) => {
-        const r = ranks[i];
-        const tone = !r ? "bad" : r <= 3 ? "good" : "warn";
-        return h("li", { class: `door tone-${tone}` }, [
-          h("span", { class: "door-where", text: where }),
-          h("span", { class: "door-rank", text: r ? `#${r}` : "\u2715" }),
-          h("span", { class: "door-say", text: say(r) }),
-        ]);
-      })),
-      h("p", { class: "door-cap", text: "One search, three doorsteps, three different answers. All of it measured today." }),
+    const row = (pos, name, rating, reviews, mine) =>
+      h("li", { class: `sr-row${mine ? " is-me" : ""}` }, [
+        h("span", { class: "sr-pos", text: pos }),
+        h("span", { class: "sr-name", text: name }),
+        h("span", { class: "sr-stars", text: rating ? `\u2605 ${Number(rating).toFixed(1)}` : "" }),
+        h("span", { class: "sr-reviews", text: reviews === null || reviews === undefined ? "" : `${reviews} reviews` }),
+        mine ? h("span", { class: "sr-you", text: "you" }) : null,
+      ]);
+
+    return h("div", { class: "play-visual searchlist" }, [
+      h("p", { class: "sr-head" }, [
+        "Someone near you types ",
+        h("b", { text: kw }),
+        ". This is the list Google gives them.",
+      ]),
+      h("ol", { class: "sr-list" }, [
+        ...rivals.map((c, i) => row(String(i + 1), c.name || "A competitor", c.rating, c.reviewCount, false)),
+        h("li", { class: "sr-gap", "aria-hidden": "true" }, "\u22ee"),
+        row(
+          best && best > 3 ? String(best) : "\u2715",
+          report?.profile?.name || "You",
+          report?.reviews?.googleRating,
+          report?.reviews?.googleReviewCount,
+          true
+        ),
+      ]),
+      h("p", { class: "sr-cap", text: best && best > 3
+        ? "Almost nobody scrolls that far. The top three take the calls."
+        : "You aren't on the list at all where we checked. The top three take the calls." }),
     ]);
   }
 
@@ -943,24 +977,33 @@
     ]);
   }
 
-  // ---- the four plays. Each returns null when it has nothing true to say.
+  // ---- the plays. Each returns null when it has nothing true to say.
+  //
+  // Shape is fixed: the problem in their own numbers, a picture of it, the mechanism
+  // nobody has told them, then the thing that runs it. That last beat always names the
+  // calendar and the CRM, because what separates this from an agency pitch is that it
+  // plugs into the tools already running their day rather than adding another one.
+  //
+  // Register is operational, not promotional. The reader is somebody who was under a sink
+  // an hour ago and can smell a marketing page from the first line.
 
   function playListing(report, n) {
     const p = report?.profile || {};
     const gaps = [];
-    if (!report?.website?.found) gaps.push("no website on it");
+    if (!report?.website?.found) gaps.push("no website link");
     if ((p.photoCount || 0) < 5) gaps.push(p.photoCount ? `only ${p.photoCount} photos` : "no photos");
     if (!p.hasHours) gaps.push("no opening hours");
     const yours = gaps.length
-      ? `Yours has ${listWords(gaps)}. Every one of those is a field Google reads.`
-      : "Yours is filled in. The next thing it needs is to stay that way, because a listing that stops moving stops being trusted.";
+      ? `Your Google listing has ${listWords(gaps)}. Those are fields Google reads to decide who it shows.`
+      : "Your listing is filled in. Now it has to stay that way, because one that stops moving slips down.";
 
     return h("li", { class: "play" }, [
       playHead(n, "Get found"),
-      h("h4", { class: "play-move", text: "Fill the listing in, because Google reads it before anybody does" }),
-      h("p", { class: "play-you", text: yours }),
+      h("h4", { class: "play-move", text: "Finish the listing that feeds you work" }),
+      playProblem(yours),
       visualListings(),
-      playMech("Most people treat the Google listing like a business card. Name, number, done. It is not a business card, it is the form Google reads to decide whether to put you on the map at all. The photos, the hours, the category and a working website link are not decoration. They are the answer sheet, and the company beside you filled theirs in."),
+      playMech("Most owners treat a Google listing like a business card. Name, number, done. It is not a business card. It is the form Google reads to decide whether to show you at all, and the shop ranking above you filled theirs in. Photos, hours, the right category and a site that loads on a phone are not decoration. They are the answer sheet."),
+      playUs("We rebuild the listing and keep it current: photos off your real jobs, the right category, your hours and services, and a site that loads. Then it stays maintained instead of going stale again in six months."),
     ]);
   }
 
@@ -968,96 +1011,112 @@
     const r = report?.ranking || {};
     const total = (r.ranks || []).length;
     if (!total) return null;
-    const visual = visualDoorsteps(report);
-    // "Win the streets you work, not just your own" is the right line for somebody sitting
-    // at number one outside their own yard and nowhere four miles out. It is the wrong line
-    // for somebody who is sixth at their own address, and getting that wrong tells them we
-    // did not read their own map.
     const holdsHome = Number(r.ranks?.[12]) >= 1 && Number(r.ranks?.[12]) <= 3;
     const yours = r.pointsInTop3
-      ? `You are in the top three at ${r.pointsInTop3} of ${total} spots we checked. At the other ${total - r.pointsInTop3}, a homeowner gets three other names.`
-      : `We checked ${total} spots around you and you were not in the top three at any of them. At every one of those doorsteps, a homeowner gets three other names.`;
+      ? `You come up in the top three at ${r.pointsInTop3} of the ${total} spots we checked. At the other ${total - r.pointsInTop3}, the call goes to somebody else.`
+      : `We checked ${total} spots around you. You were not in the top three at a single one of them.`;
 
     return h("li", { class: "play" }, [
       playHead(n, "Get found"),
       h("h4", { class: "play-move", text: holdsHome
-        ? "Win the streets you actually work, not just your own"
-        : "Get onto the map where they are actually standing" }),
-      h("p", { class: "play-you", text: yours }),
-      visual,
-      playMech("There is no such thing as your ranking. Google builds a different top three for every doorstep, and the heaviest thing in that decision is how far you are from the person holding the phone. You cannot move your yard closer to them. What you can do is be the strongest listing in the pack, because strength is the part of that decision that travels, and distance is the part that does not."),
+        ? "Stop relying on luck and referrals"
+        : "Stop relying on luck and referrals" }),
+      playProblem(yours),
+      visualSearchList(report),
+      playMech("Word of mouth is a good business. It is not a predictable one, because it arrives when it feels like it. Inbound is the part you can build, and there is no single place you rank: Google builds a different top three for every doorstep, and the biggest factor is how far you are from whoever is holding the phone. You cannot move your yard closer to them. You can move how strong the listing and the review count are, and that part travels where distance does not."),
+      playUs("We work the listing and the reviews together, because that is the pair that actually moves map position, and you watch the grid go green from the middle out."),
+    ]);
+  }
+
+  function playBooking(report, n) {
+    const leak = report?.leak || {};
+    const worth = leak.jobValue
+      ? ` At your ticket, one of those is about $${Number(leak.jobValue).toLocaleString()} that went to whoever picked up.`
+      : "";
+    return h("li", { class: "play" }, [
+      playHead(n, "Win the job"),
+      h("h4", { class: "play-move", text: "Booking on autopilot, including the calls you miss" }),
+      playProblem(`You told us calls wait when the day gets busy.${worth}`),
+      visualThread("img/thread-missed-call.webp",
+        "A phone screenshot of a text thread. Seconds after a missed call the company texts to say they just missed her and asks what she needs a hand with. She answers with the job, and the thread turns into a booking.",
+        [["The dropped call texts back in seconds.", "Before she works down to the next number on her list."],
+         ["She books herself in.", "A link to your real availability, no phone tag either way."],
+         ["It lands in your calendar and CRM.", "While you are still under somebody's sink."]]),
+      playMech("Nobody who calls you is sitting there waiting. They have three numbers and they are working down the list, and they stop at the first shop that answers. That is why a missed call is not something you ring back tonight. By tonight it is somebody else's job, and you never find out it happened, because the phone simply does not ring again. A shop that cannot answer while it is working has a ceiling, and the ceiling is you."),
+      playUs("A dropped call gets a text back in seconds with a link to book straight into your calendar. The job writes itself into your CRM, so your schedule is current without you touching it."),
+    ]);
+  }
+
+  // ---- what happens to one quote, twice. There is no screenshot for a thing that does
+  //      not happen, so this is drawn: the same estimate, once the way it goes now and
+  //      once the way it goes when something is tracking it.
+  function visualQuoteTrack() {
+    const track = (label, tone, steps, end) =>
+      h("div", { class: `qt-row tone-${tone}` }, [
+        h("span", { class: "qt-label", text: label }),
+        h("ol", { class: "qt-steps" }, [
+          ...steps.map((t) => h("li", { class: "qt-step", text: t })),
+          h("li", { class: "qt-end", text: end }),
+        ]),
+      ]);
+
+    return h("div", { class: "play-visual quotetrack" }, [
+      track("How it goes now", "bad",
+        ["Quote sent", "Day 3, nothing", "Day 7, you are on a job", "Day 14, forgotten"],
+        "Gone quiet"),
+      track("How it goes with it tracked", "good",
+        ["Quote sent", "Day 2, text checks in", "Day 6, text checks in", "Day 12, last check"],
+        "Yes or no"),
+      h("p", { class: "qt-cap", text: "Same estimate, same customer. The only difference is whether anything was watching it." }),
+    ]);
+  }
+
+  function playQuotes(report, n) {
+    return h("li", { class: "play" }, [
+      playHead(n, "Win the job"),
+      h("h4", { class: "play-move", text: "Never let a quote go cold" }),
+      playProblem("You told us quotes get chased when you remember. Every estimate sitting quiet is work you already paid to win."),
+      visualQuoteTrack(),
+      playMech("Most quotes that close need more than one touch, and the ones that get dropped are the ones a competitor is still working. Chasing them by hand takes time you do not have, so it is the first thing to go in a busy week. That is not a discipline problem, it is a capacity problem, and it gets worse exactly when the work is good."),
+      playUs("The system tracks every open estimate and checks in by text until you get a yes or a no. Won jobs update in your CRM, and the dead ones stop living in your head. Old customers get the same treatment on a schedule, so the ones who used you two years ago hear from you before they search for somebody else."),
     ]);
   }
 
   function playReviews(report, n) {
     const mine = report?.reviews?.googleReviewCount || 0;
     const rival = report?.signals?.topRivalReviews;
-    const perYear = report?.signals?.reviewsPerYear;
-    const bits = [];
-    if (rival && rival > mine) bits.push(`The busiest company near you has ${rival - mine} more than you`);
-    if (perYear !== null && perYear !== undefined) bits.push(`you are adding about ${Math.round(perYear)} a year`);
-    const yours = bits.length
-      ? `${bits.join(", and ")}. That gap is a pace problem, not a quality one.`
-      : "Your rating is not the problem. The count and how fast it moves are what a homeowner reads.";
+    const yours = rival && rival > mine
+      ? `You have ${mine}. The shop coming up above you has ${rival}. Every one of those started as a finished job, same as yours.`
+      : "Your rating is fine. It is the count, and how fast it moves, that a homeowner reads before they call.";
 
     return h("li", { class: "play" }, [
-      playHead(n, "Get chosen"),
-      h("h4", { class: "play-move", text: "Ask while they are still standing in the driveway" }),
-      h("p", { class: "play-you", text: yours }),
+      playHead(n, "Keep it running"),
+      h("h4", { class: "play-move", text: "Hands-free reviews that drive rankings" }),
+      playProblem(yours),
       visualThread("img/thread-review.webp",
         "A phone screenshot of a text thread. In the morning the company texts that Mike is twenty minutes out. That afternoon it says the job is all done and asks whether she would mind leaving Mike a quick review, with a review link underneath. She replies that she just left one.",
-        [["What she gets.", "The same thread that told her the van was twenty minutes out, now asking for a review, with the link right there to tap."],
-         ["When it goes.", "A couple of hours after the job closes, in your name, while she is still pleased with it."],
-         ["Who it asks.", "Everyone. Not the ones you happen to remember."]]),
-      playMech("The gap is almost never that you ask badly. It is when you ask. A link in somebody's hand while they are still pleased gets used. The same words on Monday get read and forgotten, because the feeling has gone. And it has to go to every customer, not the ones you remember on a good week, because asking everyone is the only thing that actually moves the count."),
+        [["It fires when the job closes out.", "About two hours later, in your name, from the same thread."],
+         ["The link is right there to tap.", "She never has to go and find you on Google."],
+         ["Every customer gets it.", "Not only the ones you remembered to ask."]]),
+      playMech("It is almost never that you ask badly. It is when you ask. A link in somebody's hand while they are still happy with the work gets used. The same words on Monday get read and forgotten, because the feeling has gone. And it has to go to everybody, not the ones you remember on a good week, because volume is the only thing that moves a review count, and review count is one of the things moving you up the map."),
+      playUs("The moment a job is closed out in your CRM, the system texts a review link in your name. Nothing to chase, and the count climbs in the background while you work."),
     ]);
   }
 
-  function playCatch(report, n, findings = []) {
-    const leak = report?.leak || {};
-    const keys = new Set(findings.map((f) => f.key));
-    const slow = keys.has("speed_to_lead");
-    const cold = keys.has("quote_followup");
-    // Name the gap they actually reported. "There is a gap between the good days and the
-    // busy ones" is true of everybody and tells them we were not listening.
-    const which = slow && cold
-      ? "Both ends of this are open for you: enquiries wait, and the quotes you send go quiet."
-      : slow
-        ? "Enquiries wait on you before anybody answers them."
-        : cold
-          ? "The quotes you send go quiet, and nothing goes back out after them."
-          : "Enquiries still run through you, one at a time.";
-    const worth = leak.jobValue
-      ? ` At your ticket, each one of those is about $${Number(leak.jobValue).toLocaleString()} walking to whoever picked up.`
-      : "";
-    return h("li", { class: "play" }, [
-      playHead(n, "Catch the job"),
-      h("h4", { class: "play-move", text: "Answer before they reach the next name on their list" }),
-      h("p", { class: "play-you", text: which + worth }),
-      visualThread("img/thread-missed-call.webp",
-        "A phone screenshot of a text thread. Seconds after a missed call the company texts to say they just missed her and asks what she needs a hand with. She answers with the job, and the thread turns into a booking.",
-        [["What happens.", "The missed call answers itself, in seconds, with a question she can reply to."],
-         ["Why a text.", "She is standing in her kitchen with a list. Typing is easier than waiting for a callback."],
-         ["Where it ends.", "In a booked job, in the same thread, without you stopping what you were doing."]]),
-      playMech("The homeowner who called you is not waiting for you. They are working down a list of three, and they stop at the first one that answers like a person. That is why a missed call is not a lead you can ring back this evening. By this evening it is somebody else's job, and you will never know it happened, because the phone simply does not ring again."),
-    ]);
-  }
-
-  // Which plays, in which order. Their worst finding decides what opens, and a play only
-  // runs when a finding actually landed in its area, so nobody is lectured about a thing
-  // they have already got right.
-  // Each play belongs to one of the three stages a job passes through. Strict severity
-  // order broke the arc: it produced "01 Get found, 02 Get chosen, 03 Get found", which
-  // reads like a shuffled deck. So the stages are ordered by the worst thing inside them
-  // and the plays stay grouped under their stage. Still worst first, just at the level
-  // where the labels make sense.
+  // Which play a finding turns into. Lead follow-up splits in two, because a missed call
+  // and a quote going quiet are different leaks with different fixes, and the co-founder's
+  // read is right that folding them together buries both.
+  const PLAY_FOR_KEY = {
+    speed_to_lead: { build: playBooking, stage: 1 },
+    quote_followup: { build: playQuotes, stage: 1 },
+  };
   const PLAY_FOR_AREA = {
     google_profile: { build: playListing, stage: 0 },
     foundation: { build: playListing, stage: 0 },
     website: { build: playListing, stage: 0 },
     map_ranking: { build: playMap, stage: 0 },
-    reviews: { build: playReviews, stage: 1 },
-    lead_follow_up: { build: playCatch, stage: 2 },
+    reviews: { build: playReviews, stage: 2 },
+    lead_follow_up: { build: playBooking, stage: 1 },
   };
 
   function renderPlanSteps(report, summary) {
@@ -1065,7 +1124,7 @@
     const findings = summary?.allFindings || summary?.findings || [];
     const picked = new Map(); // build -> { build, stage, rank, findings }
     findings.forEach((f, i) => {
-      const entry = PLAY_FOR_AREA[f.area];
+      const entry = PLAY_FOR_KEY[f.key] || PLAY_FOR_AREA[f.area];
       if (!entry) return;
       const got = picked.get(entry.build);
       if (got) { got.findings.push(f); return; }
@@ -1076,16 +1135,17 @@
     // A clean profile still gets a plan. Being fine today is not the same as staying fine.
     if (!chosen.length) {
       chosen = [
-        { build: playReviews, stage: 1, rank: 0, findings: [] },
-        { build: playCatch, stage: 2, rank: 1, findings: [] },
+        { build: playBooking, stage: 1, rank: 0, findings: [] },
+        { build: playReviews, stage: 2, rank: 1, findings: [] },
       ];
     }
 
-    const stageRank = new Map();
-    for (const c of chosen) {
-      if (!stageRank.has(c.stage) || c.rank < stageRank.get(c.stage)) stageRank.set(c.stage, c.rank);
-    }
-    chosen.sort((a, b) => stageRank.get(a.stage) - stageRank.get(b.stage) || a.rank - b.rank);
+    // Fixed arc, not severity order. Get found, then win the job, then keep it running.
+    // Ordering stages by severity meant a business whose worst number was its review count
+    // opened on reviews and closed on being invisible, which is a shuffled deck rather than
+    // an argument. A product page earns its conversion from a narrative that runs the same
+    // way every time. Severity still decides the order inside a stage.
+    chosen.sort((a, b) => a.stage - b.stage || a.rank - b.rank);
 
     const plays = chosen
       .map((c, i) => c.build(report, i + 1, c.findings))
@@ -1104,9 +1164,9 @@
   // minutes ago, and asking them to book on top of it is where a free report starts
   // feeling like a funnel.
   function renderPlanClose(report, count) {
-    const leak = report?.leak || {};
-    const money = leak.perMonth
-      ? `We put the gap at about $${Number(leak.perMonth).toLocaleString()} a month earlier in this report. That number is the reason for the order, not a sales figure.`
+    const g = report?.growth;
+    const money = g
+      ? `Four of these a month is ${"$" + Number(g.perMonth).toLocaleString("en-US")}. That is the whole point of the order above, and none of it is a number we made up: it is your job value and your job count.`
       : "";
 
     const step = (when, what) =>
@@ -1116,16 +1176,16 @@
       ]);
 
     return h("div", { class: "plan-close" }, [
-      h("p", { class: "eyebrow", text: "In the order that pays" }),
+      h("p", { class: "eyebrow", text: "The order it gets built in" }),
       h("ol", { class: "seq" }, [
-        step("Week one", "The listing gets finished and the leaks that cost nothing to fix get fixed. This is the part that moves first."),
-        step("Weeks two to six", "Reviews start arriving on their own, and the map follows them. This is the slow part, and it is why it starts now rather than later."),
-        step("Every week after", "Nothing that comes in goes unanswered. That is the part that pays for the rest of it."),
+        step("Week one", "The listing gets finished and the leaks that cost nothing to plug get plugged. This is the part that moves first."),
+        step("Weeks two to six", "Booking, quote chasing and review requests go on automatically and connect to your calendar and CRM. Nothing new to learn, and nothing that depends on you remembering."),
+        step("Every week after", "The map climbs on the back of the reviews, and your old customers hear from you before they go looking. That is the part that makes next quarter predictable instead of hopeful."),
       ]),
       money ? h("p", { class: "plan-money", text: money }) : null,
       h("div", { class: "plan-ask" }, [
-        h("h4", { text: "Want a hand with any of it?" }),
-        h("p", { text: "Reply to the text we sent you. We will tell you what we would do first and roughly what it takes. If it is not for you, no harm done, and this plan is yours either way." }),
+        h("h4", { text: "Ready to build a shop that runs without you in the middle of it?" }),
+        h("p", { text: "Reply to the text we sent you and we will book an operational review. We go through what is leaking, what we would plug first, and what it takes. If it is not for you, no harm done, and this plan is yours either way." }),
       ]),
     ]);
   }
@@ -1196,16 +1256,26 @@
     const planLock = h("div", { class: "plan-locked is-locked", "aria-hidden": "true" },
       renderPlanSteps(report, summary));
 
+    // The number that buys the email address. Jobs, not dollars, because jobs is the unit a
+    // contractor already thinks in and it is the one they cannot argue with. One a week is
+    // a target rather than a forecast, and every figure under it is either theirs or
+    // arithmetic they can do in their head, which is the opposite of the invented
+    // percentages this page used to lead with.
+    const g = report?.growth;
+    const money = (n) => `$${Number(n).toLocaleString("en-US")}`;
+    const headline = g
+      ? h("div", { class: "prize" }, [
+          h("p", { class: "prize-n", text: "One more job a week" }),
+          h("p", { class: "prize-v", text: `is about ${money(g.perMonth)} a month at your ticket` }),
+          g.nowJobs
+            ? h("p", { class: "prize-now", text: `You do about ${g.nowJobs} a month now. Everything below is aimed at the same number.` })
+            : null,
+        ])
+      : h("h3", { text: capacity ? "What to stop losing" : "What to fix, and in what order" });
+
     return h("section", { class: "card card-wide card-plan", id: "blueprintOffer" }, [
-      h("p", { class: "eyebrow", text: "Your plan" }),
-      h("h3", { text: capacity
-        ? "You already earn the work. Here is what to stop losing."
-        : "Here is exactly what to fix, and in what order." }),
-      h("p", { class: "plan-lead", text: capacity
-        ? "Built from your own numbers, worst first, with what each fix actually looks like."
-        : focus
-          ? `Built from your own numbers, worst first, starting with ${focus}.`
-          : "Built from your own numbers, worst first, in the order that pays." }),
+      h("p", { class: "eyebrow", text: "Your growth plan" }),
+      headline,
       form,
       note,
       planLock,

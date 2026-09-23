@@ -477,6 +477,16 @@
   };
   const MAX_LEAK_RATE = 0.2;
 
+  // How many of the people who ask for a price actually become a job. This exists because
+  // the old sum multiplied jobs they WON by the share of leads they LOSE, which is a
+  // category error: the lost ones sit on top of the won ones, not inside them. A plumber
+  // doing 6 jobs a month was told he loses half a job, while ranking nowhere on 25 of 25
+  // searches.
+  //
+  // 4 in 10 is the working figure, and the page prints it rather than hiding it here, so a
+  // contractor who closes 2 in 10 or 8 in 10 can see immediately which way the number moves.
+  const CLOSE_RATE = 0.4;
+
   // Two independent readings of how many jobs a month they run, and we take the lower.
   //   1. the span of the reviews we can see, at roughly one review per ten jobs
   //   2. the last 90 days of reviews, at roughly one review per eight jobs
@@ -536,14 +546,36 @@
     const jobs = told || measured || TYPICAL_JOBS[band] || null;
     if (!jobs) return { jobValue, rate, jobs: null, perMonth: null, basis: "none" };
 
-    const perMonth = Math.round((jobs * jobValue * rate) / 100) * 100;
+    // Jobs won, back out to the calls it took to win them, then the share that slips.
+    const calls = Math.round(jobs / CLOSE_RATE);
+    const lostJobs = calls * rate;
+    const perMonth = Math.round((lostJobs * jobValue) / 100) * 100;
     return {
       jobValue,
       rate,
       jobs,
+      calls,
+      closeRate: CLOSE_RATE,
       perMonth,
       basis: told ? "answered" : measured ? "reviews" : "typical",
-      lostJobs: Math.round(jobs * rate * 10) / 10,
+      lostJobs: Math.round(lostJobs * 10) / 10,
+    };
+  }
+
+  // The prize, and deliberately a target rather than a prediction. One more job a week is
+  // a contractor's own unit, it scales sanely from a six-job operation to a sixty-job one,
+  // and every figure in it is either theirs or arithmetic they can check on the page. The
+  // old number was the opposite: a dollar loss built entirely out of rates we invented,
+  // which is exactly what it read like.
+  function growthMath(leak) {
+    if (!leak || !leak.jobValue) return null;
+    const extraJobs = 4; // one a week
+    return {
+      extraJobs,
+      jobValue: leak.jobValue,
+      perMonth: extraJobs * leak.jobValue,
+      nowJobs: leak.jobs || null,
+      nowPerMonth: leak.jobs ? leak.jobs * leak.jobValue : null,
     };
   }
 
@@ -1061,6 +1093,7 @@
       responseScore,
       track,
       leak: leakMath(answers, profile),
+      growth: growthMath(leakMath(answers, profile)),
       grades,
       subScores: {
         reviewsReputation: scores["Reviews and reputation"],
