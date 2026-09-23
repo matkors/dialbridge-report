@@ -1153,6 +1153,11 @@
         https: website.https ?? null,
         mobileFriendly: website.mobileFriendly ?? null,
         screenshot: website.screenshot || "",
+        // The filmstrip Lighthouse already took, plus the two paint times as real numbers.
+        // The report plays the strip back at those timings rather than printing a score.
+        filmstrip: Array.isArray(website.filmstrip) ? website.filmstrip : [],
+        firstPaintMs: num(website.firstPaintMs),
+        loadMs: num(website.loadMs),
         accessibilityScore: num(website.accessibilityScore),
         bestPracticesScore: num(website.bestPracticesScore),
         tinyTapTargets: website.tinyTapTargets ?? null,

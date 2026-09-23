@@ -354,9 +354,172 @@
 
   // Google hands back a real photo of the site on a phone as part of the speed test. A
   // contractor who sees their own site in a phone frame gets it faster than any score.
+  // The status bar, drawn rather than typed. Unicode glyphs for signal and battery render
+  // differently on every machine and half of them come out as boxes, which is exactly the
+  // detail that makes a mockup look fake.
+  function statusBarSvg() {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 44 12");
+    svg.setAttribute("class", "dp-icons");
+    svg.setAttribute("aria-hidden", "true");
+    const add = (tag, attrs) => {
+      const el = document.createElementNS(ns, tag);
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+      svg.appendChild(el);
+      return el;
+    };
+    // signal: four bars climbing
+    [0, 1, 2, 3].forEach((i) => add("rect", {
+      x: i * 4, y: 8 - i * 2, width: 2.6, height: 4 + i * 2, rx: 0.8, fill: "currentColor",
+    }));
+    // wifi: three arcs and a dot
+    add("path", { d: "M18.2 5.1a6.6 6.6 0 0 1 7.6 0", fill: "none", stroke: "currentColor", "stroke-width": 1.4, "stroke-linecap": "round" });
+    add("path", { d: "M19.9 7.3a4 4 0 0 1 4.2 0", fill: "none", stroke: "currentColor", "stroke-width": 1.4, "stroke-linecap": "round" });
+    add("circle", { cx: 22, cy: 9.6, r: 1, fill: "currentColor" });
+    // battery
+    add("rect", { x: 30, y: 3.4, width: 11.5, height: 6.2, rx: 1.9, fill: "none", stroke: "currentColor", "stroke-width": 1 , opacity: 0.55 });
+    add("rect", { x: 31.2, y: 4.6, width: 7.4, height: 3.8, rx: 1.1, fill: "currentColor" });
+    add("path", { d: "M42.6 5.4v2.8", stroke: "currentColor", "stroke-width": 1.2, "stroke-linecap": "round", opacity: 0.55 });
+    return svg;
+  }
+
+  // A phone that looks like a phone. The old one was a dark rounded rectangle with the
+  // screenshot dropped in, which reads as a placeholder. What sells it is restraint and
+  // correct proportion: concentric corner radii, a thin even bezel, side buttons that sit
+  // proud of the edge by a pixel, a muted status bar and the home indicator.
+  function deviceFrame(inner, { label = "" } = {}) {
+    return h("div", { class: "device-phone" }, [
+      h("div", { class: "dp-body" }, [
+        h("span", { class: "dp-btn dp-mute", "aria-hidden": "true" }),
+        h("span", { class: "dp-btn dp-vol-up", "aria-hidden": "true" }),
+        h("span", { class: "dp-btn dp-vol-dn", "aria-hidden": "true" }),
+        h("span", { class: "dp-btn dp-power", "aria-hidden": "true" }),
+        h("div", { class: "dp-screen" }, [
+          h("div", { class: "dp-status" }, [
+            h("span", { class: "dp-time", text: "9:41" }),
+            h("span", { class: "dp-island", "aria-hidden": "true" }),
+            statusBarSvg(),
+          ]),
+          h("div", { class: "dp-view" }, inner),
+          h("span", { class: "dp-home", "aria-hidden": "true" }),
+        ]),
+      ]),
+      label ? h("p", { class: "dp-label", text: label }) : null,
+    ].filter(Boolean));
+  }
+
+  // Their own site painting, at the speed it actually painted. A contractor who watches
+  // four seconds of white screen with a clock running understands the problem in a way no
+  // score out of a hundred has ever managed.
+  function livePaint(w) {
+    const frames = (w.filmstrip || []).filter((f) => f && f.src);
+    const finalSrc = w.screenshot || (frames.length ? frames[frames.length - 1].src : "");
+    if (!finalSrc) return null;
+
+    const shot = img(finalSrc, { class: "dp-shot", alt: "Your website as it appears on a phone" });
+    if (!shot) return null;
+
+    const clock = h("span", { class: "lp-clock", text: "0.0s" });
+    const bar = h("span", { class: "lp-bar-fill" });
+    const replay = h("button", { class: "lp-replay", type: "button" }, [
+      h("span", { "aria-hidden": "true", text: "\u21bb" }),
+      " Watch it load again",
+    ]);
+
+    // Nothing to play back: one frame, or a reader who has asked for less motion.
+    if (frames.length < 2 || REDUCED_MOTION) {
+      return { node: deviceFrame(shot), shot, play: null, controls: null };
+    }
+
+    const last = frames[frames.length - 1].t || 1;
+    // Real time, because real time is the argument. A site that genuinely takes eight
+    // seconds gets eight seconds of the reader's attention, which is the point, but the
+    // playback stops short of being rude about it.
+    const span = Math.min(last, 8000);
+    let timers = [];
+    let raf = null;
+
+    function stop() {
+      timers.forEach(clearTimeout);
+      timers = [];
+      if (raf) cancelAnimationFrame(raf);
+      raf = null;
+    }
+
+    function play() {
+      stop();
+      shot.src = frames[0].src;
+      const started = performance.now();
+      frames.forEach((f) => {
+        const at = Math.min(f.t, span);
+        timers.push(setTimeout(() => { shot.src = f.src; }, at));
+      });
+      timers.push(setTimeout(() => { shot.src = finalSrc; }, span + 120));
+      const tick = () => {
+        const done = Math.min(performance.now() - started, span);
+        clock.textContent = `${(done / 1000).toFixed(1)}s`;
+        bar.style.width = `${(done / span) * 100}%`;
+        if (done < span) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    }
+
+    replay.addEventListener("click", play);
+
+    const controls = h("div", { class: "lp-controls" }, [
+      h("div", { class: "lp-bar" }, [bar]),
+      h("div", { class: "lp-row" }, [clock, replay]),
+    ]);
+
+    return { node: deviceFrame(shot), shot, play, controls };
+  }
+
+  // The speed, as time rather than as a mark out of a hundred. "Scores 44 out of 100" is a
+  // grade nobody asked for; "nothing on screen for 4.2 seconds" is a thing they have felt.
+  //
+  // Two bars rather than markers floating on one track. Markers meant the labels sat
+  // wherever the numbers put them, and two slow times put two labels on top of each other
+  // and on top of the scale underneath. Bars cannot collide.
+  function loadTimeline(w) {
+    const first = num(w.firstPaintMs);
+    const load = num(w.loadMs);
+    if (first === null && load === null) return null;
+
+    // 2.5 seconds is Google's own line for a good largest paint, so it is the only thing
+    // on here that is not our opinion.
+    const GOOD = 2500;
+    const worst = Math.max(first || 0, load || 0, GOOD);
+    const span = Math.ceil((worst * 1.1) / 500) * 500;
+    const pct = (ms) => `${Math.min(100, (ms / span) * 100)}%`;
+    const secs = (ms) => `${(ms / 1000).toFixed(1)}s`;
+
+    const row = (ms, label) => {
+      if (ms === null) return null;
+      const tone = ms <= GOOD ? "good" : ms <= GOOD * 2 ? "warn" : "bad";
+      return h("div", { class: "ll-row" }, [
+        h("span", { class: "ll-lab", text: label }),
+        h("div", { class: "ll-track" }, [
+          h("span", { class: `ll-fill tone-${tone}`, style: `width: ${pct(ms)}` }),
+          h("span", { class: "ll-line", style: `left: ${pct(GOOD)}`, "aria-hidden": "true" }),
+        ]),
+        h("span", { class: `ll-val tone-${tone}`, text: secs(ms) }),
+      ]);
+    };
+
+    return h("div", { class: "loadline" }, [
+      row(first, "Something appears"),
+      row(load, "The page is usable"),
+      h("p", { class: "ll-key", text: "The dotted line is 2.5 seconds. That is where Google stops calling a page fast." }),
+    ].filter(Boolean));
+  }
+
   function renderPhoneShot(report) {
     const w = report?.website;
-    if (!w || !w.screenshot) return null;
+    if (!w || (!w.screenshot && !(w.filmstrip || []).length)) return null;
+    const live = livePaint(w);
+    if (!live) return null;
+
     const checks = [
       w.tinyTapTargets
         ? { ok: false, text: typeof w.tinyTapTargets === "number" ? `${w.tinyTapTargets} buttons or links are too small to tap` : "Buttons and links are too small to tap" }
@@ -368,19 +531,43 @@
       num(w.accessibilityScore) !== null ? { ok: w.accessibilityScore >= 80, text: `Ease of use scores ${w.accessibilityScore} out of 100` } : null,
     ].filter(Boolean);
 
-    return h("section", { class: "card card-wide" }, [
+    const timeline = loadTimeline(w);
+    const lead = num(w.loadMs) !== null
+      ? `This is your site loading on a phone, at the speed it actually loaded when we tested it. A homeowner is looking at it for ${(w.loadMs / 1000).toFixed(1)} seconds before it is any use to them.`
+      : "This is the first thing a homeowner sees after they find you. Speed is only half of it. If it is hard to read or hard to tap, they leave and call the next company.";
+
+    const section = h("section", { class: "card card-wide" }, [
       h("div", { class: "card-head" }, [
-        h("h3", { text: "This is your website on a phone" }),
-        h("span", { class: "card-hint", text: "Taken just now" }),
+        h("h3", { text: "Your website, on a phone, loading" }),
+        h("span", { class: "card-hint", text: "Recorded just now" }),
       ]),
       h("div", { class: "shot-row" }, [
-        h("div", { class: "phone-frame" }, img(w.screenshot, { class: "phone-shot", alt: "Your website as it appears on a phone" })),
+        h("div", { class: "shot-device" }, [live.node, live.controls].filter(Boolean)),
         h("div", { class: "shot-copy" }, [
-          h("p", { class: "muted", text: "This is the first thing a homeowner sees after they find you. Speed is only half of it. If it is hard to read or hard to tap, they leave and call the next company." }),
+          h("p", { class: "muted", text: lead }),
+          timeline,
           checks.length ? h("ul", { class: "checks" }, checks.map((c) => h("li", { class: c.ok ? "ok" : "bad", text: c.text }))) : null,
         ].filter(Boolean)),
       ]),
     ]);
+
+    // Play it when they actually reach it, once. Playing on render means the whole thing
+    // has happened before they scroll down to it.
+    if (live.play && "IntersectionObserver" in window) {
+      let played = false;
+      const io = new IntersectionObserver((entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting && !played) {
+            played = true;
+            live.play();
+            io.disconnect();
+          }
+        }
+      }, { threshold: 0.4 });
+      requestAnimationFrame(() => io.observe(section));
+    }
+
+    return section;
   }
 
   // Reviews and the website judged as one verdict, because that is the pair a homeowner
@@ -866,11 +1053,16 @@
     ]);
   }
 
-  function playMech(text) {
-    return h("div", { class: "play-mech" }, [
-      h("span", { class: "play-mech-tag", text: "Why it works" }),
-      h("p", { text }),
-    ]);
+  // A four line paragraph headed "why it works" is the part a contractor scrolls past, and
+  // it was doing the job the picture should be doing. Facts now, each one a number and a
+  // sentence, which survives a skim in a way prose does not.
+  function playFacts(rows) {
+    return h("ul", { class: "play-facts" }, rows.filter(Boolean).map(([big, line]) =>
+      h("li", {}, [
+        h("span", { class: "pf-n", text: big }),
+        h("span", { class: "pf-t", text: line }),
+      ])
+    ));
   }
 
   // The third beat, and the one the old version was missing entirely. Problem, then the
@@ -928,7 +1120,7 @@
   //      they understand on sight is the list itself, with the names of the companies taking
   //      their calls and their own line sitting under it.
   function visualSearchList(report) {
-    const rivals = (report?.ranking?.topCompetitors || report?.competitors || []).slice(0, 3);
+    const rivals = rivalsFor(report, 3);
     if (!rivals.length) return null;
     const kw = report?.ranking?.keyword || "your trade";
     const ranks = (report?.ranking?.ranks || []).filter((r) => Number(r) > 0);
@@ -968,89 +1160,80 @@
 
   // ---- a real thread. The device frame is the PDF's, because the thing that makes these
   //      land is that they are screenshots of a conversation, not a diagram of one.
-  function visualThread(src, alt, notes) {
-    return h("div", { class: "play-visual showcase" }, [
-      h("div", { class: "device" }, [img(src, { alt, loading: "lazy", decoding: "async" })]),
-      h("ul", { class: "showcase-notes" }, notes.map(([lead, rest]) =>
-        h("li", {}, [h("b", { text: lead }), " " + rest])
-      )),
+  // An empty array is truthy, so `topCompetitors || competitors` never fell through, and
+  // both replicas vanished on any scan where the grid named nobody even with a full
+  // competitor list sitting right there.
+  function rivalsFor(report, n) {
+    const grid = report?.ranking?.topCompetitors;
+    const list = (Array.isArray(grid) && grid.length ? grid : report?.competitors) || [];
+    return list
+      .filter((c) => c && c.name)
+      .slice()
+      .sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0))
+      .slice(0, n);
+  }
+
+  // ---- the answer an AI assistant gives. Every name, star rating and review count in here
+  //      is real and came from Places; what is illustrated is the wrapper, and the caption
+  //      says so rather than pretending we ran the prompt.
+  function visualAiAnswer(report) {
+    const rivals = rivalsFor(report, 3);
+    if (!rivals.length) return null;
+    const kw = report?.ranking?.keyword || "contractor";
+    const town = String(report?.profile?.address || "").split(",").slice(0, 2).join(",").trim();
+    const me = report?.profile?.name || "You";
+
+    return h("div", { class: "play-visual airep" }, [
+      h("div", { class: "ai-win" }, [
+        h("div", { class: "ai-bar" }, [
+          h("span", { class: "ai-dot", "aria-hidden": "true" }),
+          h("span", { class: "ai-bar-t", text: "Asking an AI assistant" }),
+        ]),
+        h("p", { class: "ai-ask", text: town ? `Who's a good ${kw} in ${town}?` : `Who's a good ${kw} near me?` }),
+        h("div", { class: "ai-say" }, [
+          h("p", { class: "ai-intro", text: "Going on ratings and how often they come up locally, these are the ones worth calling:" }),
+          h("ol", { class: "ai-list" }, rivals.map((c) => h("li", {}, [
+            h("b", { text: c.name || "A competitor" }),
+            h("span", { text: `${c.rating ? Number(c.rating).toFixed(1) + " stars" : ""}${c.reviewCount ? `, ${c.reviewCount} reviews` : ""}` }),
+          ]))),
+        ]),
+      ]),
+      h("p", { class: "ai-miss" }, [h("b", { text: me }), " is not in the answer."]),
+      h("p", { class: "sr-cap", text: "Real names, ratings and counts from Google. The answer around them is an illustration of what these tools return." }),
     ]);
   }
 
-  // ---- the plays. Each returns null when it has nothing true to say.
-  //
-  // Shape is fixed: the problem in their own numbers, a picture of it, the mechanism
-  // nobody has told them, then the thing that runs it. That last beat always names the
-  // calendar and the CRM, because what separates this from an agency pitch is that it
-  // plugs into the tools already running their day rather than adding another one.
-  //
-  // Register is operational, not promotional. The reader is somebody who was under a sink
-  // an hour ago and can smell a marketing page from the first line.
+  // ---- their review panel against the one beating them. Two numbers, the size of the gap
+  //      drawn rather than described.
+  function visualReviewGap(report) {
+    const mine = num(report?.reviews?.googleReviewCount) ?? 0;
+    const myRating = num(report?.reviews?.googleRating);
+    const top = rivalsFor(report, 1)[0];
+    if (!top || (top.reviewCount || 0) <= mine) return null;
+    const max = top.reviewCount || 1;
+    const bar = (name, count, rating, mineFlag) =>
+      h("div", { class: `rg-row${mineFlag ? " is-me" : ""}` }, [
+        h("span", { class: "rg-name", text: name }),
+        h("div", { class: "rg-track" }, [
+          h("span", { class: "rg-fill", style: `width: ${Math.max(2, (count / max) * 100)}%` }),
+        ]),
+        h("span", { class: "rg-n" }, [
+          h("b", { text: String(count) }),
+          rating ? h("span", { class: "rg-stars", text: ` \u2605 ${Number(rating).toFixed(1)}` }) : null,
+        ].filter(Boolean)),
+      ]);
 
-  function playListing(report, n) {
-    const p = report?.profile || {};
-    const gaps = [];
-    if (!report?.website?.found) gaps.push("no website link");
-    if ((p.photoCount || 0) < 5) gaps.push(p.photoCount ? `only ${p.photoCount} photos` : "no photos");
-    if (!p.hasHours) gaps.push("no opening hours");
-    const yours = gaps.length
-      ? `Your Google listing has ${listWords(gaps)}. Those are fields Google reads to decide who it shows.`
-      : "Your listing is filled in. Now it has to stay that way, because one that stops moving slips down.";
-
-    return h("li", { class: "play" }, [
-      playHead(n, "Get found"),
-      h("h4", { class: "play-move", text: "Finish the listing that feeds you work" }),
-      playProblem(yours),
-      visualListings(),
-      playMech("Most owners treat a Google listing like a business card. Name, number, done. It is not a business card. It is the form Google reads to decide whether to show you at all, and the shop ranking above you filled theirs in. Photos, hours, the right category and a site that loads on a phone are not decoration. They are the answer sheet."),
-      playUs("We rebuild the listing and keep it current: photos off your real jobs, the right category, your hours and services, and a site that loads. Then it stays maintained instead of going stale again in six months."),
+    return h("div", { class: "play-visual reviewgap" }, [
+      bar(top.name || "The shop above you", top.reviewCount || 0, top.rating, false),
+      bar(report?.profile?.name || "You", mine, myRating, true),
+      h("p", { class: "sr-cap", text: `Every one of those ${top.reviewCount} started as a finished job, same as yours.` }),
     ]);
   }
 
-  function playMap(report, n) {
-    const r = report?.ranking || {};
-    const total = (r.ranks || []).length;
-    if (!total) return null;
-    const holdsHome = Number(r.ranks?.[12]) >= 1 && Number(r.ranks?.[12]) <= 3;
-    const yours = r.pointsInTop3
-      ? `You come up in the top three at ${r.pointsInTop3} of the ${total} spots we checked. At the other ${total - r.pointsInTop3}, the call goes to somebody else.`
-      : `We checked ${total} spots around you. You were not in the top three at a single one of them.`;
-
-    return h("li", { class: "play" }, [
-      playHead(n, "Get found"),
-      h("h4", { class: "play-move", text: holdsHome
-        ? "Stop relying on luck and referrals"
-        : "Stop relying on luck and referrals" }),
-      playProblem(yours),
-      visualSearchList(report),
-      playMech("Word of mouth is a good business. It is not a predictable one, because it arrives when it feels like it. Inbound is the part you can build, and there is no single place you rank: Google builds a different top three for every doorstep, and the biggest factor is how far you are from whoever is holding the phone. You cannot move your yard closer to them. You can move how strong the listing and the review count are, and that part travels where distance does not."),
-      playUs("We work the listing and the reviews together, because that is the pair that actually moves map position, and you watch the grid go green from the middle out."),
-    ]);
-  }
-
-  function playBooking(report, n) {
-    const leak = report?.leak || {};
-    const worth = leak.jobValue
-      ? ` At your ticket, one of those is about $${Number(leak.jobValue).toLocaleString()} that went to whoever picked up.`
-      : "";
-    return h("li", { class: "play" }, [
-      playHead(n, "Win the job"),
-      h("h4", { class: "play-move", text: "Booking on autopilot, including the calls you miss" }),
-      playProblem(`You told us calls wait when the day gets busy.${worth}`),
-      visualThread("img/thread-missed-call.webp",
-        "A phone screenshot of a text thread. Seconds after a missed call the company texts to say they just missed her and asks what she needs a hand with. She answers with the job, and the thread turns into a booking.",
-        [["The dropped call texts back in seconds.", "Before she works down to the next number on her list."],
-         ["She books herself in.", "A link to your real availability, no phone tag either way."],
-         ["It lands in your calendar and CRM.", "While you are still under somebody's sink."]]),
-      playMech("Nobody who calls you is sitting there waiting. They have three numbers and they are working down the list, and they stop at the first shop that answers. That is why a missed call is not something you ring back tonight. By tonight it is somebody else's job, and you never find out it happened, because the phone simply does not ring again. A shop that cannot answer while it is working has a ceiling, and the ceiling is you."),
-      playUs("A dropped call gets a text back in seconds with a link to book straight into your calendar. The job writes itself into your CRM, so your schedule is current without you touching it."),
-    ]);
-  }
-
-  // ---- what happens to one quote, twice. There is no screenshot for a thing that does
-  //      not happen, so this is drawn: the same estimate, once the way it goes now and
-  //      once the way it goes when something is tracking it.
-  function visualQuoteTrack() {
+  // ---- the same thing twice: how it goes now, and how it goes with something watching.
+  //      Drawn rather than photographed, because there is no screenshot of an event that
+  //      does not happen.
+  function twoTrack(nowLabel, nowSteps, nowEnd, fixLabel, fixSteps, fixEnd, cap) {
     const track = (label, tone, steps, end) =>
       h("div", { class: `qt-row tone-${tone}` }, [
         h("span", { class: "qt-label", text: label }),
@@ -1059,15 +1242,124 @@
           h("li", { class: "qt-end", text: end }),
         ]),
       ]);
-
     return h("div", { class: "play-visual quotetrack" }, [
-      track("How it goes now", "bad",
-        ["Quote sent", "Day 3, nothing", "Day 7, you are on a job", "Day 14, forgotten"],
-        "Gone quiet"),
-      track("How it goes with it tracked", "good",
-        ["Quote sent", "Day 2, text checks in", "Day 6, text checks in", "Day 12, last check"],
-        "Yes or no"),
-      h("p", { class: "qt-cap", text: "Same estimate, same customer. The only difference is whether anything was watching it." }),
+      track(nowLabel, "bad", nowSteps, nowEnd),
+      track(fixLabel, "good", fixSteps, fixEnd),
+      cap ? h("p", { class: "qt-cap", text: cap }) : null,
+    ].filter(Boolean));
+  }
+
+  function visualQuoteTrack() {
+    return twoTrack(
+      "How it goes now",
+      ["Quote sent", "Day 3, nothing", "Day 7, you are on a job", "Day 14, forgotten"],
+      "Gone quiet",
+      "How it goes with it tracked",
+      ["Quote sent", "Day 2, text checks in", "Day 6, text checks in", "Day 12, last check"],
+      "Yes or no",
+      "Same estimate, same customer. The only difference is whether anything was watching it."
+    );
+  }
+
+  // ---- the plays. Each returns null when it has nothing true to say.
+  //
+  // Shape: the problem in one line, a replica of the real thing with their data in it,
+  // three facts, then what we run. The replica is the argument. The rule the whole set
+  // follows is the one the map list proved: rebuild the surface the customer actually
+  // looks at and put their own numbers in it, rather than describing it in a paragraph or
+  // showing a screenshot of somebody else's phone.
+
+  function playListing(report, n) {
+    const p = report?.profile || {};
+    const gaps = [];
+    if (!report?.website?.found) gaps.push("no website link");
+    if ((p.photoCount || 0) < 5) gaps.push(p.photoCount ? `only ${p.photoCount} photos` : "no photos");
+    if (!p.hasHours) gaps.push("no opening hours");
+    const yours = gaps.length
+      ? `Your listing has ${listWords(gaps)}.`
+      : "Your listing is filled in. Now it has to stay that way.";
+
+    return h("li", { class: "play" }, [
+      playHead(n, "Get found"),
+      h("h4", { class: "play-move", text: "Finish the listing that feeds you work" }),
+      playProblem(yours),
+      visualListings(),
+      playFacts([
+        ["4s", "How long a homeowner takes to pick between two listings."],
+        ["Same fields", "Google reads the ones you leave blank to decide who to show."],
+        ["30 days", "Profiles touched in the last month get cited 3x more by AI assistants."],
+      ]),
+      playUs("We rebuild the listing and keep it current: photos off your real jobs, the right category, your hours and services, and a site that loads."),
+    ]);
+  }
+
+  function playMap(report, n) {
+    const r = report?.ranking || {};
+    const total = (r.ranks || []).length;
+    if (!total) return null;
+    const yours = r.pointsInTop3
+      ? `Top three at ${r.pointsInTop3} of the ${total} spots we checked. At the other ${total - r.pointsInTop3}, the call goes elsewhere.`
+      : `We checked ${total} spots around you. You were not in the top three at one of them.`;
+
+    return h("li", { class: "play" }, [
+      playHead(n, "Get found"),
+      h("h4", { class: "play-move", text: "Stop relying on luck and referrals" }),
+      playProblem(yours),
+      visualSearchList(report),
+      playFacts([
+        ["Top 3", "Where nearly all the calls go. Almost nobody scrolls past it."],
+        ["Every street", "Google builds a different top three for every doorstep."],
+        ["Not distance", "You cannot move your yard. Listing strength travels, distance does not."],
+      ]),
+      playUs("We work the listing and the reviews together, because that is the pair that moves map position, and you watch the grid go green from the middle out."),
+    ]);
+  }
+
+  // ---- the new one. People increasingly ask an assistant instead of typing into Maps, and
+  //      the same signals decide both, which is what makes this a reason to fix the
+  //      profile rather than a separate product.
+  function playAi(report, n) {
+    const rep = visualAiAnswer(report);
+    if (!rep) return null;
+    const rating = num(report?.reviews?.googleRating);
+    const dim = rating !== null && rating < 3.4;
+
+    return h("li", { class: "play" }, [
+      playHead(n, "Get found"),
+      h("h4", { class: "play-move", text: "Get named when somebody asks the AI" }),
+      playProblem(dim
+        ? `More homeowners now ask ChatGPT or Gemini for a name instead of searching. At ${rating.toFixed(1)} stars you are under the line where those tools stop suggesting a business at all.`
+        : "More homeowners now ask ChatGPT or Gemini for a name instead of searching, and those answers are not built from ads. They are built from your rating, your review count and whether your details agree everywhere."),
+      rep,
+      playFacts([
+        ["35.9% to 1.2%", "How often a business shows in Google's top three, against how often ChatGPT names it. Most shops are invisible there."],
+        ["4.3 stars", "The average rating of a business these tools do recommend. Under 3.4 and they effectively stop."],
+        ["Same signals", "Nothing separate to buy. The profile and review work that moves Google is what moves this."],
+      ]),
+      playUs("The system that fixes your profile and keeps reviews coming is the same thing that gets you into those answers, and we keep your details saying one story everywhere so there is nothing for them to trip over."),
+    ]);
+  }
+
+  function playBooking(report, n) {
+    const leak = report?.leak || {};
+    const worth = leak.jobValue
+      ? ` One of those is about $${Number(leak.jobValue).toLocaleString()} gone to whoever picked up.`
+      : "";
+    return h("li", { class: "play" }, [
+      playHead(n, "Win the job"),
+      h("h4", { class: "play-move", text: "Booking on autopilot, including the calls you miss" }),
+      playProblem(`You told us calls wait when the day gets busy.${worth}`),
+      twoTrack(
+        "What happens now", ["Call comes in", "You are under a sink", "You ring back at 6pm"], "Already booked someone",
+        "What happens with it running", ["Call comes in", "Text back in 8 seconds", "She picks a slot herself"], "In your calendar",
+        "Same call, same day. The only difference is how long she waited."
+      ),
+      playFacts([
+        ["3 numbers", "What a homeowner has open. They stop at the first shop that answers."],
+        ["No callback", "By tonight it is somebody else's job, and the phone simply does not ring again."],
+        ["Your calendar", "The slot she picks is a real one, and it writes itself to your CRM."],
+      ]),
+      playUs("A dropped call gets a text back in seconds with a link to book straight into your calendar. The job lands in your CRM without you touching it."),
     ]);
   }
 
@@ -1077,35 +1369,39 @@
       h("h4", { class: "play-move", text: "Never let a quote go cold" }),
       playProblem("You told us quotes get chased when you remember. Every estimate sitting quiet is work you already paid to win."),
       visualQuoteTrack(),
-      playMech("Most quotes that close need more than one touch, and the ones that get dropped are the ones a competitor is still working. Chasing them by hand takes time you do not have, so it is the first thing to go in a busy week. That is not a discipline problem, it is a capacity problem, and it gets worse exactly when the work is good."),
-      playUs("The system tracks every open estimate and checks in by text until you get a yes or a no. Won jobs update in your CRM, and the dead ones stop living in your head. Old customers get the same treatment on a schedule, so the ones who used you two years ago hear from you before they search for somebody else."),
+      playFacts([
+        ["More than one", "Most quotes that close need more than a single touch."],
+        ["Busy weeks", "Chasing is the first thing to go, exactly when the work is good."],
+        ["Old customers", "The same thing runs on people who used you two years ago."],
+      ]),
+      playUs("The system tracks every open estimate and checks in by text until you get a yes or a no, and it does the same on your past customers on a schedule."),
     ]);
   }
 
   function playReviews(report, n) {
-    const mine = report?.reviews?.googleReviewCount || 0;
-    const rival = report?.signals?.topRivalReviews;
+    const mine = num(report?.reviews?.googleReviewCount) ?? 0;
+    const rival = num(report?.signals?.topRivalReviews);
+    const gap = visualReviewGap(report);
     const yours = rival && rival > mine
-      ? `You have ${mine}. The shop coming up above you has ${rival}. Every one of those started as a finished job, same as yours.`
-      : "Your rating is fine. It is the count, and how fast it moves, that a homeowner reads before they call.";
+      ? `You have ${mine}. The shop above you has ${rival}.`
+      : "Your rating is fine. It is the count, and how fast it moves, that a homeowner reads.";
 
     return h("li", { class: "play" }, [
       playHead(n, "Keep it running"),
-      h("h4", { class: "play-move", text: "Hands-free reviews that drive rankings" }),
+      h("h4", { class: "play-move", text: "Reviews that arrive without you asking" }),
       playProblem(yours),
-      visualThread("img/thread-review.webp",
-        "A phone screenshot of a text thread. In the morning the company texts that Mike is twenty minutes out. That afternoon it says the job is all done and asks whether she would mind leaving Mike a quick review, with a review link underneath. She replies that she just left one.",
-        [["It fires when the job closes out.", "About two hours later, in your name, from the same thread."],
-         ["The link is right there to tap.", "She never has to go and find you on Google."],
-         ["Every customer gets it.", "Not only the ones you remembered to ask."]]),
-      playMech("It is almost never that you ask badly. It is when you ask. A link in somebody's hand while they are still happy with the work gets used. The same words on Monday get read and forgotten, because the feeling has gone. And it has to go to everybody, not the ones you remember on a good week, because volume is the only thing that moves a review count, and review count is one of the things moving you up the map."),
-      playUs("The moment a job is closed out in your CRM, the system texts a review link in your name. Nothing to chase, and the count climbs in the background while you work."),
+      gap,
+      playFacts([
+        ["2 hours", "The window. A link in her hand while she is still pleased gets used."],
+        ["Monday", "The same words the next morning get read and forgotten."],
+        ["Everybody", "Asking every customer is the only thing that moves the count."],
+      ]),
+      playUs("The moment a job is closed out in your CRM, the system texts a review link in your name. Nothing to chase, and the count climbs while you work."),
     ]);
   }
 
   // Which play a finding turns into. Lead follow-up splits in two, because a missed call
-  // and a quote going quiet are different leaks with different fixes, and the co-founder's
-  // read is right that folding them together buries both.
+  // and a quote going quiet are different leaks with different fixes.
   const PLAY_FOR_KEY = {
     speed_to_lead: { build: playBooking, stage: 1 },
     quote_followup: { build: playQuotes, stage: 1 },
@@ -1146,6 +1442,17 @@
     // an argument. A product page earns its conversion from a narrative that runs the same
     // way every time. Severity still decides the order inside a stage.
     chosen.sort((a, b) => a.stage - b.stage || a.rank - b.rank);
+
+    // Nothing in the audit measures AI visibility, so no finding can route to it, but it
+    // applies to every one of them and it is the only part of the plan that is news rather
+    // than diagnosis. It sits with the other two ways of being found.
+    // A business already winning on Google is the sharpest audience for this, not the
+    // weakest: SOCi found fewer than half the brands doing well in local search show up in
+    // AI answers at all. So it runs for everybody, after the other get-found plays when
+    // there are any, and at the front when there are none.
+    const found = chosen.filter((c) => c.stage === 0);
+    const aiPlay = { build: playAi, stage: 0, rank: found.length ? found[found.length - 1].rank + 0.5 : -1, findings: [] };
+    chosen.splice(found.length ? chosen.indexOf(found[found.length - 1]) + 1 : 0, 0, aiPlay);
 
     const plays = chosen
       .map((c, i) => c.build(report, i + 1, c.findings))
@@ -1642,13 +1949,23 @@
     try {
       sessionStorage.setItem(SAVED_KEY, JSON.stringify(state));
     } catch (err) {
-      // The phone screenshot is the only big thing in here; drop it and keep the report.
+      // Two big things in here now, so they come out in order of size: the filmstrip is
+      // ten base64 frames, the final screenshot is one. Losing the playback on a refresh
+      // is a far smaller loss than losing the report.
       try {
-        if (state.scan.website) state.scan.website = { ...state.scan.website, screenshot: "" };
-        if (state.report.website) state.report.website = { ...state.report.website, screenshot: "" };
+        const strip = (w) => (w ? { ...w, filmstrip: [] } : w);
+        state.scan.website = strip(state.scan.website);
+        state.report.website = strip(state.report.website);
         sessionStorage.setItem(SAVED_KEY, JSON.stringify(state));
       } catch (err2) {
-        console.warn("Could not keep the report for a refresh", err2);
+        try {
+          const bare = (w) => (w ? { ...w, filmstrip: [], screenshot: "" } : w);
+          state.scan.website = bare(state.scan.website);
+          state.report.website = bare(state.report.website);
+          sessionStorage.setItem(SAVED_KEY, JSON.stringify(state));
+        } catch (err3) {
+          console.warn("Could not keep the report for a refresh", err3);
+        }
       }
     }
   }

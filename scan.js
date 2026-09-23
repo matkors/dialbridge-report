@@ -534,6 +534,24 @@
       const itemCount = (a) => (a?.details?.items?.length ?? null);
       const shot = audits["final-screenshot"]?.details?.data || "";
 
+      // Lighthouse already took a filmstrip of the page painting, and it is sitting in the
+      // response we have downloaded either way. Playing their own site back at its real
+      // timings says more to a contractor than "44 out of 100" ever will, because they sit
+      // there watching a blank screen for four seconds and understand it instantly.
+      // Capped at ten frames: the payload is base64 and this is the one thing here that
+      // can get big.
+      const film = (audits["screenshot-thumbnails"]?.details?.items || [])
+        .filter((f) => typeof f?.data === "string" && /^data:image\//.test(f.data))
+        .map((f) => ({ t: Math.round(Number(f.timing) || 0), src: f.data }));
+      const filmstrip = film.length > 10
+        ? film.filter((_, i, a) => i === 0 || i === a.length - 1 || i % Math.ceil(a.length / 10) === 0)
+        : film;
+
+      const ms = (id) => {
+        const v = audits[id]?.numericValue;
+        return typeof v === "number" && Number.isFinite(v) ? Math.round(v) : null;
+      };
+
       const tapTargets = audit("target-size", "tap-targets");
       const fontSize = audit("font-size", "legible-font-sizes");
       const contrast = audit("color-contrast");
@@ -552,6 +570,10 @@
         hasTitle: scoreOf(audits["document-title"]),
         // How the site actually comes across on a phone, not just how fast it is.
         screenshot: /^data:image\//.test(shot) ? shot : "",
+        filmstrip,
+        // Real milliseconds, so the page can draw a timeline instead of printing a score.
+        firstPaintMs: ms("first-contentful-paint"),
+        loadMs: ms("largest-contentful-paint"),
         accessibilityScore: typeof lighthouse.categories?.accessibility?.score === "number"
           ? Math.round(lighthouse.categories.accessibility.score * 100) : null,
         bestPracticesScore: typeof lighthouse.categories?.["best-practices"]?.score === "number"

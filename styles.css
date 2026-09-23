@@ -1154,15 +1154,6 @@ body.is-locked { overflow: hidden; }
 
 /* their site in a phone frame, straight from the speed test */
 .shot-row { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
-.phone-frame {
-  flex: none;
-  width: 190px;
-  padding: 10px 8px 14px;
-  border-radius: 22px;
-  background: var(--ink);
-  box-shadow: var(--shadow);
-}
-.phone-shot { display: block; width: 100%; border-radius: 14px; background: #fff; }
 .shot-copy { flex: 1 1 260px; min-width: 0; }
 .shot-copy .checks { margin-top: 12px; }
 
@@ -1221,7 +1212,6 @@ body.is-locked { overflow: hidden; }
 .cta-fine a:hover { color: var(--accent); }
 
 @media (max-width: 560px) {
-  .phone-frame { width: 150px; }
 }
 
 .cta-ghost {
@@ -2118,4 +2108,187 @@ body.is-locked { overflow: hidden; }
 
 @media (max-width: 560px) {
   .qt-step, .qt-end { font-size: 0.76rem; padding: 5px 8px; }
+}
+
+/* ============ THE PHONE ============ */
+/* What made the old one read as a placeholder was not detail, it was proportion: one
+   radius, one flat fill, no bezel logic. This is built the way the object is: concentric
+   corner radii (body radius minus bezel = screen radius), an even bezel all the way
+   round, buttons that sit a pixel proud of the edge, and a status bar that is quiet. */
+.shot-device { flex: none; width: 236px; display: grid; gap: 12px; }
+.device-phone { display: grid; gap: 8px; }
+
+.dp-body {
+  position: relative;
+  padding: 5px;                   /* the bezel */
+  border-radius: 34px;            /* screen radius 29 + 5 bezel */
+  background: linear-gradient(160deg, #3d4553 0%, #20262f 42%, #171b22 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.16) inset,
+    0 1px 1px rgba(255, 255, 255, 0.22) inset,
+    0 18px 38px rgba(15, 27, 45, 0.28),
+    0 3px 8px rgba(15, 27, 45, 0.18);
+}
+.dp-screen {
+  position: relative;
+  border-radius: 29px;
+  overflow: hidden;
+  background: #fff;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+/* buttons, a pixel proud of the rail */
+.dp-btn { position: absolute; width: 2px; border-radius: 2px; background: #2b323d; }
+.dp-mute   { left: -2px; top: 78px;  height: 20px; }
+.dp-vol-up { left: -2px; top: 108px; height: 32px; }
+.dp-vol-dn { left: -2px; top: 148px; height: 32px; }
+.dp-power  { right: -2px; top: 120px; height: 46px; }
+
+.dp-status {
+  position: relative;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 15px 6px;
+  background: #fff;
+  color: #11151b;
+  font-size: 10px; font-weight: 600;
+  letter-spacing: 0.01em;
+}
+.dp-time { font-variant-numeric: tabular-nums; }
+.dp-island {
+  position: absolute; left: 50%; top: 5px; transform: translateX(-50%);
+  width: 56px; height: 15px; border-radius: 999px; background: #0b0e13;
+}
+.dp-icons { width: 40px; height: 11px; color: #11151b; }
+
+.dp-view { position: relative; background: #fff; min-height: 300px; overflow: hidden; }
+.dp-shot { display: block; width: 100%; height: auto; }
+.dp-home {
+  position: absolute; left: 50%; bottom: 5px; transform: translateX(-50%);
+  width: 84px; height: 4px; border-radius: 999px;
+  background: rgba(10, 14, 20, 0.32);
+  z-index: 2;
+}
+.dp-label { margin: 0; text-align: center; font-size: 0.78rem; color: var(--ink-3); }
+
+/* ---- the playback ---- */
+.lp-controls { display: grid; gap: 7px; }
+.lp-bar { height: 4px; border-radius: 999px; background: var(--rule); overflow: hidden; }
+.lp-bar-fill { display: block; height: 100%; width: 0; border-radius: 999px; background: var(--accent); }
+.lp-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.lp-clock {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.86rem; font-weight: 600; color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.lp-replay {
+  border: 0; background: none; padding: 2px 0;
+  font: inherit; font-size: 0.8rem; color: var(--accent-ink);
+  cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+}
+.lp-replay:hover { text-decoration: underline; }
+
+/* ---- speed as time, not as a grade ---- */
+.loadline { margin: 16px 0 4px; display: grid; gap: 10px; }
+.ll-row {
+  display: grid;
+  grid-template-columns: minmax(0, 132px) 1fr 44px;
+  align-items: center; gap: 12px;
+}
+.ll-lab { font-size: 0.82rem; color: var(--ink-2); }
+.ll-track {
+  position: relative;
+  height: 10px; border-radius: 999px;
+  background: var(--rule);
+  overflow: hidden;
+}
+.ll-fill { display: block; height: 100%; border-radius: 999px; }
+.ll-fill.tone-good { background: var(--good); }
+.ll-fill.tone-warn { background: var(--accent); }
+.ll-fill.tone-bad { background: var(--bad); }
+.ll-line {
+  position: absolute; top: -2px; bottom: -2px; width: 0;
+  border-left: 2px dashed rgba(15, 27, 45, 0.45);
+}
+.ll-val {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.86rem; font-weight: 600; text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ll-val.tone-good { color: var(--good); }
+.ll-val.tone-warn { color: var(--accent-ink); }
+.ll-val.tone-bad { color: var(--bad); }
+.ll-key { margin: 2px 0 0; font-size: 0.76rem; color: var(--ink-3); }
+
+@media (max-width: 640px) {
+  .shot-device { width: 100%; max-width: 250px; margin: 0 auto; }
+  .ll-row { grid-template-columns: minmax(0, 104px) 1fr 40px; gap: 9px; }
+  .ll-lab { font-size: 0.76rem; }
+}
+
+/* ============ FACTS INSTEAD OF A PARAGRAPH ============ */
+/* The "why it works" prose was the part a tired contractor scrolled past, and it was doing
+   the job the picture should do. */
+.play-facts {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+}
+.play-facts li {
+  display: grid; gap: 4px; align-content: start;
+  padding-top: 11px; border-top: 2px solid var(--rule);
+}
+.pf-n {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.98rem; font-weight: 600; color: var(--accent-ink);
+  letter-spacing: -0.01em;
+}
+.pf-t { font-size: 0.85rem; line-height: 1.5; color: var(--ink-2); }
+
+/* ============ THE ANSWER AN ASSISTANT GIVES ============ */
+.airep { display: grid; gap: 8px; }
+.ai-win {
+  border: 1px solid var(--rule); border-radius: 14px; overflow: hidden;
+  background: var(--surface);
+}
+.ai-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 14px; border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+}
+.ai-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--good); flex: none; }
+.ai-bar-t { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.ai-ask {
+  margin: 0; padding: 14px 16px 12px;
+  font-size: 1rem; font-weight: 600; color: var(--ink);
+}
+.ai-say { padding: 0 16px 16px; border-top: 1px dashed var(--rule); padding-top: 14px; margin: 0 16px; }
+.ai-intro { margin: 0 0 10px; font-size: 0.9rem; color: var(--ink-2); line-height: 1.55; }
+.ai-list { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+.ai-list li { font-size: 0.9rem; color: var(--ink-2); }
+.ai-list b { display: block; color: var(--ink); font-weight: 600; }
+.ai-miss {
+  margin: 0; padding: 11px 14px;
+  border-radius: 10px; background: var(--bad-soft); color: var(--bad);
+  font-size: 0.9rem;
+}
+.ai-miss b { font-weight: 700; }
+
+/* ============ THE REVIEW GAP, DRAWN ============ */
+.reviewgap { display: grid; gap: 12px; }
+.rg-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.rg-name { font-size: 0.88rem; font-weight: 600; color: var(--ink); }
+.rg-row.is-me .rg-name { color: var(--bad); }
+.rg-track { height: 22px; border-radius: 6px; background: var(--rule); overflow: hidden; }
+.rg-fill { display: block; height: 100%; border-radius: 6px; background: var(--ink-3); }
+.rg-row.is-me .rg-fill { background: var(--bad); }
+.rg-n {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.9rem; color: var(--ink);
+}
+.rg-n b { font-size: 1.15rem; font-weight: 600; }
+.rg-stars { color: var(--warn); font-family: inherit; }
+
+@media (max-width: 700px) {
+  .play-facts { grid-template-columns: 1fr; gap: 12px; }
+  .play-facts li { padding-top: 9px; }
 }
