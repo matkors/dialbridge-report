@@ -1862,7 +1862,10 @@ body.is-locked { overflow: hidden; }
 /* Centred, and the blur has to read as "there is something real behind this" rather than
    as a slightly soft paragraph. */
 .card-plan { text-align: center; }
-.card-plan .eyebrow { text-align: center; }
+/* Only the gate's own eyebrow is centred. The one heading the close sits over left-aligned
+   steps, and centring it there just looked like a mistake. */
+.card-plan > .eyebrow { text-align: center; }
+.plan-close .eyebrow { text-align: left; }
 .card-plan h3 {
   margin: 6px auto 12px;
   font-size: clamp(1.45rem, 3.6vw, 2rem);
@@ -1878,3 +1881,144 @@ body.is-locked { overflow: hidden; }
 
 /* The plan itself stays left-aligned once it is open; centred body copy is hard to read. */
 .plan-locked { text-align: left; }
+
+/* ============ THE PLAN: FOUR PLAYS ============ */
+/* The report says what is happening; the plan says what to do and teaches the mechanism
+   under it. Each play is a slab rather than a list item, because the picture is the point
+   and a picture squeezed into a bullet stops being one. */
+.plays { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 34px; }
+.play {
+  display: grid; gap: 14px;
+  padding-top: 26px;
+  border-top: 1px solid var(--rule);
+}
+.play:first-child { padding-top: 6px; border-top: 0; }
+
+.play-head { display: flex; align-items: center; gap: 10px; }
+.play-n {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.78rem; font-weight: 600; letter-spacing: 0.04em;
+  color: var(--accent-ink); background: var(--accent-soft);
+  padding: 3px 8px; border-radius: 5px;
+}
+.play-stage {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink-3);
+}
+.play-move {
+  margin: 0;
+  font-size: clamp(1.15rem, 2.6vw, 1.45rem);
+  line-height: 1.25; letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.play-you { margin: 0; color: var(--ink-2); font-size: 0.98rem; line-height: 1.6; max-width: 62ch; }
+
+/* The mechanism. Set apart because it is the part they came for: not what is wrong, but
+   the thing nobody has told them that makes the move obvious. */
+.play-mech {
+  display: grid; gap: 7px;
+  padding: 16px 18px;
+  background: var(--paper);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 10px 10px 0;
+}
+.play-mech-tag {
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--accent-ink);
+}
+.play-mech p { margin: 0; font-size: 0.95rem; line-height: 1.65; color: var(--ink); max-width: 66ch; }
+
+/* ---- two real listings, side by side ---- */
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+.panel {
+  margin: 0; display: grid; gap: 0;
+  border: 1px solid var(--rule); border-radius: 12px; overflow: hidden;
+  background: var(--surface);
+}
+.panel-tag {
+  display: flex; align-items: center; gap: 7px;
+  padding: 9px 13px; font-size: 0.8rem; font-weight: 700;
+}
+.panel-tag.is-bad { background: var(--bad-soft); color: var(--bad); }
+.panel-tag.is-good { background: var(--good-soft); color: var(--good); }
+.panel-shot { display: block; width: 100%; height: auto; border-top: 1px solid var(--rule); }
+.panel-notes {
+  list-style: none; margin: 0; padding: 13px;
+  display: grid; gap: 7px;
+  border-top: 1px solid var(--rule);
+  font-size: 0.83rem; line-height: 1.45; color: var(--ink-2);
+}
+.panel-notes li { display: flex; gap: 8px; }
+.panel-notes li::before { flex: none; font-weight: 700; }
+.panel-notes li.bad::before { content: "\2715"; color: var(--bad); }
+.panel-notes li.good::before { content: "\2713"; color: var(--good); }
+
+/* ---- one search, three doorsteps. Their own grid ranks, not an illustration. ---- */
+.doorsteps { position: relative; padding: 4px 0 0; }
+.door-road {
+  position: absolute; left: 8%; right: 8%; top: 46px; height: 2px;
+  background: repeating-linear-gradient(90deg, var(--rule) 0 10px, transparent 10px 18px);
+}
+.door-row {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  position: relative;
+}
+.door {
+  display: grid; gap: 6px; justify-items: center; text-align: center;
+  padding: 14px 10px;
+  border: 1px solid var(--rule); border-radius: 12px;
+  background: var(--surface);
+}
+.door-where { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; color: var(--ink-3); }
+.door-rank {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 1.7rem; font-weight: 600; line-height: 1; letter-spacing: -0.02em;
+}
+.door.tone-good .door-rank { color: var(--good); }
+.door.tone-warn .door-rank { color: var(--accent-ink); }
+.door.tone-bad .door-rank { color: var(--bad); }
+.door-say { font-size: 0.82rem; color: var(--ink-2); }
+.door-cap { margin: 12px 0 0; font-size: 0.85rem; color: var(--ink-3); }
+
+/* ---- a real thread, beside what it is doing ---- */
+.showcase { display: grid; grid-template-columns: minmax(0, 260px) 1fr; gap: 22px; align-items: start; }
+.device {
+  border: 1px solid var(--rule); border-radius: 16px; overflow: hidden;
+  background: var(--surface); box-shadow: var(--shadow);
+}
+.device img { display: block; width: 100%; height: auto; }
+.showcase-notes {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; gap: 14px; align-content: start;
+  font-size: 0.94rem; line-height: 1.6; color: var(--ink-2);
+}
+.showcase-notes b { color: var(--ink); }
+
+/* ---- the close: the order, the number, the ask ---- */
+.plan-close { margin-top: 34px; padding-top: 26px; border-top: 1px solid var(--rule); }
+.seq { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 1px; background: var(--rule);
+       border: 1px solid var(--rule); border-radius: 12px; overflow: hidden; }
+.seq-step { background: var(--surface); padding: 14px 16px; display: grid; gap: 4px; }
+.seq-when { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-ink); }
+.seq-what { font-size: 0.93rem; line-height: 1.6; color: var(--ink-2); }
+.plan-money { margin: 16px 0 0; font-size: 0.9rem; line-height: 1.6; color: var(--ink-3); }
+
+.plan-ask {
+  margin-top: 22px; padding: 20px;
+  background: var(--ink); color: #fff; border-radius: 12px;
+}
+.plan-ask h4 { margin: 0 0 8px; font-size: 1.1rem; letter-spacing: -0.02em; }
+.plan-ask p { margin: 0; font-size: 0.94rem; line-height: 1.65; color: #cfd7e2; max-width: 60ch; }
+
+@media (max-width: 640px) {
+  .compare { grid-template-columns: 1fr; gap: 14px; }
+  .showcase { grid-template-columns: 1fr; gap: 16px; }
+  .device { max-width: 280px; }
+  .door-row { grid-template-columns: 1fr; gap: 8px; }
+  .door { grid-template-columns: auto 1fr; justify-items: start; text-align: left; align-items: center; gap: 4px 14px; }
+  .door-where { grid-column: 2; }
+  .door-rank { grid-row: 1 / 3; font-size: 1.4rem; }
+  .door-say { grid-column: 2; }
+  .door-road { display: none; }
+}

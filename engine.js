@@ -947,6 +947,10 @@
     const top = varied.slice(0, 4);
     return {
       findings: top,
+      // The report lists the worst four. The plan has to cover every area that actually
+      // qualified, or a business whose top four happen to be three listing problems and a
+      // review problem gets a plan with nothing in it about the enquiries they are losing.
+      allFindings: varied,
       redCount: varied.filter((f) => f.tone === "red").length,
       goldCount: varied.filter((f) => f.tone === "gold").length,
     };
@@ -1132,11 +1136,12 @@
       answers,
     };
 
-    const { findings, redCount, goldCount } = findingsFor(data, answers, trade);
+    const { findings, allFindings, redCount, goldCount } = findingsFor(data, answers, trade);
     const summary = {
       headline: headlineFor(findings, profile, { found: foundScore, response: responseScore, track }),
       summary: summaryLine(data, findings, redCount, goldCount),
       findings,
+      allFindings,
       redCount,
       goldCount,
       strengths: strengthsFor(data),
