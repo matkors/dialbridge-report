@@ -1872,52 +1872,6 @@ body.is-locked { overflow: hidden; }
 /* The plan itself stays left-aligned once it is open; centred body copy is hard to read. */
 .plan-locked { text-align: left; }
 
-/* ============ THE PLAN: FOUR PLAYS ============ */
-/* The report says what is happening; the plan says what to do and teaches the mechanism
-   under it. Each play is a slab rather than a list item, because the picture is the point
-   and a picture squeezed into a bullet stops being one. */
-.plays { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 34px; }
-.play {
-  display: grid; gap: 14px;
-  padding-top: 26px;
-  border-top: 1px solid var(--rule);
-}
-.play:first-child { padding-top: 6px; border-top: 0; }
-
-.play-head { display: flex; align-items: center; gap: 10px; }
-.play-n {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.78rem; font-weight: 600; letter-spacing: 0.04em;
-  color: var(--accent-ink); background: var(--accent-soft);
-  padding: 3px 8px; border-radius: 5px;
-}
-.play-stage {
-  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--ink-3);
-}
-.play-move {
-  margin: 0;
-  font-size: clamp(1.15rem, 2.6vw, 1.45rem);
-  line-height: 1.25; letter-spacing: -0.02em;
-  text-wrap: balance;
-}
-.play-you { margin: 0; color: var(--ink-2); font-size: 0.98rem; line-height: 1.6; max-width: 62ch; }
-
-/* The mechanism. Set apart because it is the part they came for: not what is wrong, but
-   the thing nobody has told them that makes the move obvious. */
-.play-mech {
-  display: grid; gap: 7px;
-  padding: 16px 18px;
-  background: var(--paper);
-  border-left: 3px solid var(--accent);
-  border-radius: 0 10px 10px 0;
-}
-.play-mech-tag {
-  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--accent-ink);
-}
-.play-mech p { margin: 0; font-size: 0.95rem; line-height: 1.65; color: var(--ink); max-width: 66ch; }
-
 /* ---- two real listings, side by side ---- */
 .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
 .panel {
@@ -2295,3 +2249,120 @@ body.is-locked { overflow: hidden; }
 
 /* A service-area business gets no grid, so the section shows the market instead. */
 .nomap-market { margin: 16px 0 14px; display: grid; gap: 10px; }
+
+/* ============ THE PLAN, AS A PRODUCT ============ */
+/* Alternating, calm, and mostly whitespace. The old version stacked a heading, a red
+   label, a picture, three columns of facts and a black slab, which is five voices
+   competing. Here the product name leads, the gap sits under it in one line, the list says
+   what is in it, and the result is the only thing given any emphasis. */
+.features { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 0; }
+
+.fb {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 48px;
+  align-items: center;
+  padding: 48px 0;
+  border-top: 1px solid var(--rule);
+}
+.fb:first-child { border-top: 0; padding-top: 18px; }
+/* Every other one flips, so the eye zigzags instead of running down one rail. */
+.fb:nth-child(even) .fb-copy { order: 2; }
+
+.fb-letter {
+  display: block;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.74rem; font-weight: 600; letter-spacing: 0.1em;
+  color: var(--ink-3); margin-bottom: 18px;
+}
+.fb-name {
+  margin: 0 0 12px;
+  font-size: clamp(1.5rem, 3.4vw, 2.05rem);
+  font-weight: 800; letter-spacing: -0.035em; line-height: 1.12;
+  text-wrap: balance;
+}
+.fb-issue { margin: 0 0 22px; font-size: 1rem; line-height: 1.6; color: var(--ink-2); max-width: 46ch; }
+
+.fb-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.fb-list li {
+  display: grid; grid-template-columns: 22px 1fr; gap: 12px; align-items: start;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.95rem; line-height: 1.5; color: var(--ink);
+}
+.fb-list li:first-child { border-top: 1px solid var(--rule); }
+.fb-list li::before {
+  content: "\2713";
+  color: var(--good); font-weight: 700; font-size: 0.95rem; line-height: 1.5;
+}
+
+.fb-result { margin-top: 22px; }
+.fb-result-tag {
+  display: block;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--accent-ink); margin-bottom: 7px;
+}
+.fb-result-t { margin: 0; font-size: 1rem; line-height: 1.6; color: var(--ink); font-weight: 600; max-width: 48ch; }
+.fb-result-n { margin: 8px 0 0; font-size: 0.78rem; line-height: 1.5; color: var(--ink-3); max-width: 50ch; }
+
+/* The artwork sits on its own soft ground, which is what stops a screenshot from looking
+   like it fell onto the page. */
+.fb-art {
+  background: var(--paper);
+  border-radius: 22px;
+  padding: 26px;
+  display: grid; align-content: center;
+}
+.fb-art > * { margin: 0; }
+.fb-art .play-visual { margin: 0; }
+
+@media (max-width: 860px) {
+  .fb { grid-template-columns: 1fr; gap: 26px; padding: 34px 0; }
+  .fb:nth-child(even) .fb-copy { order: 0; }
+  .fb-art { padding: 18px; border-radius: 16px; }
+}
+
+/* ============ THEIR OWN LISTING, MARKED UP ============ */
+/* Rebuilt from the Places data rather than screenshotted off Google, so it never breaks
+   and we can put a marker exactly on the field that is empty. */
+.gl-card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(15, 27, 45, 0.05), 0 10px 26px rgba(15, 27, 45, 0.07);
+}
+.gl-photo { aspect-ratio: 16 / 9; background: var(--rule); }
+.gl-photo img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.gl-photo.is-empty {
+  display: grid; place-items: center; gap: 8px; align-content: center;
+  background: repeating-linear-gradient(45deg, #eef0f3 0 10px, #e7eaee 10px 20px);
+}
+.gl-empty-t { font-size: 0.85rem; color: var(--ink-3); }
+
+.gl-head { padding: 14px 16px 12px; }
+.gl-name { margin: 0 0 5px; font-size: 1.05rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.25; }
+.gl-rate { margin: 0 0 4px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 0.88rem; }
+.gl-rate b { font-weight: 700; }
+.gl-stars { color: #f0a30a; letter-spacing: 0.04em; }
+.gl-count { color: var(--ink-3); }
+.gl-cat { margin: 0; font-size: 0.85rem; color: var(--ink-2); }
+
+.gl-rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+.gl-row {
+  display: grid; grid-template-columns: 20px 1fr auto; gap: 11px; align-items: center;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 0.87rem;
+}
+.gl-rows .gl-row:last-child { border-bottom: 0; }
+.gl-row.is-gap { background: var(--bad-soft); }
+.gl-ico { color: var(--ink-3); font-size: 0.8rem; text-align: center; }
+.gl-txt { color: var(--ink); overflow-wrap: anywhere; }
+.gl-row.is-gap .gl-txt { color: var(--bad); }
+.gl-tag {
+  font-size: 0.64rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 3px 7px; border-radius: 999px; white-space: nowrap;
+}
+.gl-tag.is-ok { background: var(--good-soft); color: var(--good); }
+.gl-tag.is-gap { background: var(--bad); color: #fff; }

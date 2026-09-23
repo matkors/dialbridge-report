@@ -1123,6 +1123,9 @@
         address: profile.address || "",
         phone: profile.phone || "",
         photoCount: profile.photos?.length || 0,
+        // The first photo reference, so the report can rebuild their own listing panel
+        // rather than showing somebody else's as an example.
+        photo: (profile.photos || [])[0] || "",
         hasHours: Boolean(profile.hasHours),
         // Set when Google has no pin for them at all. The map section reads it to explain
         // itself instead of silently disappearing.

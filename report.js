@@ -1081,44 +1081,6 @@
   // Which plays appear is driven by which areas their findings landed in, so two different
   // businesses get two different plans out of the same four templates.
 
-  const ord = (n) => String(n).padStart(2, "0");
-
-  function playHead(n, stage) {
-    return h("div", { class: "play-head" }, [
-      h("span", { class: "play-n", text: ord(n) }),
-      h("span", { class: "play-stage", text: stage }),
-    ]);
-  }
-
-  // A four line paragraph headed "why it works" is the part a contractor scrolls past, and
-  // it was doing the job the picture should be doing. Facts now, each one a number and a
-  // sentence, which survives a skim in a way prose does not.
-  function playFacts(rows) {
-    return h("ul", { class: "play-facts" }, rows.filter(Boolean).map(([big, line]) =>
-      h("li", {}, [
-        h("span", { class: "pf-n", text: big }),
-        h("span", { class: "pf-t", text: line }),
-      ])
-    ));
-  }
-
-  // The third beat, and the one the old version was missing entirely. Problem, then the
-  // mechanism, then the thing that runs it. Without this last line the plan reads as
-  // homework somebody else has to do; with it, it reads as a product.
-  function playUs(text) {
-    return h("div", { class: "play-us" }, [
-      h("span", { class: "play-us-tag", text: "What we do" }),
-      h("p", { text }),
-    ]);
-  }
-
-  function playProblem(text) {
-    return h("p", { class: "play-you" }, [
-      h("span", { class: "play-you-tag", text: "The problem" }),
-      text,
-    ]);
-  }
-
   // ---- the two Google listings, side by side. Both are real listings, and the difference
   //      between them is not taste, it is which fields somebody filled in.
   function visualListings() {
@@ -1210,6 +1172,67 @@
       .slice(0, n);
   }
 
+  // ---- their own Google listing, rebuilt from the Places data we already hold, with the
+  //      gaps marked on it.
+  //
+  //      The obvious version of this is to screenshot maps.google.com. That means driving a
+  //      headless browser at Google, which hits consent walls and CAPTCHAs, breaks whenever
+  //      they change a class name, and is against their terms. Rebuilding the panel from the
+  //      API is legitimate, never breaks, uses their real photo and rating, and lets us put a
+  //      marker exactly where a field is missing, which a screenshot could never do.
+  function visualMyListing(report) {
+    const p = report?.profile || {};
+    const rv = report?.reviews || {};
+    const web = report?.website || {};
+    if (!p.name) return null;
+
+    const photo = p.photo ? window.DialBridgeScan?.photoUrl?.(p.photo, 640) : "";
+    const stars = (n) => {
+      const r = Math.round(Number(n) || 0);
+      return "\u2605".repeat(Math.max(0, Math.min(5, r))) + "\u2606".repeat(Math.max(0, 5 - r));
+    };
+
+    const row = (icon, text, ok, note) =>
+      h("li", { class: `gl-row ${ok ? "is-ok" : "is-gap"}` }, [
+        h("span", { class: "gl-ico", "aria-hidden": "true", text: icon }),
+        h("span", { class: "gl-txt", text }),
+        h("span", { class: `gl-tag ${ok ? "is-ok" : "is-gap"}`, text: ok ? "\u2713" : note || "missing" }),
+      ]);
+
+    const rating = num(rv.googleRating);
+    const count = num(rv.googleReviewCount) ?? 0;
+    const thinCount = count < 25;
+
+    return h("div", { class: "play-visual mylisting" }, [
+      h("div", { class: "gl-card" }, [
+        photo
+          ? h("div", { class: "gl-photo" }, [img(photo, { alt: `A photo from ${p.name}'s Google listing`, loading: "lazy" })])
+          : h("div", { class: "gl-photo is-empty" }, [
+              h("span", { class: "gl-empty-t", text: "No photos on your listing" }),
+              h("span", { class: "gl-tag is-gap", text: "missing" }),
+            ]),
+        h("div", { class: "gl-head" }, [
+          h("p", { class: "gl-name", text: p.name }),
+          h("p", { class: "gl-rate" }, [
+            rating !== null ? h("b", { text: rating.toFixed(1) }) : null,
+            h("span", { class: "gl-stars", text: stars(rating) }),
+            h("span", { class: "gl-count", text: `(${count})` }),
+            thinCount ? h("span", { class: "gl-tag is-gap", text: "thin" }) : null,
+          ].filter(Boolean)),
+          h("p", { class: "gl-cat", text: p.category || "No category set" }),
+        ]),
+        h("ul", { class: "gl-rows" }, [
+          row("\u25c9", p.address || "No address on the listing", Boolean(p.address), "service area"),
+          row("\u25f4", p.hasHours ? "Hours are set" : "No opening hours", Boolean(p.hasHours)),
+          row("\u2706", p.phone || "No phone number", Boolean(p.phone)),
+          row("\u2601", web.found ? (web.url || "Website linked") : "No website on the listing", Boolean(web.found)),
+          row("\u25a3", (p.photoCount || 0) >= 5 ? `${p.photoCount} photos` : `${p.photoCount || 0} photos`, (p.photoCount || 0) >= 5, "add more"),
+        ]),
+      ]),
+      h("p", { class: "sr-cap", text: "Your listing as Google holds it today. Anything marked is a field we would fill." }),
+    ]);
+  }
+
   // ---- the answer an AI assistant gives. Every name, star rating and review count in here
   //      is real and came from Places; what is illustrated is the wrapper, and the caption
   //      says so rather than pretending we ran the prompt.
@@ -1298,13 +1321,47 @@
     );
   }
 
-  // ---- the plays. Each returns null when it has nothing true to say.
+  // ============ THE PLAN, AS A PRODUCT ============
   //
-  // Shape: the problem in one line, a replica of the real thing with their data in it,
-  // three facts, then what we run. The replica is the argument. The rule the whole set
-  // follows is the one the map list proved: rebuild the surface the customer actually
-  // looks at and put their own numbers in it, rather than describing it in a paragraph or
-  // showing a screenshot of somebody else's phone.
+  // Earlier passes led with the problem and buried what we actually sell under a heading
+  // that said "what we do". That is the wrong order for somebody who already knows their
+  // business has gaps. They are not buying a diagnosis.
+  //
+  // So every block is: the named piece of the system, the gap it closes in their own
+  // numbers, what is in it, and what comes out. Feature, issue, result. The layout
+  // alternates side to side and stays quiet, because the argument is the product, not the
+  // decoration.
+
+  const LETTERS = "ABCDEFGH";
+
+  function featureBlock({ letter, name, issue, includes, result, resultNote, visual }) {
+    const copy = h("div", { class: "fb-copy" }, [
+      h("span", { class: "fb-letter", "aria-hidden": "true", text: LETTERS[letter - 1] || "" }),
+      h("h4", { class: "fb-name", text: name }),
+      h("p", { class: "fb-issue", text: issue }),
+      h("ul", { class: "fb-list" }, includes.map((t) => h("li", { text: t }))),
+      result
+        ? h("div", { class: "fb-result" }, [
+            h("span", { class: "fb-result-tag", text: "What you get" }),
+            h("p", { class: "fb-result-t", text: result }),
+            resultNote ? h("p", { class: "fb-result-n", text: resultNote }) : null,
+          ].filter(Boolean))
+        : null,
+    ].filter(Boolean));
+
+    return h("li", { class: "fb" }, [
+      copy,
+      h("div", { class: "fb-art" }, visual || null),
+    ]);
+  }
+
+  // How many reviews the automation is worth over a window, from their own job count. The
+  // rate is the only assumption and it is printed underneath rather than buried here.
+  const CAPTURE_RATE = 0.25;
+  function reviewsIn(months, jobsPerMonth) {
+    if (!jobsPerMonth) return null;
+    return Math.round(jobsPerMonth * months * CAPTURE_RATE);
+  }
 
   function playListing(report, n) {
     const p = report?.profile || {};
@@ -1312,129 +1369,135 @@
     if (!report?.website?.found) gaps.push("no website link");
     if ((p.photoCount || 0) < 5) gaps.push(p.photoCount ? `only ${p.photoCount} photos` : "no photos");
     if (!p.hasHours) gaps.push("no opening hours");
-    const yours = gaps.length
-      ? `Your listing has ${listWords(gaps)}.`
-      : "Your listing is filled in. Now it has to stay that way.";
 
-    return h("li", { class: "play" }, [
-      playHead(n, "Get found"),
-      h("h4", { class: "play-move", text: "Finish the listing that feeds you work" }),
-      playProblem(yours),
-      visualListings(),
-      playFacts([
-        ["4s", "How long a homeowner takes to pick between two listings."],
-        ["Same fields", "Google reads the ones you leave blank to decide who to show."],
-        ["30 days", "Profiles touched in the last month get cited 3x more by AI assistants."],
-      ]),
-      playUs("We rebuild the listing and keep it current: photos off your real jobs, the right category, your hours and services, and a site that loads."),
-    ]);
+    return featureBlock({
+      letter: n,
+      name: "Google Business Profile, optimized",
+      issue: gaps.length
+        ? `Your Google listing has ${listWords(gaps)}. Google reads the blanks to decide who it shows.`
+        : "Your listing is filled in. Keeping it that way is the job, because one that stops moving slips down.",
+      includes: [
+        "Photos off your real jobs, added and kept current",
+        "The right category, your services and your hours",
+        "A site that loads on a phone and takes bookings",
+        "Checked and topped up every month",
+      ],
+      result: "A finished profile is the first thing both Google and the AI tools read. It is also the fastest part of this to fix.",
+      resultNote: "Profiles touched in the last 30 days get cited roughly 3x more often by AI assistants.",
+      visual: visualMyListing(report) || visualListings(),
+    });
   }
 
   function playMap(report, n) {
     const r = report?.ranking || {};
     const total = (r.ranks || []).length;
     if (!total) return null;
-    const yours = r.pointsInTop3
-      ? `Top three at ${r.pointsInTop3} of the ${total} spots we checked. At the other ${total - r.pointsInTop3}, the call goes elsewhere.`
-      : `We checked ${total} spots around you. You were not in the top three at one of them.`;
-
-    return h("li", { class: "play" }, [
-      playHead(n, "Get found"),
-      h("h4", { class: "play-move", text: "Stop relying on luck and referrals" }),
-      playProblem(yours),
-      visualSearchList(report),
-      playFacts([
-        ["Top 3", "Where nearly all the calls go. Almost nobody scrolls past it."],
-        ["Every street", "Google builds a different top three for every doorstep."],
-        ["Not distance", "You cannot move your yard. Listing strength travels, distance does not."],
-      ]),
-      playUs("We work the listing and the reviews together, because that is the pair that moves map position, and you watch the grid go green from the middle out."),
-    ]);
+    return featureBlock({
+      letter: n,
+      name: "Google Maps ranking, tracked monthly",
+      issue: r.pointsInTop3
+        ? `You are in the top three at ${r.pointsInTop3} of the ${total} spots we checked. At the other ${total - r.pointsInTop3}, the call goes to somebody else.`
+        : `We searched from ${total} spots around you. You were not in the top three at one of them.`,
+      includes: [
+        "Profile and review work aimed at the streets you actually serve",
+        "The same 25 point grid re-run every month so you can watch it move",
+        "Your main keyword tracked against the shops beating you",
+      ],
+      result: "The top three take nearly all the calls, and that is the target. You see the grid go green from the middle out.",
+      visual: visualSearchList(report),
+    });
   }
 
-  // ---- the new one. People increasingly ask an assistant instead of typing into Maps, and
-  //      the same signals decide both, which is what makes this a reason to fix the
-  //      profile rather than a separate product.
   function playAi(report, n) {
     const rep = visualAiAnswer(report);
     if (!rep) return null;
     const rating = num(report?.reviews?.googleRating);
-    const dim = rating !== null && rating < 3.4;
+    const under = rating !== null && rating < 3.4;
 
-    return h("li", { class: "play" }, [
-      playHead(n, "Get found"),
-      h("h4", { class: "play-move", text: "Get named when somebody asks the AI" }),
-      playProblem(dim
-        ? `More homeowners now ask ChatGPT or Gemini for a name instead of searching. At ${rating.toFixed(1)} stars you are under the line where those tools stop suggesting a business at all.`
-        : "More homeowners now ask ChatGPT or Gemini for a name instead of searching, and those answers are not built from ads. They are built from your rating, your review count and whether your details agree everywhere."),
-      rep,
-      playFacts([
-        ["35.9% to 1.2%", "How often a business shows in Google's top three, against how often ChatGPT names it. Most shops are invisible there."],
-        ["4.3 stars", "The average rating of a business these tools do recommend. Under 3.4 and they effectively stop."],
-        ["Same signals", "Nothing separate to buy. The profile and review work that moves Google is what moves this."],
-      ]),
-      playUs("The system that fixes your profile and keeps reviews coming is the same thing that gets you into those answers, and we keep your details saying one story everywhere so there is nothing for them to trip over."),
-    ]);
+    return featureBlock({
+      letter: n,
+      name: "DialBridge AEO, getting named by the AI",
+      issue: "Homeowners ask ChatGPT and Gemini for a name now, and those answers are not bought. They are built from your rating, your review count, and whether your details say the same thing everywhere.",
+      includes: [
+        "Your name, number and address made identical across Google, your site and the directories",
+        "Review volume and rating pushed above the bar these tools use",
+        "Profile and site content refreshed monthly, which is what gets cited",
+        "LocalBusiness markup on your site so the tools can read it cleanly",
+      ],
+      result: under
+        ? `The businesses these tools recommend average 4.3 stars. Under 3.4 they effectively stop, and you are at ${rating.toFixed(1)}. Getting above that line is what makes you eligible to be named at all.`
+        : "The businesses these tools recommend average 4.3 stars and have details that agree everywhere. That is the bar, and it is the same work that moves Google.",
+      resultNote: "SOCi's 2026 Local Visibility Index, about 350,000 locations.",
+      visual: rep,
+    });
   }
 
   function playBooking(report, n) {
     const leak = report?.leak || {};
-    const worth = leak.jobValue
-      ? ` One of those is about $${Number(leak.jobValue).toLocaleString()} gone to whoever picked up.`
-      : "";
-    return h("li", { class: "play" }, [
-      playHead(n, "Win the job"),
-      h("h4", { class: "play-move", text: "Booking on autopilot, including the calls you miss" }),
-      playProblem(`You told us calls wait when the day gets busy.${worth}`),
-      twoTrack(
-        "What happens now", ["Call comes in", "You are under a sink", "You ring back at 6pm"], "Already booked someone",
-        "What happens with it running", ["Call comes in", "Text back in 8 seconds", "She picks a slot herself"], "In your calendar",
-        "Same call, same day. The only difference is how long she waited."
+    const v = leak.jobValue ? Number(leak.jobValue) : null;
+    const money = (x) => `$${Number(x).toLocaleString("en-US")}`;
+    return featureBlock({
+      letter: n,
+      name: "Missed call text back and online booking",
+      issue: `You told us calls wait when the day gets busy.${v ? ` One of those is about ${money(v)} gone to whoever picked up.` : ""}`,
+      includes: [
+        "A missed call gets a text back within seconds",
+        "She picks a slot from your real calendar, no phone tag",
+        "Calls, texts, web chat and Facebook all in one inbox",
+        "The booking writes itself into your CRM",
+      ],
+      result: v
+        ? `Pulling back one call a month is ${money(v * 12)} a year at your ticket. That is arithmetic on your own numbers, not a projection.`
+        : "Nothing that comes in goes unanswered, including the calls that land while you are under a sink.",
+      visual: twoTrack(
+        "What happens now", ["Call comes in", "You are on a job", "You ring back at 6pm"], "Already booked someone",
+        "What happens with it running", ["Call comes in", "Text back in 8 seconds", "She picks a slot"], "In your calendar",
+        "Same call, same day. The only thing that changed is how long she waited."
       ),
-      playFacts([
-        ["3 numbers", "What a homeowner has open. They stop at the first shop that answers."],
-        ["No callback", "By tonight it is somebody else's job, and the phone simply does not ring again."],
-        ["Your calendar", "The slot she picks is a real one, and it writes itself to your CRM."],
-      ]),
-      playUs("A dropped call gets a text back in seconds with a link to book straight into your calendar. The job lands in your CRM without you touching it."),
-    ]);
+    });
   }
 
   function playQuotes(report, n) {
-    return h("li", { class: "play" }, [
-      playHead(n, "Win the job"),
-      h("h4", { class: "play-move", text: "Never let a quote go cold" }),
-      playProblem("You told us quotes get chased when you remember. Every estimate sitting quiet is work you already paid to win."),
-      visualQuoteTrack(),
-      playFacts([
-        ["More than one", "Most quotes that close need more than a single touch."],
-        ["Busy weeks", "Chasing is the first thing to go, exactly when the work is good."],
-        ["Old customers", "The same thing runs on people who used you two years ago."],
-      ]),
-      playUs("The system tracks every open estimate and checks in by text until you get a yes or a no, and it does the same on your past customers on a schedule."),
-    ]);
+    return featureBlock({
+      letter: n,
+      name: "DialBridge Quote Follow-Up",
+      issue: "You told us quotes get chased when you remember. Every estimate sitting quiet is work you already paid to win.",
+      includes: [
+        "Every open estimate tracked without you keeping a list",
+        "Texts that check in until you get a yes or a no",
+        "Won jobs update in your CRM, dead ones close themselves",
+        "Past customers get the same treatment on a schedule",
+      ],
+      result: "Quotes stop dying of silence, and the customers who used you two years ago hear from you before they go looking for somebody else.",
+      visual: visualQuoteTrack(),
+    });
   }
 
   function playReviews(report, n) {
     const mine = num(report?.reviews?.googleReviewCount) ?? 0;
     const rival = num(report?.signals?.topRivalReviews);
-    const gap = visualReviewGap(report);
-    const yours = rival && rival > mine
-      ? `You have ${mine}. The shop above you has ${rival}.`
-      : "Your rating is fine. It is the count, and how fast it moves, that a homeowner reads.";
+    const jobs = num(report?.leak?.jobs);
+    const q = reviewsIn(3, jobs);
+    const y = reviewsIn(12, jobs);
 
-    return h("li", { class: "play" }, [
-      playHead(n, "Keep it running"),
-      h("h4", { class: "play-move", text: "Reviews that arrive without you asking" }),
-      playProblem(yours),
-      gap,
-      playFacts([
-        ["2 hours", "The window. A link in her hand while she is still pleased gets used."],
-        ["Monday", "The same words the next morning get read and forgotten."],
-        ["Everybody", "Asking every customer is the only thing that moves the count."],
-      ]),
-      playUs("The moment a job is closed out in your CRM, the system texts a review link in your name. Nothing to chase, and the count climbs while you work."),
-    ]);
+    return featureBlock({
+      letter: n,
+      name: "DialBridge Review Automation",
+      issue: rival && rival > mine
+        ? `The shop ranking above you has ${rival} reviews. You have ${mine}, and the gap is what a homeowner reads first.`
+        : "Your rating is fine. It is the count, and how fast it moves, that a homeowner reads before calling.",
+      includes: [
+        "A review text goes out after every completed job",
+        "Sent in your name about two hours after you close it out",
+        "Every customer, not the ones you remember on a good week",
+        "Bad ones routed to you privately before they land in public",
+      ],
+      result: q && y
+        ? `At ${jobs} jobs a month that is roughly ${q} new reviews in the first 90 days and about ${y} over a year, without you asking once.`
+        : "Reviews arrive on their own after every job, which is the only thing that moves a count.",
+      resultNote: q ? "Assumes one in four customers leaves one, which is normal once the ask is automatic and immediate." : null,
+      visual: visualReviewGap(report),
+    });
   }
 
   // Which play a finding turns into. Lead follow-up splits in two, because a missed call
@@ -1497,7 +1560,7 @@
     if (!plays.length) return [h("p", { class: "plan-lead", text: "Nothing on your profile is costing you work today. The plan is to keep it that way." })];
 
     return [
-      h("ol", { class: "plays" }, plays),
+      h("ol", { class: "features" }, plays),
       renderPlanClose(report, plays.length),
     ].filter(Boolean);
   }

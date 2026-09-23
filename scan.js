@@ -1051,5 +1051,5 @@
   }
 
   // h is shared with report.js so the full report is built with the same safe, text-only DOM helper.
-  window.DialBridgeScan = { start, reset, showBack, h, img, tradesOf, tradeOf };
+  window.DialBridgeScan = { start, reset, showBack, h, img, tradesOf, tradeOf, photoUrl };
 })();
