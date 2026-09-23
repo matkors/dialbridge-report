@@ -798,15 +798,52 @@
 
   // When there is no map, say so and say why. It used to return null, so the section simply
   // was not there, and the only way to find out was somebody asking where the heatmap went.
+  const tradeWord = (report) =>
+    String(report?.profile?.category || "your trade").toLowerCase();
+  const cityWord = (report) => {
+    const parts = String(report?.profile?.address || "").split(",").map((x) => x.trim()).filter(Boolean);
+    return parts.length >= 2 ? `${parts[0]}, ${parts[1]}` : parts[0] || "";
+  };
+
   function renderNoMap(report) {
     const sab = report?.profile?.serviceAreaOnly;
+    const kw = report?.ranking?.keyword || tradeWord(report);
+    const town = cityWord(report);
+    const rivals = rivalsFor(report, 5);
+
+    // This used to say "we cannot measure you" and stop, which lands on a working
+    // contractor as a shrug and wastes the section. We still cannot put a grid in front of
+    // them, and pretending otherwise would mean nine red pins that are not a measurement.
+    // But the market around them is measurable, and showing who does come up is the same
+    // argument without the false precision.
+    const market = rivals.length
+      ? h("div", { class: "nomap-market" }, [
+          h("p", { class: "sr-head" }, [
+            "Who comes up ",
+            town ? `for ${kw} around ${town}` : `for ${kw} near you`,
+            " right now:",
+          ]),
+          h("ol", { class: "sr-list" }, rivals.map((c, i) =>
+            h("li", { class: "sr-row" }, [
+              h("span", { class: "sr-pos", text: String(i + 1) }),
+              h("span", { class: "sr-name", text: c.name }),
+              h("span", { class: "sr-stars", text: c.rating ? `★ ${Number(c.rating).toFixed(1)}` : "" }),
+              h("span", { class: "sr-reviews", text: c.reviewCount ? `${c.reviewCount} reviews` : "" }),
+            ])
+          )),
+        ])
+      : null;
+
     return h("section", { class: "card card-wide" }, [
-      h("div", { class: "card-head" }, [h("h3", { text: "Where you show up on Google Maps" })]),
+      h("div", { class: "card-head" }, [
+        h("h3", { text: sab ? "Your listing has no address on it" : "Where you show up on Google Maps" }),
+      ]),
       h("p", { class: "muted", text: sab
-        ? "Your Google listing is set up as a service-area business, so it has no pin on the map. Google will not return listings like yours in the searches we use to measure position, so there is no grid we can honestly put in front of you. That is a limit on what we can measure, not a verdict on how you rank."
+        ? "Yours is set up as a service-area business, which means Google shows no pin for you. We check map position by searching from 25 points and reading back who comes up, and listings without an address do not come back in those searches. So there is no grid we can honestly put in front of you. That is a limit on what we can measure, not a verdict on how you rank."
         : "We could not measure your position on the map for this business. Everything else in this report is unaffected." }),
+      market,
       sab
-        ? h("p", { class: "muted", text: "It is worth knowing either way: a listing with no pin competes differently from one with an address, and it is one of the things worth talking through." })
+        ? h("p", { class: "muted", text: "Those are the companies your customers are choosing between. Every one of them is winning on the same two things you can move without an address: how strong the profile is, and how many recent reviews sit behind it. That is what the rest of this report is about." })
         : null,
     ].filter(Boolean));
   }

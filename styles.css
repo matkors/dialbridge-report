@@ -2292,3 +2292,6 @@ body.is-locked { overflow: hidden; }
   .play-facts { grid-template-columns: 1fr; gap: 12px; }
   .play-facts li { padding-top: 9px; }
 }
+
+/* A service-area business gets no grid, so the section shows the market instead. */
+.nomap-market { margin: 16px 0 14px; display: grid; gap: 10px; }
