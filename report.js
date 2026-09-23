@@ -531,22 +531,31 @@
       num(w.accessibilityScore) !== null ? { ok: w.accessibilityScore >= 80, text: `Ease of use scores ${w.accessibilityScore} out of 100` } : null,
     ].filter(Boolean);
 
-    const timeline = loadTimeline(w);
-    const lead = num(w.loadMs) !== null
+    // A dead site scored 100 for speed once, because an nginx error page loads in a
+    // blink. When the site-check says broken, the speed is meaningless and the honest
+    // sentence is the one about the error, with the phone showing exactly what a
+    // homeowner sees.
+    const timeline = w.broken ? null : loadTimeline(w);
+    const brokenLead = w.reachable === false
+      ? "The address on your Google listing does not load at all. The connection fails before a page appears, which is usually an expired security certificate or a site that has been taken down. A homeowner who taps it sees a browser error and moves on."
+      : `The address on your Google listing returns an error${w.httpStatus ? ` (${w.httpStatus})` : ""} instead of a page. This is what a homeowner sees when they tap through. It is the same as having no website, except that Google is sending people to it.`;
+    const lead = w.broken ? brokenLead : num(w.loadMs) !== null
       ? `This is your site loading on a phone, at the speed it actually loaded when we tested it. A homeowner is looking at it for ${(w.loadMs / 1000).toFixed(1)} seconds before it is any use to them.`
       : "This is the first thing a homeowner sees after they find you. Speed is only half of it. If it is hard to read or hard to tap, they leave and call the next company.";
 
     const section = h("section", { class: "card card-wide" }, [
       h("div", { class: "card-head" }, [
-        h("h3", { text: "Your website, on a phone, loading" }),
+        h("h3", { text: w.broken ? "Your website is not loading" : "Your website, on a phone, loading" }),
         h("span", { class: "card-hint", text: "Recorded just now" }),
       ]),
       h("div", { class: "shot-row" }, [
-        h("div", { class: "shot-device" }, [live.node, live.controls].filter(Boolean)),
+        h("div", { class: "shot-device" }, [live.node, w.broken ? null : live.controls].filter(Boolean)),
         h("div", { class: "shot-copy" }, [
           h("p", { class: "muted", text: lead }),
           timeline,
-          checks.length ? h("ul", { class: "checks" }, checks.map((c) => h("li", { class: c.ok ? "ok" : "bad", text: c.text }))) : null,
+          w.broken
+            ? h("ul", { class: "checks" }, [h("li", { class: "bad", text: w.reachable === false ? "The site does not respond" : `Returns ${w.httpStatus || "an error"} instead of a page` })])
+            : checks.length ? h("ul", { class: "checks" }, checks.map((c) => h("li", { class: c.ok ? "ok" : "bad", text: c.text }))) : null,
         ].filter(Boolean)),
       ]),
     ]);

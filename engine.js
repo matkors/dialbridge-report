@@ -330,6 +330,15 @@
 
   // Saturates at 5, because that is how many reviews Places hands back. Treat it as "at
   // least this many in the last 90 days", never as the true count.
+  // Age in days of the newest review Google returned. Places hands back five reviews chosen
+  // by relevance, not date, so this is the newest of a sample and can only overstate the
+  // gap. It is what the report can honestly say when that sample is all old.
+  function newestReviewDays(profile) {
+    const dates = (profile?.reviews || []).map((r) => Date.parse(r.publishedAt)).filter(Number.isFinite);
+    if (!dates.length) return null;
+    return Math.round((Date.now() - Math.max(...dates)) / DAY);
+  }
+
   function reviewVelocity90d(profile) {
     const cutoff = Date.now() - 90 * DAY;
     return (profile?.reviews || []).filter((r) => {
@@ -377,6 +386,9 @@
 
   function websiteScore(website) {
     if (!website || !website.hasWebsite) return 0;
+    // An nginx 404 page loads in a blink and scored 100 here once. The site-check reads
+    // the status before Lighthouse's number is allowed to mean anything.
+    if (website.broken) return 0;
     if (!website.checked) return null;
     return weighted([
       // The number on the site matching the number on the listing. A tappable number that
@@ -802,6 +814,20 @@
         detail: "Your Google listing has nowhere to send anyone, and a search for your business did not turn up a site either. Homeowners who cannot find a website almost always move to the next company on the list, and Google leans on a real site to decide who to show at all.",
         fix: "We build and host the site, and it is yours to keep.",
       });
+    } else if (website && website.found && website.broken) {
+      // The listing links to a site and the site is dead. Worse than no site: Google is
+      // actively sending people to an error page. Nothing else about the site can be
+      // scored, so nothing else about it is said.
+      add("website_broken", 0, 9, {
+        area: "foundation",
+        title: website.reachable === false
+          ? "The website on your Google listing does not load"
+          : `The website on your Google listing returns an error (${website.httpStatus || "error"})`,
+        detail: website.reachable === false
+          ? "The connection fails before a page appears, usually an expired security certificate or a site that has been taken down. Everybody who taps through from Google sees a browser error and goes to the next company."
+          : "Google is sending people to an address that answers with an error page instead of your business. That is the same as having no website, except you are paying for the traffic to hit a wall.",
+        fix: "We get a working site back up on that address, fast on a phone, with a tap-to-call button on every screen.",
+      });
     } else if (website && website.found) {
       // The site exists but the listing does not link it. Cheap to fix, and it costs them
       // twice while it is broken: the listing looks unfinished and the clicks go nowhere.
@@ -905,13 +931,34 @@
       });
     }
 
-    // ---- reviews: how fast new ones arrive. Saturates at five, so this can only understate.
-    add("review_velocity_low", Math.min(100, (signals.reviewVelocity90d || 0) * 20), 6, {
-      area: "reviews",
-      title: signals.reviewVelocity90d ? `Only ${reviewWord(signals.reviewVelocity90d)} in the last 90 days` : "No new reviews in the last 90 days",
-      detail: "Google weighs recent reviews far more heavily than old ones. A profile that stopped collecting them slides down the map even when the total looks healthy.",
-      fix: "Every finished job asks for a review, so the count keeps moving instead of stalling.",
-    });
+    // ---- reviews: how fast new ones arrive.
+    //
+    // MEASURED, 2026-09-23: Places returns five reviews chosen by RELEVANCE, not date. A
+    // 12-review plumber came back with reviews 122, 308, 2056, 364 and 1624 days old, in
+    // that order, and a 1,073-review sewer company's newest of five was 65 days old, which
+    // no shop earning reviews weekly could be. So "no new reviews in 90 days" is only a
+    // fact when the business has five or fewer and we have seen all of them. Above that,
+    // a zero says nothing about the rate and a two says nothing either. What the sample
+    // does tell us, honestly, is the age of the reviews Google puts at the top of the
+    // listing, which is what a homeowner reads, so that is what gets said instead.
+    const seenCount = num(data.reviews?.googleReviewCount) ?? 0;
+    const velocity = signals.reviewVelocity90d || 0;
+    if (seenCount <= 5) {
+      add("review_velocity_low", Math.min(100, velocity * 20), 6, {
+        area: "reviews",
+        title: velocity ? `Only ${reviewWord(velocity)} in the last 90 days` : "No new reviews in the last 90 days",
+        detail: "Google weighs recent reviews far more heavily than old ones. A profile that stopped collecting them slides down the map even when the total looks healthy.",
+        fix: "Every finished job asks for a review, so the count keeps moving instead of stalling.",
+      });
+    } else if (velocity === 0 && signals.newestReviewDays !== null && signals.newestReviewDays > 90) {
+      const months = Math.max(1, Math.round(signals.newestReviewDays / 30));
+      add("review_velocity_low", Math.max(0, 100 - months * 15), 6, {
+        area: "reviews",
+        title: `The reviews Google shows first are all ${months >= 2 ? `${months} months` : "months"} old`,
+        detail: "Google puts five reviews at the top of your listing, and none of them is recent. That is what a homeowner reads before deciding, and Google weighs recent reviews far more heavily than old ones.",
+        fix: "Every finished job asks for a review, so fresh ones keep landing at the top of the listing.",
+      });
+    }
 
     // ---- reviews: the tenure comparison. This is the one that lands, so it only fires
     //      when the business is old enough for the pace to mean anything.
@@ -922,7 +969,7 @@
       add("review_pace_stagnant", paceScore, 6, {
         area: "reviews",
         title: `${reviewWord(count)} in ${yearWord(age.years)} of trading`,
-        detail: `${reviewWord(count)} is a good start, but you have been in business ${yearWord(age.years)}. That is about ${perYear} reviews a year, and most established ${trade || "contractors"} are closer to ${REVIEWS_PER_YEAR_BENCHMARK}.`,
+        detail: `${reviewWord(count)} is a good start, but you have been in business at least ${yearWord(age.years)}. That is about ${perYear} reviews a year, and most established ${trade || "contractors"} are closer to ${REVIEWS_PER_YEAR_BENCHMARK}.`,
         fix: "We ask every customer automatically, so the count builds at the pace your job volume deserves.",
       });
     }
@@ -1106,6 +1153,7 @@
       // copy can quote the same numbers the maths used.
       signals: {
         reviewVelocity90d: reviewVelocity90d(profile),
+        newestReviewDays: newestReviewDays(profile),
         velocitySaturated: reviewVelocity90d(profile) >= 5, // Places only returns five reviews
         businessAge: businessAge(profile),
         reviewsPerYear: (() => {
@@ -1156,6 +1204,11 @@
         https: website.https ?? null,
         mobileFriendly: website.mobileFriendly ?? null,
         screenshot: website.screenshot || "",
+        // The site-check's verdict on whether the address works at all. A speed score
+        // for a dead site is meaningless and everything downstream reads these first.
+        httpStatus: num(website.httpStatus),
+        reachable: website.reachable ?? null,
+        broken: website.broken === true,
         // The filmstrip Lighthouse already took, plus the two paint times as real numbers.
         // The report plays the strip back at those timings rather than printing a score.
         filmstrip: Array.isArray(website.filmstrip) ? website.filmstrip : [],
