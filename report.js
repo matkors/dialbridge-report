@@ -1193,11 +1193,15 @@
   //      they change a class name, and is against their terms. Rebuilding the panel from the
   //      API is legitimate, never breaks, uses their real photo and rating, and lets us put a
   //      marker exactly where a field is missing, which a screenshot could never do.
-  function visualMyListing(report) {
+  function visualMyListing(report, { after = false } = {}) {
     const p = report?.profile || {};
     const rv = report?.reviews || {};
     const web = report?.website || {};
     if (!p.name) return null;
+    // "after" draws the same card as we would hand it back: every field filled, the photo
+    // slot holding their real jobs, and the thin-count tag gone. Their name, their number,
+    // the finished version. Nothing invented about them, only about the state.
+    const ok = (v) => after ? true : Boolean(v);
 
     const photo = p.photo ? window.DialBridgeScan?.photoUrl?.(p.photo, 640) : "";
     const stars = (n) => {
@@ -1216,34 +1220,39 @@
     const count = num(rv.googleReviewCount) ?? 0;
     const thinCount = count < 25;
 
-    return h("div", { class: "play-visual mylisting" }, [
+    return h("div", { class: `play-visual mylisting${after ? " is-after" : ""}` }, [
       h("div", { class: "gl-card" }, [
         photo
           ? h("div", { class: "gl-photo" }, [img(photo, { alt: `A photo from ${p.name}'s Google listing`, loading: "lazy" })])
-          : h("div", { class: "gl-photo is-empty" }, [
-              h("span", { class: "gl-empty-t", text: "No photos on your listing" }),
-              h("span", { class: "gl-tag is-gap", text: "missing" }),
-            ]),
+          : after
+            ? h("div", { class: "gl-photo is-after" }, [
+                h("span", { class: "gl-after-t", text: "Your real job photos" }),
+                h("span", { class: "gl-tag is-ok", text: "\u2713 added monthly" }),
+              ])
+            : h("div", { class: "gl-photo is-empty" }, [
+                h("span", { class: "gl-empty-t", text: "No photos on your listing" }),
+                h("span", { class: "gl-tag is-gap", text: "missing" }),
+              ]),
         h("div", { class: "gl-head" }, [
           h("p", { class: "gl-name", text: p.name }),
           h("p", { class: "gl-rate" }, [
             rating !== null ? h("b", { text: rating.toFixed(1) }) : null,
             h("span", { class: "gl-stars", text: stars(rating) }),
             h("span", { class: "gl-count", text: `(${count})` }),
-            thinCount ? h("span", { class: "gl-tag is-gap", text: "thin" }) : null,
+            thinCount && !after ? h("span", { class: "gl-tag is-gap", text: "thin" }) : null,
           ].filter(Boolean)),
           h("p", { class: "gl-cat", text: p.category || "No category set" }),
         ]),
         h("ul", { class: "gl-rows" }, [
-          row("\u25c9", p.address || "No address on the listing", Boolean(p.address), "service area"),
-          row("\u25f4", p.hasHours ? "Hours are set" : "No opening hours", Boolean(p.hasHours)),
-          row("\u2706", p.phone || "No phone number", Boolean(p.phone)),
-          row("\u2601", web.found ? (web.url || "Website linked") : "No website on the listing", Boolean(web.found)),
-          row("\u25a3", (p.photoCount || 0) >= 5 ? `${p.photoCount} photos` : `${p.photoCount || 0} photos`, (p.photoCount || 0) >= 5, "add more"),
+          row("\u25c9", p.address || (after ? "Service area set" : "No address on the listing"), ok(p.address), "service area"),
+          row("\u25f4", ok(p.hasHours) ? "Hours are set" : "No opening hours", ok(p.hasHours)),
+          row("\u2706", p.phone || "No phone number", ok(p.phone)),
+          row("\u2601", ok(web.found) ? (web.url || "Website linked") : "No website on the listing", ok(web.found)),
+          row("\u25a3", after ? "Photos from your jobs, kept current" : `${p.photoCount || 0} photos`, ok((p.photoCount || 0) >= 5), "add more"),
         ]),
       ]),
-      h("p", { class: "sr-cap", text: "Your listing as Google holds it today. Anything marked is a field we would fill." }),
-    ]);
+      after ? null : h("p", { class: "sr-cap", text: "Your listing as Google holds it today. Anything marked is a field we would fill." }),
+    ].filter(Boolean));
   }
 
   // ---- the answer an AI assistant gives. Every name, star rating and review count in here
@@ -1334,129 +1343,294 @@
     );
   }
 
-  // ============ THE PLAN, AS A CHECKLIST ============
-  //
-  // Three rebuilds of this were diagnoses in different clothes. What converts is not a
-  // description of what is wrong, it is a picture of what a business fully on the system
-  // has, as one fixed list in the order the pieces depend on each other, with their own
-  // tick or cross on every row. The list is the same for everybody; the state is theirs.
-  // It reads as a to-do list, the gap is a count, and every cross is a thing we set up.
-  //
-  // The replicas that earned their place (their listing, the search list, the review bars,
-  // the AI answer) sit under the rows they belong to, opened when the row is a cross.
-
-  const CAPTURE_RATE = 0.25;
-  const money = (x) => "$" + Number(x).toLocaleString("en-US");
-
+  // The pre-scan answers, from memory or from the session if the page was refreshed.
   function answersNow() {
     if (window.leadAnswers && typeof window.leadAnswers === "object") return window.leadAnswers;
     try { return JSON.parse(sessionStorage.getItem("dialbridge_answers") || "{}") || {}; } catch (e) { return {}; }
   }
 
-  // Each row: what a set-up business has, and whether this one has it. "unknown" is for
-  // the rows we could not measure, and it is shown as a question mark rather than hidden,
-  // because a list that only shows what we could check is a list that flatters us.
-  function checklistFor(report) {
+  // ============ THE PLAN, AS THE PRODUCT ============
+  //
+  // Four versions of this led with the lead: their gaps, their crosses, their state on a
+  // list. Every one of them was the report again in different clothes, and the lead has
+  // already read the report. This one leads with the product. Six pieces of the system,
+  // each drawn as it looks running for THIS business: their name on the listing, their
+  // number in the text, their trade on the site. Their own numbers appear once per piece,
+  // small, at the bottom, as the reason. The picture is the product, not the problem.
+
+  const money = (x) => "$" + Number(x).toLocaleString("en-US");
+  const fmt = (x) => Number(x).toLocaleString("en-US");
+  const initials = (name) => String(name || "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+  // "A-General Sewer & Plumbing Services" was coming out as "A-General Sewer &". Words
+  // are taken until the name is short enough, then any dangling joiner is trimmed off.
+  const shortName = (name) => {
+    const n = String(name || "").replace(/\b(LLC|Inc\.?|Corp\.?|Co\.?)\b\.?/gi, "").replace(/[,\s]+$/, "").trim();
+    if (!n) return "your business";
+    if (n.length <= 24) return n;
+    const out = [];
+    for (const w of n.split(/\s+/)) {
+      if ((out.join(" ") + " " + w).trim().length > 22 && out.length >= 2) break;
+      out.push(w);
+    }
+    while (out.length > 1 && /^(&|and|of|the|-)$/i.test(out[out.length - 1])) out.pop();
+    return out.join(" ");
+  };
+
+  // ---- a text thread on the customer's phone. The business is the contact, so its name
+  //      sits at the top and its messages come in grey on the left, the way they would.
+  function smsThread(report, messages) {
+    const name = shortName(report?.profile?.name);
+    const inner = h("div", { class: "sms-wrap" }, [
+      h("div", { class: "sms-head" }, [
+        h("span", { class: "sms-avatar", text: initials(name) }),
+        h("span", { class: "sms-name", text: name }),
+      ]),
+      h("div", { class: "sms-body" }, messages.map((m) =>
+        h("div", { class: `sms sms-${m.from}` }, [
+          m.stamp ? h("span", { class: "sms-stamp", text: m.stamp }) : null,
+          h("p", { class: "sms-b", text: m.text }),
+          m.note ? h("span", { class: "sms-note", text: m.note }) : null,
+        ].filter(Boolean))
+      )),
+    ]);
+    return deviceFrame(inner);
+  }
+
+  // ---- A. their listing now, and their listing done. Same card twice.
+  function visualGbpBeforeAfter(report) {
+    const before = visualMyListing(report);
+    const after = visualMyListing(report, { after: true });
+    if (!before || !after) return null;
+    return h("div", { class: "play-visual gba" }, [
+      h("div", { class: "gba-col" }, [h("span", { class: "gba-tag is-now", text: "Now" }), before]),
+      h("div", { class: "gba-col" }, [h("span", { class: "gba-tag is-done", text: "Done" }), after]),
+    ]);
+  }
+
+  // ---- B. the site we build, on a phone, with their name on it.
+  function visualSiteMock(report) {
+    const name = shortName(report?.profile?.name);
+    const trade = report?.ranking?.keyword || tradeWord(report);
+    const town = cityWord(report);
+    const phone = report?.profile?.phone || "";
+    const cap = (t) => t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+    const inner = h("div", { class: "site-wrap" }, [
+      h("div", { class: "site-bar" }, [h("span", { class: "site-logo", text: name }), h("span", { class: "site-call", text: "Call" })]),
+      h("div", { class: "site-hero" }, [
+        h("p", { class: "site-kicker", text: town ? `${cap(trade)} in ${town.split(",")[0]}` : cap(trade) }),
+        h("p", { class: "site-h1", text: "Same-day service. Upfront pricing." }),
+        h("div", { class: "site-ctas" }, [
+          h("span", { class: "site-btn is-primary", text: phone ? `Call ${phone}` : "Call now" }),
+          h("span", { class: "site-btn", text: "Book online" }),
+        ]),
+      ]),
+      h("ul", { class: "site-list" }, ["Emergency repairs", "Installations", "Maintenance plans"].map((t) => h("li", { text: t }))),
+      h("div", { class: "site-proof" }, [
+        h("span", { class: "site-stars", text: "\u2605\u2605\u2605\u2605\u2605" }),
+        h("span", { text: "Licensed and insured" }),
+      ]),
+    ]);
+    return h("div", { class: "play-visual sitemock" }, [deviceFrame(inner)]);
+  }
+
+  // ---- C. the review system, drawn as the three things that happen.
+  function visualReviewFlow(report) {
+    const name = shortName(report?.profile?.name);
+    const step = (n, title, node) => h("div", { class: "rf-step" }, [
+      h("span", { class: "rf-n", text: String(n) }),
+      h("p", { class: "rf-t", text: title }),
+      node,
+    ]);
+    const done = h("div", { class: "rf-card rf-job" }, [
+      h("span", { class: "rf-job-ico", text: "\u2713" }),
+      h("span", { class: "rf-job-t", text: "Job closed out" }),
+      h("span", { class: "rf-job-s", text: "Tuesday, 4:06 PM" }),
+    ]);
+    const text = h("div", { class: "rf-card rf-sms" }, [
+      h("span", { class: "rf-from", text: name }),
+      h("p", { class: "rf-b", text: "Thanks for having us out! Mind leaving us a quick review?" }),
+      h("span", { class: "rf-link", text: "g.page/r/review" }),
+      h("span", { class: "rf-when", text: "Two hours after the job" }),
+    ]);
+    const review = h("div", { class: "rf-card rf-rev" }, [
+      h("div", { class: "rf-rev-head" }, [
+        h("span", { class: "rf-rev-av", text: "S" }),
+        h("span", { class: "rf-rev-who" }, [h("b", { text: "Sarah K." }), h("span", { text: "Local Guide" })]),
+      ]),
+      h("span", { class: "rf-rev-stars", text: "\u2605\u2605\u2605\u2605\u2605" }),
+      h("p", { class: "rf-rev-b", text: "Showed up on time, fixed it fast. Would call again." }),
+      h("span", { class: "rf-rev-on", text: `on ${name}'s Google listing` }),
+    ]);
+    return h("div", { class: "play-visual reviewflow" }, [
+      step(1, "Job marked done", done),
+      h("span", { class: "rf-arrow", "aria-hidden": "true", text: "\u2192" }),
+      step(2, "The ask goes out", text),
+      h("span", { class: "rf-arrow", "aria-hidden": "true", text: "\u2192" }),
+      step(3, "The review lands", review),
+    ]);
+  }
+
+  // ---- D. the missed call, from her side of it.
+  function visualTextBack(report) {
+    const name = shortName(report?.profile?.name);
+    return h("div", { class: "play-visual textback" }, [smsThread(report, [
+      { from: "sys", stamp: "Missed call \u00b7 2:14 PM", text: "" },
+      { from: "biz", text: `Hi, it's ${name}. Sorry we missed you, we're on a job right now. What do you need a hand with?`, note: "8 seconds later" },
+      { from: "me", text: "Kitchen sink is backing up and won't drain. Can someone come out today?" },
+      { from: "biz", text: "Yes. I can fit you in this afternoon between 2 and 4. Tap to book: book.dialbridge.ai/slot" },
+      { from: "me", text: "Booked. Thank you!" },
+      { from: "biz", text: "You're set for 2 to 4, Mark. I'll text when I'm on the way." },
+    ])]);
+  }
+
+  // ---- F. the answer we are working toward: the same question, their name in it. The
+  //      rivals are the real ones from Places; the caption says plainly this is the goal,
+  //      the same way the listing card above says "Done".
+  function visualAiGoal(report) {
+    const rivals = rivalsFor(report, 2);
+    const me = report?.profile?.name;
+    if (!me) return null;
+    const kw = report?.ranking?.keyword || tradeWord(report);
+    const town = cityWord(report);
+    const entry = (name, sub, mine) => h("li", { class: mine ? "is-me" : "" }, [
+      h("b", { text: name }),
+      mine ? h("span", { class: "ai-you", text: "you" }) : null,
+      h("span", { text: sub }),
+    ].filter(Boolean));
+    return h("div", { class: "play-visual airep is-goal" }, [
+      h("div", { class: "ai-win" }, [
+        h("div", { class: "ai-bar" }, [h("span", { class: "ai-dot", "aria-hidden": "true" }), h("span", { class: "ai-bar-t", text: "Asking an AI assistant" })]),
+        h("p", { class: "ai-ask", text: town ? `Who's a good ${kw} in ${town.split(",")[0]}?` : `Who's a good ${kw} near me?` }),
+        h("div", { class: "ai-say" }, [
+          h("p", { class: "ai-intro", text: "These come up most, with strong recent reviews:" }),
+          h("ol", { class: "ai-list" }, [
+            entry(me, "Highly rated, answers fast, books online", true),
+            ...rivals.map((c) => entry(c.name, `${c.rating ? Number(c.rating).toFixed(1) + " stars" : ""}${c.reviewCount ? `, ${c.reviewCount} reviews` : ""}`, false)),
+          ]),
+        ]),
+      ]),
+      h("p", { class: "sr-cap", text: "The goal. Today your name is not in this answer." }),
+    ]);
+  }
+
+  // ---- F (retired). What the AI reads, as tiles. Not rendered.
+  function visualAiIngredients(report) {
+    const rating = num(report?.reviews?.googleRating);
+    const count = num(report?.reviews?.googleReviewCount) ?? 0;
+    const nap = report?.website?.callNumberMatchesGoogle;
+    const tile = (label, value, target, state) => h("div", { class: `aii-tile is-${state}` }, [
+      h("span", { class: "aii-l", text: label }),
+      h("span", { class: "aii-v", text: value }),
+      h("span", { class: "aii-t", text: target }),
+    ]);
+    return h("div", { class: "play-visual aiing" }, [
+      tile("Your rating", rating !== null ? rating.toFixed(1) : "\u2014", "Recommended shops average 4.3", rating === null ? "unknown" : rating >= 4.3 ? "ok" : rating >= 3.4 ? "warn" : "gap"),
+      tile("Your review count", fmt(count), "Enough recent ones to be trusted", count >= 25 ? "ok" : count >= 10 ? "warn" : "gap"),
+      tile("Your details", nap === false ? "Don't match" : nap === true ? "Match" : "Unchecked", "Same on Google, Yelp, Facebook and your site", nap === false ? "gap" : nap === true ? "ok" : "unknown"),
+    ]);
+  }
+
+  // ---- the six pieces. Always all six, in the order they depend on each other.
+  function tourFor(report) {
     const p = report?.profile || {};
     const w = report?.website || {};
     const rv = report?.reviews || {};
-    const r = report?.ranking || {};
     const sg = report?.signals || {};
+    const leak = report?.leak || {};
     const a = answersNow();
     const rating = num(rv.googleRating);
     const count = num(rv.googleReviewCount) ?? 0;
+    const rival = num(sg.topRivalReviews);
+    const kw = report?.ranking?.keyword || tradeWord(report);
 
-    const gbpDone = (p.photoCount || 0) >= 5 && Boolean(p.hasHours) && Boolean(p.phone) && Boolean(w.found);
-    const siteState = !w.found ? "todo" : w.broken ? "todo" : num(w.mobileScore) === null ? "unknown" : w.mobileScore >= 50 ? "done" : "todo";
-    const napState = w.callNumberMatchesGoogle === null || w.callNumberMatchesGoogle === undefined ? "unknown" : w.callNumberMatchesGoogle ? "done" : "todo";
-    const gridKnown = Array.isArray(r.ranks) && r.ranks.length > 0;
-    const mapsState = !gridKnown ? "unknown" : r.pointsInTop3 >= Math.ceil(r.ranks.length / 2) ? "done" : "todo";
-    // Five or fewer reviews means we saw all of them; above that the honest signal is the
-    // age of the ones Google shows first. Same rule as the finding.
-    const reviewsMoving = count <= 5
-      ? (sg.reviewVelocity90d || 0) > 0
-      : (sg.newestReviewDays !== null && sg.newestReviewDays !== undefined && sg.newestReviewDays <= 90);
-    const aiState = rating === null ? "unknown" : rating >= 3.4 && count >= 10 ? "done" : "todo";
-    // The capture and retention rows are things a system does. Nobody has them by
-    // accident, so they are a cross unless they told us it already runs on its own.
-    const quotesAuto = a.quoteFollowUp === "automatic";
+    const gaps = [];
+    if ((p.photoCount || 0) < 5) gaps.push("photos");
+    if (!p.hasHours) gaps.push("opening hours");
+    if (!w.found) gaps.push("a website link");
+
+    const siteNow = !w.found ? "Right now you don't have one on your listing."
+      : w.broken ? "Right now yours doesn't load."
+      : num(w.loadMs) !== null ? `Right now yours takes ${(w.loadMs / 1000).toFixed(1)} seconds to load on a phone.`
+      : null;
 
     return [
-      { stage: "Foundation", rows: [
-        { key: "gbp", label: "Google Business Profile complete", state: gbpDone ? "done" : "todo", detail: () => visualMyListing(report) },
-        { key: "site", label: "Website that loads on a phone", state: siteState },
-        { key: "nap", label: "Same name, phone and address everywhere", state: napState },
-        { key: "yelp", label: "Yelp profile claimed and rated", state: "unknown", note: "Checked once Yelp is connected." },
-      ]},
-      { stage: "Visibility", rows: [
-        { key: "maps", label: r.keyword ? `Top 3 on Google Maps for "${r.keyword}"` : "Top 3 on Google Maps for your trade", state: mapsState, detail: () => visualSearchList(report) },
-        { key: "reviews", label: "New reviews arriving every month", state: reviewsMoving ? "done" : "todo", detail: () => visualReviewGap(report) },
-        { key: "ai", label: "Named when somebody asks the AI", state: aiState, detail: () => visualAiAnswer(report) },
-      ]},
-      { stage: "Lead capture", rows: [
-        { key: "textback", label: "Missed calls get a text back in seconds", state: "todo" },
-        { key: "booking", label: "Customers book themselves into your calendar", state: "todo" },
-        { key: "quotes", label: "Quotes followed up until it is a yes or a no", state: quotesAuto ? "done" : "todo" },
-      ]},
-      { stage: "Retention", rows: [
-        { key: "ask", label: "Review request after every job, on its own", state: quotesAuto && reviewsMoving ? "done" : "todo" },
-        { key: "past", label: "Past customers hear from you before they go looking", state: "todo" },
-      ]},
+      {
+        name: "DialBridge Google Business Profile",
+        tag: "Your listing, finished and kept that way.",
+        includes: ["Real photos from your jobs, added monthly", "Category, hours and services set right", "Same name, phone and address on Google, Yelp and Facebook"],
+        now: gaps.length ? `Right now yours is missing ${listWords(gaps)}.` : "Right now yours is complete. We keep it that way.",
+        visual: visualGbpBeforeAfter(report),
+      },
+      {
+        name: "DialBridge Website",
+        tag: "A site that loads in a second and books the job.",
+        includes: ["Built for a phone, where your customers are", "Tap to call and book online on every screen", "Your number, hours and reviews, always current"],
+        now: siteNow,
+        visual: visualSiteMock(report),
+      },
+      {
+        name: "DialBridge Review Automation",
+        tag: "Every finished job asks for a review. You do nothing.",
+        includes: ["The text goes out two hours after the job closes", "In your name, with the link right there to tap", "Bad ones come to you first, not to Google"],
+        now: rival && rival > count ? `Right now you have ${fmt(count)}. The shop above you has ${fmt(rival)}.` : `Right now you have ${fmt(count)}.`,
+        visual: visualReviewFlow(report),
+      },
+      {
+        name: "DialBridge Missed-Call Text Back",
+        tag: "A missed call gets a text in seconds, and she books herself in.",
+        includes: ["Answers while you're under a sink", "She picks a slot from your real calendar", "Lands in your CRM, no phone tag"],
+        now: leak.jobValue ? `You told us calls wait when you're busy. Each one is about ${money(leak.jobValue)}.` : "You told us calls wait when you're busy.",
+        visual: visualTextBack(report),
+      },
+      {
+        name: "DialBridge Quote Follow-Up",
+        tag: "Open estimates get chased until it's a yes or a no.",
+        includes: ["Every quote tracked, no list to keep", "Texts check in on a schedule", "Past customers get the same, every season"],
+        now: a.quoteFollowUp === "automatic" ? "You told us this already runs on its own." : "You told us quotes get chased when you remember.",
+        visual: visualQuoteTrack(),
+      },
+      {
+        name: "DialBridge AEO",
+        tag: `Get named when somebody asks ChatGPT for a ${kw}.`,
+        includes: ["Rating and review count over the line the AI uses", "Your details identical everywhere it looks", "Fresh content monthly, which is what gets cited"],
+        now: rating !== null ? `Recommended shops average 4.3 stars. You're at ${rating.toFixed(1)}.` : "Recommended shops average 4.3 stars.",
+        visual: visualAiGoal(report),
+      },
     ];
   }
+
+  const LETTERS = "ABCDEF";
 
   function renderPlanSteps(report, summary) {
-    const groups = checklistFor(report);
-    const all = groups.flatMap((g) => g.rows);
-    const done = all.filter((x) => x.state === "done").length;
-    const known = all.filter((x) => x.state !== "unknown").length;
-    const todo = all.filter((x) => x.state === "todo").length;
-
-    const icon = (state) => h("span", {
-      class: `ck-ico is-${state}`, "aria-hidden": "true",
-      text: state === "done" ? "\u2713" : state === "todo" ? "\u2715" : "?",
-    });
-    const body = (x) => h("div", { class: "ck-body" }, [
-      h("span", { class: "ck-label", text: x.label }),
-      x.note ? h("span", { class: "ck-note", text: x.note }) : null,
-    ].filter(Boolean));
-
-    const row = (x) => {
-      const panel = typeof x.detail === "function" ? x.detail() : null;
-      if (!panel) return h("li", { class: `ck-row is-${x.state}` }, [icon(x.state), body(x)]);
-      // A cross with evidence opens by default: that is the moment the page is for.
-      const det = h("details", { class: `ck-row has-detail is-${x.state}`, ...(x.state === "todo" ? { open: "" } : {}) }, [
-        h("summary", { class: "ck-sum" }, [icon(x.state), body(x), h("span", { class: "ck-chev", "aria-hidden": "true", text: "\u203a" })]),
-        h("div", { class: "ck-detail" }, [panel]),
-      ]);
-      return h("li", {}, [det]);
-    };
-
+    const pieces = tourFor(report).filter((x) => x.visual);
     return [
-      h("div", { class: "ck-head" }, [
-        h("p", { class: "ck-count" }, [h("b", { text: String(done) }), ` of ${known} in place`]),
-        h("span", { class: "ck-bar", "aria-hidden": "true" }, [
-          h("span", { class: "ck-bar-fill", style: `width: ${known ? Math.round((done / known) * 100) : 0}%` }),
-        ]),
-      ]),
-      ...groups.map((g) => h("section", { class: "ck-stage" }, [
-        h("h4", { class: "ck-stage-t", text: g.stage }),
-        h("ul", { class: "ck-list" }, g.rows.map(row)),
-      ])),
-      renderPlanClose(report, todo),
+      h("ol", { class: "features" }, pieces.map((x, i) =>
+        h("li", { class: "fb" }, [
+          h("div", { class: "fb-copy" }, [
+            h("span", { class: "fb-letter", "aria-hidden": "true", text: LETTERS[i] || "" }),
+            h("h4", { class: "fb-name", text: x.name }),
+            h("p", { class: "fb-issue", text: x.tag }),
+            h("ul", { class: "fb-list" }, x.includes.map((t) => h("li", { text: t }))),
+            x.now ? h("p", { class: "fb-now" }, [
+              h("span", { class: "fb-now-tag", text: "Right now" }),
+              ((t) => t.charAt(0).toUpperCase() + t.slice(1))(x.now.replace(/^Right now /, "")),
+            ]) : null,
+          ].filter(Boolean)),
+          h("div", { class: "fb-art" }, [x.visual]),
+        ])
+      )),
+      renderPlanClose(report),
     ];
   }
 
-  // The close is the count. Every cross above is a thing the system runs, so the ask
-  // writes itself.
-  function renderPlanClose(report, todo) {
+  function renderPlanClose(report) {
     const g = report?.growth;
     return h("div", { class: "plan-close" }, [
       h("div", { class: "plan-ask" }, [
-        h("h4", { text: todo ? `We set up the other ${todo}.` : "You have the full setup." }),
+        h("h4", { text: "All six, set up for you." }),
         h("p", { text: g
-          ? `Every cross above is something the system runs for you. One more job a week at your ticket is ${money(g.perMonth)} a month. Reply to the text we sent you and we will book an operational review.`
-          : "Reply to the text we sent you and we will book an operational review." }),
+          ? `That is the whole system. One more job a week at your ticket is ${money(g.perMonth)} a month. Reply to the text we sent you and we will book an operational review.`
+          : "That is the whole system. Reply to the text we sent you and we will book an operational review." }),
       ]),
     ]);
   }
