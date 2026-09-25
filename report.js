@@ -2573,7 +2573,6 @@
         title: "A Review Request After Every Job",
         art: artReviewPhone(report),
         legend: ["The request goes out on its own", "A new 5-star review on Google"],
-        note: "Our system texts every customer your review link two hours after the job.",
         auto: true,
         wide: true,
       }),
