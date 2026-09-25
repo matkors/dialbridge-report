@@ -2530,6 +2530,7 @@
     const part = (n, title) => h("div", { class: `gp-part${n > 1 ? " is-next" : ""}` }, [h("span", { class: "gp-part-n", text: String(n) }), h("h3", { class: "gp-part-t", text: title })]);
 
     return [
+      h("a", { class: "book-jump", href: "#book" }, [`Book your free Growth Plan call`, h("span", { "aria-hidden": "true", text: " \u2193" })]),
       part(1, "Get Your Business Foundations in Place"),
       planSection({
         kicker: "Foundation 1",
@@ -2616,15 +2617,75 @@
     ];
   }
 
+  // ============ THE ASK: BOOK THE CALL ============
+  // The growth plan ends on the thing it is for: a free 20-minute call, booked right here
+  // on a GoHighLevel calendar made for this funnel ("Free Growth Plan Call"), so bookings
+  // from the report are tracked separately from the other calendars. The calendar loads
+  // only when the section is about to come into view, so it costs nothing to anyone who
+  // never scrolls this far, and it is pre-filled with whatever they already gave us.
+  const BOOKING_CALENDAR_ID = "9R6XUgtKzTODm2dbvLdP";
+  const BOOKING_URL = `https://api.leadconnectorhq.com/widget/booking/${BOOKING_CALENDAR_ID}`;
+
+  function bookingSrc() {
+    const q = new URLSearchParams();
+    if (window.leadFirstName) q.set("first_name", window.leadFirstName);
+    if (window.leadEmail) q.set("email", window.leadEmail);
+    if (window.leadPhone) q.set("phone", window.leadPhone);
+    const qs = q.toString();
+    return qs ? `${BOOKING_URL}?${qs}` : BOOKING_URL;
+  }
+
+  function loadEmbedScript() {
+    if (document.querySelector('script[data-ghl-embed]')) return;
+    const sc = document.createElement("script");
+    sc.src = "https://link.msgsndr.com/js/form_embed.js";
+    sc.async = true;
+    sc.setAttribute("data-ghl-embed", "1");
+    document.body.appendChild(sc);
+  }
+
   function renderPlanClose(report) {
     const g = report?.growth;
     const who = shortName(report?.profile?.name);
-    return h("div", { class: "plan-close" }, [
-      h("div", { class: "plan-ask" }, [
-        h("h4", { text: `Get this set up for ${who}` }),
-        h("p", { text: g
-          ? `We build and run all of it for you. One more job a week at your ticket is ${money(g.perMonth)} a month. Reply to the text we sent you and we'll book a call.`
-          : "We build and run all of it for you. Reply to the text we sent you and we'll book a call." }),
+    const slot = h("div", { class: "bk-cal-slot" }, [
+      h("div", { class: "bk-cal-wait" }, [h("span", { class: "bk-spin", "aria-hidden": "true" }), "Loading available times\u2026"]),
+    ]);
+
+    const mount = () => {
+      if (slot.dataset.loaded) return;
+      slot.dataset.loaded = "1";
+      const frame = h("iframe", {
+        src: bookingSrc(),
+        id: `${BOOKING_CALENDAR_ID}_${Date.now()}`,
+        title: "Book your free Growth Plan call",
+        scrolling: "no",
+        loading: "lazy",
+        class: "bk-cal-frame",
+      });
+      frame.addEventListener("load", () => slot.classList.add("is-ready"), { once: true });
+      slot.appendChild(frame);
+      loadEmbedScript();
+    };
+    if ("IntersectionObserver" in window) {
+      const io = new IntersectionObserver((entries) => {
+        if (entries.some((e) => e.isIntersecting)) { mount(); io.disconnect(); }
+      }, { rootMargin: "800px 0px" });
+      requestAnimationFrame(() => io.observe(slot));
+    } else {
+      mount();
+    }
+
+    return h("section", { class: "book", id: "book" }, [
+      h("p", { class: "book-kick", text: "Your next step" }),
+      h("h3", { class: "book-title" }, g
+        ? ["Let's Add ", h("span", { class: "book-money", text: `${money(g.perMonth)} a Month` }), " to ", h("span", { class: "book-who", text: who })]
+        : [`Let's Get This Set Up for ${who}`]),
+      h("p", { class: "book-sub", text: "Book a free 20-minute call. We'll walk through your plan, what we'd set up first, and what it takes." }),
+      h("ul", { class: "book-chips" }, ["Free", "20 minutes", "No obligation"].map((t) => h("li", { text: t }))),
+      h("div", { class: "book-cal" }, [slot]),
+      h("p", { class: "book-alt" }, [
+        "Calendar not loading? ",
+        h("a", { href: BOOKING_URL, target: "_blank", rel: "noopener", text: "Book here instead" }),
       ]),
     ]);
   }
@@ -2645,6 +2706,7 @@
       event.preventDefault();
       const input = form.querySelector("#planEmail");
       const email = input.value.trim();
+      window.leadEmail = email;
       const button = form.querySelector("button");
       if (!/^[^@\s]+@[^@\s.]+\.[a-z]{2,}$/i.test(email)) {
         note.textContent = "That email doesn't look right.";
@@ -2829,6 +2891,8 @@
 
         lastName = name;
         lastPhone = phoneInput.value;
+        window.leadFirstName = String(name || "").trim().split(/\s+/)[0] || window.leadFirstName;
+        window.leadPhone = phoneInput.value;
         button.disabled = true;
         button.textContent = "Sending...";
         try {

@@ -3601,3 +3601,46 @@ details[open] .ck-chev { transform: rotate(90deg); }
 .im-mic::after { content: ""; position: absolute; left: 50%; top: 4px; width: 10px; height: 6px; transform: translateX(-50%); border: 1.5px solid #b3b3b8; border-top: 0; border-radius: 0 0 6px 6px; }
 .im-mic::before { content: ""; position: absolute; left: 50%; top: 11px; width: 1.5px; height: 3px; transform: translateX(-50%); background: #b3b3b8; }
 .ps-art .rc-list { overflow: hidden; }
+
+
+/* ============ THE ASK: BOOK THE CALL ============ */
+.book { margin-top: 44px; padding: 40px 28px 30px; border-radius: 24px; background: var(--ink); color: #fff; display: grid; justify-items: center; text-align: center; gap: 12px; }
+.book p { margin: 0; }
+.book-kick { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #ffb27a; }
+.card-plan .book-title { margin: 0; max-width: 24ch; font-size: clamp(1.5rem, 3.6vw, 2.25rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.15; color: #fff; text-wrap: balance; }
+.book-money { color: #ffb27a; }
+.book-sub { max-width: 52ch; font-size: 1rem; line-height: 1.55; color: #cfd6e0; }
+.book-chips { list-style: none; margin: 4px 0 6px; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.book-chips li { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.08); font-size: 0.85rem; font-weight: 600; }
+.book-chips li::before { content: "\2713"; color: #34c759; font-weight: 800; }
+.book-cal { width: 100%; max-width: 760px; margin-top: 8px; background: #fff; border-radius: 18px; overflow: hidden; box-shadow: 0 24px 50px -16px rgba(0,0,0,.5); }
+.bk-cal-slot { position: relative; min-height: 640px; }
+.bk-cal-frame { display: block; width: 100%; min-height: 640px; border: 0; overflow: hidden; }
+.bk-cal-wait { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; color: #5f6368; font-size: 0.92rem; }
+.bk-cal-slot.is-ready .bk-cal-wait { display: none; }
+.bk-spin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #dadce0; border-top-color: var(--accent); animation: bkspin .8s linear infinite; }
+@keyframes bkspin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .bk-spin { animation: none; } }
+.book-alt { font-size: 0.82rem; color: #9aa6b5; }
+.book-alt a { color: #fff; }
+
+/* The jump link at the top of the plan */
+.book-jump { justify-self: center; display: inline-flex; align-items: center; gap: 4px; margin: 6px auto 0; padding: 11px 20px; border-radius: 999px; background: var(--accent); color: #fff; font-weight: 700; font-size: 0.95rem; text-decoration: none; box-shadow: 0 8px 20px -8px rgba(232,112,42,.7); }
+.book-jump:hover { filter: brightness(1.05); }
+.plan-locked > .book-jump { display: table; }
+
+/* The old dark box is replaced; the consent line under it keeps its alignment. */
+.card-plan > .gate-fine { padding: 0 28px; }
+
+@media (max-width: 640px) {
+  .book { padding: 30px 14px 22px; border-radius: 18px; }
+  .book-cal { border-radius: 14px; }
+  .bk-cal-slot, .bk-cal-frame { min-height: 760px; }
+}
+
+/* Keep the business name whole; it was breaking at its own hyphen. */
+.book-who { white-space: nowrap; }
+@media (max-width: 640px) {
+  /* The calendar sizes itself once it loads; this is only the floor while it does. */
+  .bk-cal-slot, .bk-cal-frame { min-height: 600px; }
+}
