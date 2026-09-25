@@ -2523,8 +2523,7 @@
       part(1, "Get Your Business Foundations in Place"),
       planSection({
         kicker: "Foundation 1",
-        title: "A Website That Gets Calls",
-        line: "The right pages, with call and book buttons on every one.",
+        title: "A Website That Converts Visitors Into Jobs",
         art: artSiteExample(),
         legend: ["Home: what you do, in 5 seconds", "About: real photos of your team", "Services: a page for every service", "Locations: a page for every town"],
         wide: true,
