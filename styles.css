@@ -3665,3 +3665,10 @@ details[open] .ck-chev { transform: rotate(90deg); }
 
 .nowrap { white-space: nowrap; }
 .hero .sub { text-wrap: balance; }
+
+/* The gap from the search hint down to "How it works" was 108px of stacked padding
+   (the empty status line, the hero's bottom padding and the section's top padding).
+   Trimmed to read as one page rather than two. */
+.hero { padding-bottom: 14px; }
+.status { margin-top: 10px; }
+.how { padding-top: 10px; }
