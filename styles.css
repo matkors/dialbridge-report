@@ -3835,3 +3835,11 @@ details[open] .ck-chev { transform: rotate(90deg); }
 
 /* The calendar frame needs a real height of its own; clipped to zero it was never fetched. */
 .bk-cal-frame { min-height: 780px; }
+
+/* However many cards there are (the map card is missing when a business has no pin),
+   they share the full row instead of leaving an empty slot on the right. */
+.snapshot { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+@media (max-width: 860px) {
+  .snapshot { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
+  .snapshot > .sn-card:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
