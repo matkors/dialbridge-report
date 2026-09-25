@@ -1948,8 +1948,8 @@
 
   const pin = (n, cls = "") => h("span", { class: `pin ${cls}`.trim(), text: String(n) });
 
-  function planSection({ kicker, title, line, art, legend, auto }) {
-    return h("section", { class: "ps" }, [
+  function planSection({ kicker, title, line, art, legend, auto, wide }) {
+    return h("section", { class: `ps${wide ? " is-wide" : ""}` }, [
       h("p", { class: "ps-kick", text: kicker }),
       h("h4", { class: "ps-title", text: title }),
       line ? h("p", { class: "ps-line", text: line }) : null,
@@ -1961,39 +1961,111 @@
     ].filter(Boolean));
   }
 
-  // ---- a real, well-built contractor homepage on a phone, marked up
+  // ---- four real pages from one well-built contractor site: home, about, services,
+  //      locations. The point is the set of pages, which is what ranks, not one homepage.
   function artSiteExample() {
-    const shot = img("img/example-site.webp", { alt: "The mobile homepage of a well-known electrical company", loading: "lazy" });
-    return h("figure", { class: "ex" }, [
-      h("div", { class: "ex-phone" }, [
-        shot,
-        pin(1, "at-headline"),
-        pin(2, "at-photo"),
-        pin(3, "at-bar"),
+    const page = (src, label, n) => h("figure", { class: "sp" }, [
+      h("div", { class: "sp-phone" }, [img(src, { alt: `${label} page of a top home service company's website`, loading: "lazy" }), pin(n, "at-top")]),
+      h("figcaption", { class: "sp-label", text: label }),
+    ]);
+    return h("div", { class: "sps" }, [
+      h("div", { class: "sp-row" }, [
+        page("img/page-home.webp", "Home", 1),
+        page("img/page-about.webp", "About", 2),
+        page("img/page-services.webp", "Services", 3),
+        page("img/page-locations.webp", "Locations", 4),
       ]),
-      h("figcaption", { class: "ex-cap", text: "Example: a top home service company's homepage on a phone" }),
+      h("p", { class: "sp-cap", text: "Example: pages from a top home service company's website" }),
     ]);
   }
 
-  // ---- the same name, address and phone on the three places people check. Three
-  //      listings with equal signs between them: the point is visible before it is read.
+  // ---- the same name, address and phone on Google, Yelp and Facebook, each drawn the
+  //      way that site actually lays out a business, with the three fields highlighted.
+  function napIco(kind) {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24"); svg.setAttribute("class", "ni"); svg.setAttribute("aria-hidden", "true");
+    const path = document.createElementNS(ns, "path");
+    path.setAttribute("fill", "currentColor");
+    path.setAttribute("d", {
+      pin: "M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z",
+      phone: "M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z",
+      clock: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm1 10.4 3.2 1.9-.8 1.3L11 13V7h2z",
+      globe: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.9 6h-2.9a15.7 15.7 0 0 0-1.4-3.6A8 8 0 0 1 18.9 8zM12 4c.8 1.2 1.5 2.5 1.9 4h-3.8c.4-1.5 1.1-2.8 1.9-4zM4.3 14a8.2 8.2 0 0 1 0-4h3.3a16.5 16.5 0 0 0 0 4zm.8 2h2.9c.3 1.3.8 2.5 1.4 3.6A8 8 0 0 1 5.1 16zM8 8H5.1a8 8 0 0 1 4.3-3.6C8.8 5.5 8.3 6.7 8 8zm4 12c-.8-1.2-1.5-2.5-1.9-4h3.8c-.4 1.5-1.1 2.8-1.9 4zm2.3-6H9.7a14.7 14.7 0 0 1 0-4h4.6a14.7 14.7 0 0 1 0 4zm.3 5.6c.6-1.1 1.1-2.3 1.4-3.6h2.9a8 8 0 0 1-4.3 3.6zm1.8-5.6a16.5 16.5 0 0 0 0-4h3.3a8.2 8.2 0 0 1 0 4z",
+    }[kind] || "");
+    svg.appendChild(path);
+    return svg;
+  }
+
   function artNap(report) {
     const p = report?.profile || {};
     const name = p.name || "Your business";
     const addr = p.address || `Serves ${townOf(report) || "your area"}`;
     const phone = p.phone || "(555) 123-4567";
-    const card = (brand, cls, first) => h("div", { class: `nq ${cls}` }, [
-      h("div", { class: "nq-top" }, [h("span", { class: "nq-logo", text: brand })]),
-      h("div", { class: "nq-body" }, [
-        h("p", { class: "nq-f nq-name" }, [h("span", { text: name }), first ? pin(1, "at-right") : null].filter(Boolean)),
-        h("p", { class: "nq-f" }, [h("span", { text: addr }), first ? pin(2, "at-right") : null].filter(Boolean)),
-        h("p", { class: "nq-f nq-phone" }, [h("span", { text: phone }), first ? pin(3, "at-right") : null].filter(Boolean)),
+    const rating = num(report?.reviews?.googleRating);
+    const count = num(report?.reviews?.googleReviewCount) ?? 0;
+    const kw = report?.ranking?.keyword || tradeWord(report) || "contractor";
+    const cat = p.category || capFirst(kw);
+    const town = townOf(report);
+    const photo = p.photo ? window.DialBridgeScan?.photoUrl?.(p.photo, 640) : "";
+    const hero = (cls) => photo
+      ? h("div", { class: cls }, [img(photo, { alt: "", loading: "lazy" })])
+      : h("div", { class: `${cls} is-blank` });
+    const mark = (text, n, cls = "") => h("span", { class: `hl ${cls}`.trim() }, [text, n ? pin(n, "at-hl") : null].filter(Boolean));
+
+    const google = h("div", { class: "lg lg-google" }, [
+      hero("lg-photo"),
+      h("div", { class: "lg-body" }, [
+        h("p", { class: "lg-g-name" }, [mark(name), pin(1, "at-end")]),
+        h("p", { class: "lg-g-rate" }, [h("span", { text: rating !== null ? rating.toFixed(1) : "" }), starsFor(rating), h("span", { class: "lg-g-muted", text: ` (${count})` })]),
+        h("p", { class: "lg-g-muted", text: `${cat} in ${town || "your area"}` }),
+        h("div", { class: "lg-g-chips" }, ["Call", "Directions", "Website", "Save"].map((t) => h("span", { text: t }))),
+        h("div", { class: "lg-g-row" }, [napIco("pin"), mark(addr), pin(2, "at-end")]),
+        h("div", { class: "lg-g-row" }, [napIco("clock"), h("span", {}, [h("b", { class: "lg-open", text: "Open" }), " \u00b7 Closes 6 PM"])]),
+        h("div", { class: "lg-g-row" }, [napIco("phone"), mark(phone), pin(3, "at-end")]),
       ]),
     ]);
-    const eq = () => h("span", { class: "nq-eq", "aria-hidden": "true", text: "=" });
-    return h("div", { class: "nqs" }, [
-      h("div", { class: "nq-row" }, [card("Google", "is-google", true), eq(), card("yelp", "is-yelp"), eq(), card("facebook", "is-fb")]),
-      h("p", { class: "nq-ok", text: "\u2713 Identical everywhere" }),
+
+    const yelp = h("div", { class: "lg lg-yelp" }, [
+      h("div", { class: "lg-y-bar" }, [h("span", { class: "lg-y-logo", text: "yelp" }), h("span", { class: "lg-y-search", text: `${kw} near ${town || "me"}` })]),
+      h("div", { class: "lg-y-hero" }, [
+        photo ? img(photo, { alt: "", loading: "lazy" }) : null,
+        h("div", { class: "lg-y-over" }, [
+          h("p", { class: "lg-y-name" }, [mark(name, null, "on-dark")]),
+          h("p", { class: "lg-y-rate" }, [
+            h("span", { class: "lg-y-stars", "aria-hidden": "true" }, [1, 2, 3, 4, 5].map((i) => h("i", { class: rating !== null && i > Math.round(rating) ? "off" : "", text: "\u2605" }))),
+            h("span", { text: ` ${count} reviews` }),
+          ]),
+          h("p", { class: "lg-y-claim" }, [h("b", { text: "\u2713 Claimed" }), ` \u00b7 ${cat}`]),
+        ]),
+      ].filter(Boolean)),
+      h("div", { class: "lg-y-body" }, [
+        h("p", { class: "lg-y-h", text: "Location & Hours" }),
+        h("div", { class: "lg-y-loc" }, [h("span", { class: "lg-y-map", "aria-hidden": "true" }, [h("i")]), mark(addr)]),
+        h("div", { class: "lg-y-phone" }, [mark(phone), napIco("phone")]),
+      ]),
+    ]);
+
+    const fb = h("div", { class: "lg lg-fb" }, [
+      hero("lg-f-cover"),
+      h("div", { class: "lg-f-head" }, [
+        h("span", { class: "lg-f-av", text: initials(shortName(name)) }),
+        h("p", { class: "lg-f-name" }, [mark(name)]),
+        h("p", { class: "lg-f-cat", text: cat }),
+        h("div", { class: "lg-f-btns" }, [h("span", { class: "is-primary", text: "Call now" }), h("span", { text: "Message" })]),
+      ]),
+      h("div", { class: "lg-f-intro" }, [
+        h("p", { class: "lg-f-h", text: "Intro" }),
+        h("div", { class: "lg-f-row" }, [napIco("pin"), mark(addr)]),
+        h("div", { class: "lg-f-row" }, [napIco("phone"), mark(phone)]),
+        h("div", { class: "lg-f-row" }, [napIco("clock"), h("span", { class: "lg-open", text: "Open now" })]),
+      ]),
+    ]);
+
+    const eq = () => h("span", { class: "lg-eq", "aria-hidden": "true", text: "=" });
+    return h("div", { class: "lgs" }, [
+      h("div", { class: "lg-row" }, [google, eq(), yelp, eq(), fb]),
+      h("p", { class: "lg-ok", text: "\u2713 Identical everywhere" }),
     ]);
   }
 
@@ -2116,8 +2188,10 @@
       planSection({
         kicker: "Foundation 1",
         title: "A Website That Gets Calls",
+        line: "The right pages, with call and book buttons on every one.",
         art: artSiteExample(),
-        legend: ["Says what you do in 5 seconds", "Real photos of your team", "Call and book on every screen"],
+        legend: ["Home: what you do, in 5 seconds", "About: real photos of your team", "Services: a page for every service", "Locations: a page for every town"],
+        wide: true,
       }),
       planSection({
         kicker: "Foundation 2",
@@ -2131,6 +2205,7 @@
         line: "Google checks. If they don't match, you rank lower.",
         art: artNap(report),
         legend: ["Same business name", "Same address", "Same phone number"],
+        wide: true,
       }),
 
       part(2, "The System Top Contractors Use"),
