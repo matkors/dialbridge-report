@@ -3659,12 +3659,9 @@ details[open] .ck-chev { transform: rotate(90deg); }
 .h1-accent { display: block; }
 /* The hero column is 760px, too narrow for either sentence to hold a line at this size.
    The headline alone spills wider, centred on the column; nothing else moves. */
-.hero h1 {
-  width: min(1040px, calc(100vw - 40px));
-  margin-left: 50%;
-  transform: translateX(-50%);
-  font-size: clamp(1.9rem, 4.2vw, 3rem);
-}
+/* Two short lines, each one statement, inside the hero column. The earlier version spilled
+   past the column and its second line ran into the edge on smaller screens. */
+.hero h1 { margin-bottom: 30px; font-size: clamp(2.1rem, 6vw, 3.4rem); }
 
 .nowrap { white-space: nowrap; }
 .hero .sub { text-wrap: balance; }
