@@ -3546,3 +3546,8 @@ details[open] .ck-chev { transform: rotate(90deg); }
   .rp { grid-template-columns: 1fr; justify-items: center; }
   .rp-review { width: 100%; max-width: 340px; }
 }
+
+/* The consent line under the plan lines up with the dark box above it: same
+   width, same left edge as the box's text. An old "margin: 14px 0 0 !important"
+   was pinning a narrow, centred block to the left. */
+.card-plan > .gate-fine { max-width: none; margin: 12px 0 0 !important; padding: 0 20px; text-align: left; }
