@@ -1168,6 +1168,9 @@
       profile: {
         name: profile.name,
         category: profile.category || "",
+        // The trade we actually searched on. Google files many real trades under the
+        // category "Services", and "who comes up for services near you" means nothing.
+        trade: trade || "",
         address: profile.address || "",
         phone: profile.phone || "",
         photoCount: profile.photos?.length || 0,

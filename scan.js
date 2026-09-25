@@ -47,6 +47,7 @@
       if (key === "class") node.className = value;
       else if (key === "text") node.textContent = value;
       else if (key === "style") node.style.cssText = value;
+      else if (typeof value === "function" && key.startsWith("on")) node.addEventListener(key.slice(2), value);
       else node.setAttribute(key, value);
     }
     for (const child of [].concat(children)) {

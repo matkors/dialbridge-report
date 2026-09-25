@@ -307,6 +307,12 @@
         h("i", { class: Number(k) >= 1 && Number(k) <= 3 ? "ok" : Number(k) >= 1 ? "mid" : "" }))) : null,
     ].filter(Boolean)));
 
+    if (!total && report?.profile?.serviceAreaOnly) cards.push(h("div", { class: "sn-card sn-addr" }, [
+      h("p", { class: "sn-k", text: "Address on Google" }),
+      h("p", { class: "sn-v", text: "Hidden" }),
+      h("p", { class: "sn-s", text: "Service-area listing, no map pin" }),
+    ]));
+
     if (rivals.length) cards.push(h("div", { class: "sn-card" }, [
       h("p", { class: "sn-k", text: "Your top competitors" }),
       h("div", { class: "sn-rivals" }, rivals.map((c, i) => h("div", { class: "sn-rival" }, [
@@ -856,8 +862,18 @@
 
   // When there is no map, say so and say why. It used to return null, so the section simply
   // was not there, and the only way to find out was somebody asking where the heatmap went.
-  const tradeWord = (report) =>
-    String(report?.profile?.category || "your trade").toLowerCase();
+  const GENERIC_CATEGORY = /^(services?|point of interest|establishment|stores?|contractors?|general contractors?)$/i;
+  // The category as Google would show it, unless it is one of the empty ones.
+  const catLabel = (report, kw) => {
+    const cat = String(report?.profile?.category || "").trim();
+    return cat && !GENERIC_CATEGORY.test(cat) ? cat : capFirst(kw || "contractor");
+  };
+  const tradeWord = (report) => {
+    const cat = String(report?.profile?.category || "").trim();
+    const trade = String(report?.profile?.trade || "").trim();
+    if (trade && (!cat || GENERIC_CATEGORY.test(cat))) return trade.toLowerCase();
+    return (cat && !GENERIC_CATEGORY.test(cat) ? cat : trade || "your trade").toLowerCase();
+  };
   // "74-30 87th Ave, Woodhaven, NY 11421, USA" -> "Woodhaven, NY". The first version took
   // the first two parts, which is the street for any business with a full address, and
   // printed "Plumber in 74-30 87th Ave".
@@ -876,43 +892,58 @@
   function renderNoMap(report) {
     const sab = report?.profile?.serviceAreaOnly;
     const kw = report?.ranking?.keyword || tradeWord(report);
+    const hasKw = kw && kw !== "your trade";
     const town = cityWord(report);
     const rivals = rivalsFor(report, 5);
+    const initialsOf = (n) => String(n || "").split(/\s+/).filter((w) => /^[A-Za-z]/.test(w)).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
 
-    // This used to say "we cannot measure you" and stop, which lands on a working
-    // contractor as a shrug and wastes the section. We still cannot put a grid in front of
-    // them, and pretending otherwise would mean nine red pins that are not a measurement.
-    // But the market around them is measurable, and showing who does come up is the same
-    // argument without the false precision.
+    // Who does come up. We cannot put a grid in front of a listing Google shows no pin
+    // for, but the market around them is measurable, and it makes the same argument
+    // without false precision.
     const market = rivals.length
-      ? h("div", { class: "nomap-market" }, [
-          h("p", { class: "sr-head" }, [
-            "Who comes up ",
-            town ? `for ${kw} around ${town}` : `for ${kw} near you`,
-            " right now:",
-          ]),
-          h("ol", { class: "sr-list" }, rivals.map((c, i) =>
-            h("li", { class: "sr-row" }, [
-              h("span", { class: "sr-pos", text: String(i + 1) }),
-              h("span", { class: "sr-name", text: c.name }),
-              h("span", { class: "sr-stars", text: c.rating ? `★ ${Number(c.rating).toFixed(1)}` : "" }),
-              h("span", { class: "sr-reviews", text: c.reviewCount ? `${c.reviewCount} reviews` : "" }),
+      ? h("div", { class: "nm-market" }, [
+          h("p", { class: "nm-h" }, [
+            "Who customers see instead",
+            hasKw ? h("span", { text: ` for ${kw}${town ? ` around ${town}` : " near you"}` }) : null,
+          ].filter(Boolean)),
+          h("ol", { class: "nm-list" }, rivals.map((c, i) =>
+            h("li", { class: "nm-row" }, [
+              h("span", { class: "nm-pos", text: String(i + 1) }),
+              h("span", { class: `nm-av a${(i % 5) + 1}`, text: initialsOf(c.name) }),
+              h("span", { class: "nm-name", text: c.name }),
+              h("span", { class: "nm-rate" }, c.rating ? [h("b", { text: Number(c.rating).toFixed(1) }), starsFor(c.rating)] : []),
+              h("span", { class: "nm-count", text: c.reviewCount ? `${Number(c.reviewCount).toLocaleString("en-US")} reviews` : "" }),
             ])
           )),
         ])
       : null;
 
-    return h("section", { class: "card card-wide" }, [
-      h("div", { class: "card-head" }, [
-        h("h3", { text: sab ? "Your listing has no address on it" : "Where you show up on Google Maps" }),
+    if (!sab) {
+      return h("section", { class: "card card-wide nomap" }, [
+        h("div", { class: "card-head" }, [h("h3", { text: "Where you show up on Google Maps" })]),
+        h("p", { class: "muted", text: "We could not measure your position on the map for this business. Everything else in this report is unaffected." }),
+        market,
+      ].filter(Boolean));
+    }
+
+    // A service-area listing: the address is hidden on purpose, usually because the
+    // business runs from home. Say that plainly first, so it reads as normal, then say
+    // what it does and does not change.
+    const fact = (tone, k, v, sub) => h("div", { class: `nm-fact is-${tone}` }, [
+      h("p", { class: "nm-k", text: k }),
+      h("p", { class: "nm-v", text: v }),
+      h("p", { class: "nm-s", text: sub }),
+    ]);
+    return h("section", { class: "card card-wide nomap" }, [
+      h("div", { class: "card-head" }, [h("h3", { text: "Your Google Listing Hides Your Address" })]),
+      h("p", { class: "nm-lead", text: "That is normal if you work from home. It keeps your address private, and Google still shows you to people in the area you serve." }),
+      h("div", { class: "nm-facts" }, [
+        fact("warn", "Address on Google", "Hidden", "Set up as a service-area business"),
+        fact("warn", "Map ranking", "Not measurable", "No pin on the map for us to check from"),
+        fact("ok", "What still wins", "Reviews + profile", "The two things you control either way"),
       ]),
-      h("p", { class: "muted", text: sab
-        ? "Yours is set up as a service-area business, which means Google shows no pin for you. We check map position by searching from 25 points and reading back who comes up, and listings without an address do not come back in those searches. So there is no grid we can honestly put in front of you. That is a limit on what we can measure, not a verdict on how you rank."
-        : "We could not measure your position on the map for this business. Everything else in this report is unaffected." }),
       market,
-      sab
-        ? h("p", { class: "muted", text: "Those are the companies your customers are choosing between. Every one of them is winning on the same two things you can move without an address: how strong the profile is, and how many recent reviews sit behind it. That is what the rest of this report is about." })
-        : null,
+      market ? h("p", { class: "nm-foot", text: "None of them need your address to beat you. They win on reviews and a complete profile, and so can you." }) : null,
     ].filter(Boolean));
   }
 
@@ -1728,7 +1759,33 @@
     ["floor", ["Hardwood", "Tile", "Refinishing"]],
     ["landscap", ["Lawn care", "Hardscaping", "Cleanups"]],
     ["garage", ["Door repair", "New doors", "Openers"]],
+    ["clean", ["Deep cleaning", "Move-out cleaning", "Weekly cleaning"]],
+    ["maid", ["Deep cleaning", "Move-out cleaning", "Weekly cleaning"]],
   ];
+  // The sample customer in the plan's pictures: what she texts, what lands in the
+  // calendar, and what the quote is for. Matched on the trade we searched.
+  const SAMPLE_JOBS = [
+    [/clean|maid|janitor/, { ask: "Need a deep clean for a 3 bedroom house. Anything open this week?", short: "Deep clean", quote: "Move-out deep clean",
+      lines: [["Deep clean, 3 bedrooms", 0.6], ["Inside oven and fridge", 0.32], ["Supplies", 0]] }],
+    [/junk|haul|removal/, { ask: "Need a garage cleared out. How soon can you come?", short: "Garage cleanout", quote: "Full garage cleanout",
+      lines: [["Load and haul-away", 0.6], ["Crew of two, 3 hours", 0.32], ["Disposal fees", 0]] }],
+    [/roof|gutter/, { ask: "Got a leak in the roof after the storm. Can someone take a look?", short: "Roof leak", quote: "Roof repair" }],
+    [/hvac|heat|air|furnace|cool/, { ask: "AC stopped blowing cold. Can someone come out?", short: "AC repair", quote: "New AC system" }],
+    [/electric/, { ask: "Half the outlets in my kitchen stopped working. Can someone come out?", short: "Outlet repair", quote: "Panel upgrade" }],
+    [/paint/, { ask: "Looking to get 3 rooms painted. Can I get a quote?", short: "Painting quote", quote: "Interior painting, 3 rooms",
+      lines: [["Paint and materials", 0.3], ["Labor", 0.62], ["Prep and cleanup", 0]] }],
+    [/landscap|lawn|tree|yard/, { ask: "Need a spring cleanup for my yard. Can I get a quote?", short: "Yard cleanup", quote: "Spring cleanup and mulch",
+      lines: [["Mulch and plants", 0.4], ["Labor", 0.5], ["Debris haul-away", 0]] }],
+    [/garage/, { ask: "Garage door won't open. Can someone come out?", short: "Garage door", quote: "New garage door" }],
+    [/plumb|drain|sewer|septic|water/, { ask: "Kitchen sink is backing up. Can someone come out?", short: "Kitchen sink", quote: "Water heater replacement" }],
+  ];
+  function sampleJob(report) {
+    const k = String(report?.ranking?.keyword || tradeWord(report) || "").toLowerCase();
+    const hit = SAMPLE_JOBS.find(([re]) => re.test(k));
+    return hit ? hit[1] : { ask: "Need some work done at my house. Can someone come out this week?", short: "Estimate visit", quote: "Home repair",
+      lines: [["Materials", 0.4], ["Labor", 0.5], ["Cleanup and haul-away", 0]] };
+  }
+
   function servicesFor(kw) {
     const k = String(kw || "").toLowerCase();
     const hit = TRADE_SERVICES.find(([key]) => k.includes(key));
@@ -1832,7 +1889,7 @@
           starsFor(rating),
           h("span", { class: "kp-link", text: `${count} Google reviews` }),
         ]),
-        h("p", { class: "kp-cat", text: `${p.category || capFirst(kw)} in ${town || "your area"}` }),
+        h("p", { class: "kp-cat", text: `${catLabel(report, kw)} in ${town || "your area"}` }),
         h("div", { class: "kp-acts" }, ["Website", "Directions", "Save", "Call"].map((t) => h("span", { text: t }))),
         h("div", { class: "kp-book-wrap" }, [h("span", { class: "kp-book", text: "Book online" }), pin(2)]),
         h("dl", { class: "kp-rows" }, [
@@ -2020,18 +2077,21 @@
   // ---- four real pages from one well-built contractor site: home, about, services,
   //      locations. The point is the set of pages, which is what ranks, not one homepage.
   function artSiteExample() {
-    const page = (src, label, n) => h("figure", { class: "sp" }, [
-      h("div", { class: "sp-phone" }, [img(src, { alt: `${label} page of a top home service company's website`, loading: "lazy" }), pin(n, "at-top")]),
-      h("figcaption", { class: "sp-label", text: label }),
+    const page = (src, n, label, sub) => h("figure", { class: "sp" }, [
+      h("div", { class: "sp-phone" }, [img(src, { alt: `${label} page of a top home service company's website`, loading: "lazy" })]),
+      h("figcaption", { class: "sp-cap2" }, [
+        h("p", { class: "sp-label" }, [h("span", { class: "sp-n", text: String(n) }), label]),
+        h("p", { class: "sp-sub", text: sub }),
+      ]),
     ]);
     return h("div", { class: "sps" }, [
       h("div", { class: "sp-row" }, [
-        page("img/page-home.webp", "Home", 1),
-        page("img/page-about.webp", "About", 2),
-        page("img/page-services.webp", "Services", 3),
-        page("img/page-locations.webp", "Locations", 4),
+        page("img/page-home.webp", 1, "Home", "What you do, in 5 seconds"),
+        page("img/page-about.webp", 2, "About", "Real photos of your team"),
+        page("img/page-services.webp", 3, "Services", "A page for every service"),
+        page("img/page-locations.webp", 4, "Locations", "A page for every town"),
       ]),
-      h("p", { class: "sp-cap", text: "Example: pages from a top home service company's website" }),
+      h("p", { class: "sp-cap", text: "Example pages from a top home service company" }),
     ]);
   }
 
@@ -2061,7 +2121,7 @@
     const rating = num(report?.reviews?.googleRating);
     const count = num(report?.reviews?.googleReviewCount) ?? 0;
     const kw = report?.ranking?.keyword || tradeWord(report) || "contractor";
-    const cat = p.category || capFirst(kw);
+    const cat = catLabel(report, kw);
     const town = townOf(report);
     const photo = p.photo ? window.DialBridgeScan?.photoUrl?.(p.photo, 640) : "";
     const hero = (cls) => photo
@@ -2134,7 +2194,7 @@
     const rating = num(report?.reviews?.googleRating);
     const count = num(report?.reviews?.googleReviewCount) ?? 0;
     const kw = report?.ranking?.keyword || tradeWord(report) || "contractor";
-    const cat = report?.profile?.category || capFirst(kw);
+    const cat = catLabel(report, kw);
     const town = townOf(report);
     const rivals = rivalsFor(report, 2);
     const mapRow = (n, nm, r, c, mine) => h("div", { class: `tg-row${mine ? " is-me" : ""}` }, [
@@ -2212,10 +2272,11 @@
           ]),
           it.pin ? pin(it.pin, "at-in") : null,
         ].filter(Boolean));
-        return h("div", { class: `im-row is-${it.from}` }, [
+        const row = h("div", { class: `im-row is-${it.from}` }, [
           h("p", { class: "im-b", text: it.text }),
           it.pin ? pin(it.pin, "at-in") : null,
         ].filter(Boolean));
+        return it.tag ? h("div", { class: "im-tagged" }, [row, h("p", { class: `im-tag is-${it.from}`, text: it.tag })]) : row;
       })),
       h("div", { class: "im-compose" }, [
         h("span", { class: "im-plus", text: "+" }),
@@ -2227,6 +2288,7 @@
   // ---- Step 1: her phone, twice
   function artCallsPhones(report) {
     const me = shortName(report?.profile?.name);
+    const job = sampleJob(report);
     const rival = shortName((rivalsFor(report, 1)[0] || {}).name || "Another company");
     const col = (tone, label, screen, cap) => h("div", { class: `cp-col is-${tone}` }, [
       h("span", { class: "cp-tag", text: label }),
@@ -2244,30 +2306,31 @@
         { name: "Pharmacy", sub: "home", time: "9/18/26" },
       ]), `She called you, then called ${rival}.`),
       col("good", "With DialBridge", iosMessages(me, [
-        { stamp: "Today 2:14 PM" },
-        { from: "them", text: `Hi, this is ${me}. Sorry we missed your call, we're on a job. What can we help with?`, pin: 3 },
-        { from: "me", text: "Kitchen sink is backing up. Can someone come today?" },
-        { from: "them", text: "Yes! We have 2 to 4 PM open today. Want it?" },
+        { stamp: "Text Message Today 2:14 PM" },
+        { from: "them", text: `Hi, this is ${me}. Sorry we missed your call, we're on a job. What can we help with?`, pin: 3, tag: "Sent automatically" },
+        { from: "me", text: job.ask },
+        { from: "them", text: "Yes, we can come Tuesday at 2 PM. Does that work?" },
         { from: "me", text: "Yes please, book it." },
-        { from: "them", text: "You're booked for 2 to 4 PM. See you then!", pin: 4 },
+        { from: "them", text: "You're booked for Tuesday at 2 PM. See you then!", pin: 4 },
         { status: "Delivered" },
-      ]), "She gets a text in seconds, and books."),
+      ]), "She gets a text back in seconds, and books."),
     ]);
   }
 
   // ---- Step 3: the quote as a PDF in Gmail, the follow-ups, the yes
-  function quoteLines(total) {
-    const a = Math.round((total * 0.6) / 10) * 10;
-    const b = Math.round((total * 0.32) / 10) * 10;
-    return [["Equipment and parts", a], ["Labor and installation", b], ["Permit and haul-away", total - a - b]];
+  function quoteLines(total, job) {
+    const lines = job?.lines || [["Equipment and parts", 0.6], ["Labor and installation", 0.32], ["Permit and haul-away", 0]];
+    const a = Math.round((total * lines[0][1]) / 10) * 10;
+    const b = Math.round((total * lines[1][1]) / 10) * 10;
+    return [[lines[0][0], a], [lines[1][0], b], [lines[2][0], total - a - b]];
   }
 
   function pdfDoc(report, { total, accepted = false } = {}) {
     const name = report?.profile?.name || "Your business";
     return h("div", { class: `pdf${accepted ? " is-accepted" : ""}` }, [
       h("div", { class: "pdf-head" }, [h("b", { text: shortName(name) }), h("span", { text: "ESTIMATE #1047" })]),
-      h("p", { class: "pdf-to", text: "Prepared for Mark T. \u00b7 Water heater replacement" }),
-      h("div", { class: "pdf-lines" }, quoteLines(total).map(([t, v]) => h("p", {}, [h("span", { text: t }), h("span", { text: money(v) })]))),
+      h("p", { class: "pdf-to", text: `Prepared for Mark T. · ${sampleJob(report).quote}` }),
+      h("div", { class: "pdf-lines" }, quoteLines(total, sampleJob(report)).map(([t, v]) => h("p", {}, [h("span", { text: t }), h("span", { text: money(v) })]))),
       h("p", { class: "pdf-total" }, [h("span", { text: "Total" }), h("b", { text: money(total) })]),
       accepted
         ? h("div", { class: "pdf-sign" }, [h("span", { class: "pdf-sig", text: "Mark T." }), h("span", { class: "pdf-stamp", text: "ACCEPTED" })])
@@ -2381,6 +2444,8 @@
   // ---- Result 3: the pipeline, with the leads that used to slip away
   function artPipeline(report) {
     const me = shortName(report?.profile?.name);
+    const job = sampleJob(report);
+    const svc = servicesFor(report?.ranking?.keyword || tradeWord(report));
     const card = (src, who, what, extra, opts = {}) => h("div", { class: `pl-card${opts.rec ? " is-rec" : ""}` }, [
       h("span", { class: `pl-src is-${src.toLowerCase().replace(/[^a-z]/g, "")}`, text: src }),
       h("p", { class: "pl-who", text: who }),
@@ -2392,12 +2457,12 @@
     return h("div", { class: "pl" }, [
       h("div", { class: "pl-top" }, [h("b", { text: `${me} \u00b7 Pipeline` }), h("span", { text: "This week" })]),
       h("div", { class: "pl-cols" }, [
-        colm("New", 2, [card("Facebook", "Chris P.", "Clogged drain"), card("Website", "Jen L.", "Bathroom remodel")]),
-        colm("Replied", 1, [card("Missed call", "Dana R.", "Water heater leaking", "Texted back in 8 sec")]),
-        colm("Quoted", 1, [card("Quote", "Ray S.", "Sewer line", "Follow-up 2 of 3", { pin: 2 })]),
+        colm("New", 2, [card("Facebook", "Chris P.", svc[0]), card("Website", "Jen L.", svc[1])]),
+        colm("Replied", 1, [card("Missed call", "Dana R.", svc[2], "Texted back in 8 sec")]),
+        colm("Quoted", 1, [card("Quote", "Ray S.", svc[0], "Follow-up 2 of 3", { pin: 2 })]),
         colm("Booked", 2, [
-          card("Missed call", "Sam K.", "Kitchen sink", "Tue, 2 PM", { rec: true, pin: 1 }),
-          card("Quote", "Mark T.", "Water heater", "Accepted", { rec: true }),
+          card("Missed call", "Sam K.", job.short, "Tue, 2 PM", { rec: true, pin: 1 }),
+          card("Quote", "Mark T.", job.quote, "Accepted", { rec: true }),
         ]),
       ]),
     ]);
@@ -2501,7 +2566,7 @@
       screen(3, "It's in your calendar", [
         h("div", { class: "bs-cal" }, [
           h("p", { class: "bs-day" }, [h("span", { text: "TUE" }), h("b", { text: "14" })]),
-          h("div", { class: "bs-ev" }, [h("b", { text: "2:00 PM" }), h("span", { text: "Kitchen sink" }), h("span", { class: "bs-new", text: "New booking" })]),
+          h("div", { class: "bs-ev" }, [h("b", { text: "2:00 PM" }), h("span", { text: sampleJob(report).short }), h("span", { class: "bs-new", text: "New booking" })]),
         ]),
       ]),
     ]);
@@ -2580,7 +2645,7 @@
         kicker: "Foundation 1",
         title: "A Website That Converts Visitors Into Jobs",
         art: artSiteExample(),
-        legend: ["Home: what you do, in 5 seconds", "About: real photos of your team", "Services: a page for every service", "Locations: a page for every town"],
+        legend: [],
         wide: true,
       }),
       planSection({
@@ -2601,9 +2666,9 @@
       part(2, "The System Top Contractors Use"),
       planSection({
         kicker: "Step 1",
-        title: "Every Call and Message Answered",
+        title: "Every Missed Call Gets a Text Back",
         art: artCallsPhones(report),
-        legend: ["You miss the call", "She calls the next company", "With DialBridge, she gets a text in seconds", "The job gets booked"],
+        legend: ["You miss the call", "She calls the next company", "A text goes out on its own, in seconds", "The job gets booked by text"],
         auto: true,
         wide: true,
       }),
@@ -2636,22 +2701,22 @@
         ).filter(Boolean)),
       ]),
 
-      part(3, "If You Use This System, You Will:"),
+      part(3, "What This System Is Built to Do"),
       planSection({
-        kicker: "Result 1",
-        title: "Show Up at the Top of Google",
+        kicker: "Goal 1",
+        title: "Help You Climb Higher on Google",
         art: artTopOfGoogle(report, { chat: false }),
         legend: ["Local Services Ads, pay per lead", "Top 3 on Google Maps"],
       }),
       planSection({
-        kicker: "Result 2",
-        title: "Get Recommended by ChatGPT",
+        kicker: "Goal 2",
+        title: "Give ChatGPT Reasons to Recommend You",
         art: artChatGpt(report),
         legend: ["Your business named in the answer"],
       }),
       planSection({
-        kicker: "Result 3",
-        title: "Turn Missed Leads Into Booked Jobs",
+        kicker: "Goal 3",
+        title: "Turn More Missed Leads Into Booked Jobs",
         art: artPipeline(report),
         legend: ["Missed calls that turned into jobs", "Quotes still being followed up"],
         wide: true,
@@ -2661,79 +2726,258 @@
   }
 
   // ============ THE ASK: BOOK THE CALL ============
-  // The growth plan ends on the thing it is for: a free 20-minute call, booked right here
-  // on a GoHighLevel calendar made for this funnel ("Free Growth Plan Call"), so bookings
-  // from the report are tracked separately from the other calendars. The calendar loads
-  // only when the section is about to come into view, so it costs nothing to anyone who
-  // never scrolls this far, and it is pre-filled with whatever they already gave us.
+  // The growth plan ends on the thing it is for: a free 20-minute call. The calendar is our
+  // own, drawn to match the page, but the times and the booking are GoHighLevel's: n8n reads
+  // the free slots off the "Free Growth Plan Call" calendar and books the chosen one onto
+  // the lead's existing contact, so it lands in GHL exactly like a widget booking would.
+  // We already have their name, email and phone from the unlock steps, so the form is
+  // filled in and they only pick a time.
   const BOOKING_CALENDAR_ID = "9R6XUgtKzTODm2dbvLdP";
   const BOOKING_URL = `https://api.leadconnectorhq.com/widget/booking/${BOOKING_CALENDAR_ID}`;
+  const BOOK_API = "https://matkors.app.n8n.cloud/webhook/dialbridge-report/";
+  const SLOTS_URL = () => window.DIALBRIDGE_CONFIG?.N8N_BOOK_SLOTS_URL || `${BOOK_API}slots-r5m2x8`;
+  const BOOK_URL = () => window.DIALBRIDGE_CONFIG?.N8N_BOOK_URL || `${BOOK_API}book-w3j9q6`;
 
-  function bookingSrc() {
-    const q = new URLSearchParams();
-    if (window.leadFirstName) q.set("first_name", window.leadFirstName);
-    if (window.leadEmail) q.set("email", window.leadEmail);
-    if (window.leadPhone) q.set("phone", window.leadPhone);
-    const qs = q.toString();
-    return qs ? `${BOOKING_URL}?${qs}` : BOOKING_URL;
-  }
+  const svgIco = (d) => {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24"); svg.setAttribute("aria-hidden", "true"); svg.setAttribute("class", "bk-ico");
+    d.split("|").forEach((p) => { const el = document.createElementNS(ns, "path"); el.setAttribute("d", p); svg.appendChild(el); });
+    return svg;
+  };
+  const ICO = {
+    clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z|M12 7v5l3 2",
+    video: "M3 7h12v10H3z|M15 10l6-3v10l-6-3",
+    globe: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z|M3 12h18|M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9s1.3-6.4 3.8-9z",
+    left: "M15 5l-7 7 7 7",
+    right: "M9 5l7 7-7 7",
+    check: "M5 12.5l4.5 4.5L19 7.5",
+  };
 
-  function loadEmbedScript() {
-    if (document.querySelector('script[data-ghl-embed]')) return;
-    const sc = document.createElement("script");
-    sc.src = "https://link.msgsndr.com/js/form_embed.js";
-    sc.async = true;
-    sc.setAttribute("data-ghl-embed", "1");
-    document.body.appendChild(sc);
+  const digitsOf = (v) => String(v || "").replace(/\D/g, "");
+  const validEmail = (v) => /^[^@\s]+@[^@\s.]+\.[a-z]{2,}$/i.test(String(v || "").trim());
+  const validPhone = (v) => { const d = digitsOf(v); return d.length === 10 || (d.length === 11 && d[0] === "1"); };
+
+  function renderBooker(report) {
+    let tz = "America/New_York";
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || tz; } catch (e) { /* keep the default */ }
+    const lead = {
+      first: String(window.leadFirstName || "").trim(),
+      email: String(window.leadEmail || "").trim(),
+      phone: String(window.leadPhone || "").trim(),
+    };
+    const complete = () => lead.first && validEmail(lead.email) && validPhone(lead.phone);
+    const st = { phase: "loading", days: {}, month: null, date: null, slot: null, editing: !complete(), error: "" };
+
+    const fmtTime = (iso) => new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz }).replace(" ", "\u202f").toLowerCase();
+    const dateOf = (key) => { const [y, m, d] = key.split("-").map(Number); return new Date(y, m - 1, d); };
+    const keyOf = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+    const ord = (n) => (n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th");
+
+    const root = h("div", { class: "bk" });
+    const info = h("div", { class: "bk-info" });
+    const cal = h("div", { class: "bk-month" });
+    const times = h("div", { class: "bk-times" });
+    const body = h("div", { class: "bk-body" }, [info, cal, times]);
+    root.appendChild(body);
+
+    // ---- left: what the call is, and who it is booked for
+    function drawInfo() {
+      info.replaceChildren();
+      info.append(
+        h("div", { class: "bk-brand" }, [h("span", { class: "bk-logo", text: "db" }), h("span", { text: "DialBridge" })]),
+        h("p", { class: "bk-callname", text: "Free Growth Plan Call" }),
+        h("p", { class: "bk-desc", text: "We walk through your plan, what we would set up first, and what it takes." }),
+        h("ul", { class: "bk-meta" }, [
+          h("li", {}, [svgIco(ICO.clock), "20 min"]),
+          h("li", {}, [svgIco(ICO.video), "Google Meet"]),
+          h("li", {}, [svgIco(ICO.globe), tz.replace(/_/g, " ")]),
+        ]),
+      );
+      if (!st.editing) {
+        info.append(h("div", { class: "bk-who" }, [
+          h("div", { class: "bk-who-h" }, [
+            h("span", { text: "Booking as" }),
+            h("button", { type: "button", class: "bk-edit", text: "Edit", onclick: () => { st.editing = true; drawInfo(); drawCal(); } }),
+          ]),
+          h("p", { class: "bk-who-n", text: lead.first }),
+          h("p", { class: "bk-who-d", text: lead.email }),
+          h("p", { class: "bk-who-d", text: lead.phone }),
+        ]));
+        return;
+      }
+      const field = (id, label, type, key, auto) => h("label", { class: "bk-field", for: id }, [
+        h("span", { text: label }),
+        h("input", { id, type, value: lead[key], autocomplete: auto, oninput: (e) => { lead[key] = e.target.value; drawCal(); } }),
+      ]);
+      info.append(h("div", { class: "bk-form" }, [
+        h("p", { class: "bk-who-h" }, [h("span", { text: "Your details" })]),
+        field("bkFirst", "First name", "text", "first", "given-name"),
+        field("bkEmail", "Email", "email", "email", "email"),
+        field("bkPhone", "Phone", "tel", "phone", "tel"),
+        h("button", { type: "button", class: "bk-save", text: "Continue", onclick: () => {
+          if (!complete()) { st.error = "Add your first name, a valid email and a 10 digit phone number."; drawInfo(); return; }
+          st.editing = false; st.error = ""; drawInfo(); drawCal();
+        } }),
+        st.error && st.editing ? h("p", { class: "bk-err", text: st.error }) : null,
+      ].filter(Boolean)));
+    }
+
+    // ---- middle: the month, with the days that have times filled in
+    function drawCal() {
+      cal.replaceChildren();
+      const locked = !complete() || st.editing;
+      cal.classList.toggle("is-locked", locked);
+      if (st.phase === "loading") { cal.append(h("div", { class: "bk-wait" }, [h("span", { class: "bk-spin", "aria-hidden": "true" }), "Loading available times\u2026"])); return; }
+      if (st.phase === "error") {
+        cal.append(h("div", { class: "bk-wait" }, [h("p", { text: "We could not load the calendar." }), h("a", { href: BOOKING_URL, target: "_blank", rel: "noopener", text: "Book here instead" })]));
+        return;
+      }
+      const m = st.month;
+      const first = new Date(m.getFullYear(), m.getMonth(), 1);
+      const daysIn = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+      const todayKey = keyOf(new Date());
+      const keys = Object.keys(st.days).sort();
+      const minM = dateOf(keys[0]); const maxM = dateOf(keys[keys.length - 1]);
+      const canPrev = first > new Date(minM.getFullYear(), minM.getMonth(), 1);
+      const canNext = first < new Date(maxM.getFullYear(), maxM.getMonth(), 1);
+      cal.append(h("div", { class: "bk-mh" }, [
+        h("p", {}, [h("b", { text: m.toLocaleString("en-US", { month: "long" }) }), ` ${m.getFullYear()}`]),
+        h("div", { class: "bk-nav" }, [
+          h("button", { type: "button", "aria-label": "Previous month", disabled: canPrev ? null : "", onclick: () => { st.month = new Date(m.getFullYear(), m.getMonth() - 1, 1); drawCal(); } }, [svgIco(ICO.left)]),
+          h("button", { type: "button", "aria-label": "Next month", disabled: canNext ? null : "", onclick: () => { st.month = new Date(m.getFullYear(), m.getMonth() + 1, 1); drawCal(); } }, [svgIco(ICO.right)]),
+        ]),
+      ]));
+      const grid = h("div", { class: "bk-grid", role: "grid" }, ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"].map((d) => h("span", { class: "bk-dow", text: d })));
+      for (let i = 0; i < first.getDay(); i++) grid.append(h("span", { class: "bk-pad" }));
+      for (let d = 1; d <= daysIn; d++) {
+        const key = keyOf(new Date(m.getFullYear(), m.getMonth(), d));
+        const open = Boolean(st.days[key]);
+        grid.append(h("button", {
+          type: "button",
+          class: `bk-day${open ? " is-open" : ""}${st.date === key ? " is-on" : ""}${key === todayKey ? " is-today" : ""}`,
+          disabled: open && !locked ? null : "",
+          "aria-label": dateOf(key).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }) + (open ? ", times available" : ""),
+          onclick: () => { st.date = key; st.slot = null; drawCal(); drawTimes(); },
+          text: String(d),
+        }));
+      }
+      cal.append(grid);
+      if (locked) cal.append(h("div", { class: "bk-gate" }, [h("p", { text: "Fill in your details to pick a time." })]));
+    }
+
+    // ---- right: the times on the chosen day. Picking one reveals its Confirm button.
+    function drawTimes() {
+      times.replaceChildren();
+      if (st.phase !== "ready" || !st.date) return;
+      const dt = dateOf(st.date);
+      times.append(h("p", { class: "bk-th" }, [h("b", { text: dt.toLocaleDateString("en-US", { weekday: "short" }) }), ` ${dt.getDate()}${ord(dt.getDate())}`]));
+      if (st.error && !st.editing) times.append(h("p", { class: "bk-err", text: st.error }));
+      const list = h("div", { class: "bk-list" });
+      for (const iso of st.days[st.date] || []) {
+        const on = st.slot === iso;
+        if (on) {
+          list.append(h("div", { class: "bk-pick" }, [
+            h("span", { class: "bk-chosen", text: fmtTime(iso) }),
+            h("button", { type: "button", class: "bk-confirm", disabled: st.phase === "booking" ? "" : null, text: "Confirm", onclick: () => book(iso) }),
+          ]));
+        } else {
+          list.append(h("button", { type: "button", class: "bk-slot", onclick: () => { st.slot = iso; st.error = ""; drawTimes(); } }, [h("i", { "aria-hidden": "true" }), fmtTime(iso)]));
+        }
+      }
+      times.append(list);
+    }
+
+    function done(iso) {
+      const when = new Date(iso);
+      root.closest(".book")?.querySelector(".book-alt")?.remove();
+      root.replaceChildren(h("div", { class: "bkc-done" }, [
+        h("span", { class: "bkc-done-tick" }, [svgIco(ICO.check)]),
+        h("p", { class: "bkc-done-h", text: "You're booked" }),
+        h("p", { class: "bkc-done-w", text: `${when.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", timeZone: tz })} at ${fmtTime(iso)}` }),
+        h("p", { class: "bkc-done-s", text: `A calendar invite with the Google Meet link is on its way to ${lead.email}.` }),
+      ]));
+    }
+
+    async function book(iso) {
+      if (!complete()) { st.editing = true; st.error = "Add your details first."; drawInfo(); drawCal(); return; }
+      st.phase = "booking"; drawTimes();
+      const btn = times.querySelector(".bk-confirm");
+      if (btn) btn.textContent = "Booking\u2026";
+      try {
+        const res = await fetch(BOOK_URL(), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            submissionId: window.reportSubmissionId || "",
+            firstName: lead.first.split(/\s+/)[0],
+            lastName: lead.first.split(/\s+/).slice(1).join(" "),
+            email: lead.email.trim(),
+            phone: lead.phone,
+            business: report?.profile?.name || "",
+            startTime: iso,
+            company_fax: "",
+          }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) { done(data.startTime || iso); return; }
+        st.phase = "ready";
+        st.slot = null;
+        if (data.error === "slot_taken") {
+          st.error = "That time was just taken. Pick another one.";
+          await load(true);
+        } else if (data.error === "invalid_request") {
+          st.editing = true; st.error = "Check your details and try again."; drawInfo(); drawCal();
+        } else {
+          st.error = "Something went wrong. Try again, or use the link below.";
+        }
+        drawTimes();
+      } catch (e) {
+        st.phase = "ready"; st.error = "Something went wrong. Try again, or use the link below."; drawTimes();
+      }
+    }
+
+    async function load(keepDate) {
+      try {
+        const res = await fetch(`${SLOTS_URL()}?tz=${encodeURIComponent(tz)}`);
+        const data = await res.json();
+        if (!data.ok || !Array.isArray(data.days) || !data.days.length) throw new Error("no_slots");
+        st.days = Object.fromEntries(data.days.map((d) => [d.date, d.slots]));
+        const keys = Object.keys(st.days).sort();
+        if (!keepDate || !st.days[st.date]) st.date = keys[0];
+        if (!st.month || !keepDate) { const f = dateOf(st.date); st.month = new Date(f.getFullYear(), f.getMonth(), 1); }
+        st.phase = "ready";
+      } catch (e) {
+        st.phase = "error";
+      }
+      drawCal(); drawTimes();
+    }
+
+    drawInfo(); drawCal();
+    const start = () => { if (!root.dataset.loaded) { root.dataset.loaded = "1"; load(false); } };
+    if ("IntersectionObserver" in window) {
+      const io = new IntersectionObserver((entries) => {
+        if (entries.some((e) => e.isIntersecting)) { start(); io.disconnect(); }
+      }, { rootMargin: "800px 0px" });
+      requestAnimationFrame(() => io.observe(root));
+    } else {
+      start();
+    }
+    return root;
   }
 
   function renderPlanClose(report) {
     const g = report?.growth;
     const who = shortName(report?.profile?.name);
-    const slot = h("div", { class: "bk-cal-slot" }, [
-      h("div", { class: "bk-cal-wait" }, [h("span", { class: "bk-spin", "aria-hidden": "true" }), "Loading available times\u2026"]),
-    ]);
-
-    const mount = () => {
-      if (slot.dataset.loaded) return;
-      slot.dataset.loaded = "1";
-      const frame = h("iframe", {
-        src: bookingSrc(),
-        // GoHighLevel draws its own title, duration and date block above the calendar,
-        // which repeats our heading right above it. The embed is shifted up inside a
-        // clipping box so the calendar starts at the month. The widget switches layout at
-        // 730px wide, and each layout's header is a different height.
-        id: `${BOOKING_CALENDAR_ID}_${Date.now()}`,
-        title: "Book your free Growth Plan call",
-        scrolling: "no",
-        class: "bk-cal-frame",
-      });
-      frame.addEventListener("load", () => slot.classList.add("is-ready"), { once: true });
-      const crop = () => { frame.style.marginTop = slot.clientWidth >= 730 ? "-222px" : "-176px"; };
-      crop();
-      window.addEventListener("resize", crop, { passive: true });
-      slot.appendChild(frame);
-      loadEmbedScript();
-    };
-    if ("IntersectionObserver" in window) {
-      const io = new IntersectionObserver((entries) => {
-        if (entries.some((e) => e.isIntersecting)) { mount(); io.disconnect(); }
-      }, { rootMargin: "800px 0px" });
-      requestAnimationFrame(() => io.observe(slot));
-    } else {
-      mount();
-    }
-
     return h("section", { class: "book", id: "book" }, [
       h("p", { class: "book-kick", text: "Your next step" }),
       h("h3", { class: "book-title" }, g
-        ? ["Let's Add ", h("span", { class: "book-money", text: `${money(g.perMonth)} a Month` }), " to ", h("span", { class: "book-who", text: who })]
+        ? ["Let's Go After That ", h("span", { class: "book-money", text: `${money(g.perMonth)} a Month` }), " for ", h("span", { class: "book-who", text: who })]
         : [`Let's Get This Set Up for ${who}`]),
-      h("p", { class: "book-sub", text: "Book a free 20-minute call. We'll walk through your plan, what we'd set up first, and what it takes." }),
       h("ul", { class: "book-chips" }, ["Free", "20 minutes", "No obligation"].map((t) => h("li", { text: t }))),
-      h("div", { class: "book-cal" }, [slot]),
+      h("div", { class: "book-cal" }, [renderBooker(report)]),
       h("p", { class: "book-alt" }, [
-        "Calendar not loading? ",
+        "Calendar not working? ",
         h("a", { href: BOOKING_URL, target: "_blank", rel: "noopener", text: "Book here instead" }),
       ]),
     ]);
