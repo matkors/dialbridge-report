@@ -1599,38 +1599,128 @@
     ];
   }
 
-  const LETTERS = "ABCDEF";
+  // ============ THE PLAN, AS ONE PICTURE ============
+  //
+  // Five rebuilds of this tried to explain the system piece by piece, and every one was
+  // too much to take in. This is the thing that was asked for at the very start: one
+  // picture of the whole system as a flow, from somebody searching to the review landing,
+  // with the DialBridge piece that runs each stage labelled on it, and the loop that
+  // makes it compound. Then a plain list of what is included, and the ask.
+  //
+  // It is the same for everybody apart from their keyword and their name. The report
+  // above already did the diagnosis; this part only has to show the machine.
+
+  function pipeIcon(kind) {
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("class", "pp-icon");
+    svg.setAttribute("aria-hidden", "true");
+    const add = (tag, attrs) => {
+      const el = document.createElementNS(ns, tag);
+      for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+      el.setAttribute("fill", attrs.fill || "none");
+      el.setAttribute("stroke", "currentColor");
+      el.setAttribute("stroke-width", "1.8");
+      el.setAttribute("stroke-linecap", "round");
+      el.setAttribute("stroke-linejoin", "round");
+      svg.appendChild(el);
+    };
+    if (kind === "search") { add("circle", { cx: 11, cy: 11, r: 6.5 }); add("path", { d: "M16 16l4.5 4.5" }); }
+    if (kind === "pin") { add("path", { d: "M12 21s-6.5-5.6-6.5-10.5a6.5 6.5 0 1 1 13 0C18.5 15.4 12 21 12 21z" }); add("circle", { cx: 12, cy: 10.5, r: 2.3 }); }
+    if (kind === "chat") { add("path", { d: "M4.5 5.5h15v10.5H10l-5.5 4v-4h0z" }); add("path", { d: "M8.5 10.5h7" }); }
+    if (kind === "calendar") { add("rect", { x: 3.5, y: 5, width: 17, height: 15.5, rx: 2.5 }); add("path", { d: "M3.5 10h17M8 3v4M16 3v4M9 14.5l2 2 4-4" }); }
+    if (kind === "star") { add("path", { d: "M12 3.5l2.6 5.4 5.9.7-4.3 4.1 1.1 5.8L12 16.7l-5.3 2.8 1.1-5.8-4.3-4.1 5.9-.7z" }); }
+    return svg;
+  }
+
+  function renderPipeline(report) {
+    const kw = report?.ranking?.keyword || tradeWord(report) || "contractor";
+    const stages = [
+      { icon: "search", title: "Someone searches", line: `"${kw} near me" on Google, or asks ChatGPT`, tags: [] , lead: true },
+      { icon: "pin", title: "They find you first", line: "Top of the map, and named by the AI", tags: ["Maps ranking", "AI search"] },
+      { icon: "chat", title: "You answer in seconds", line: "Even when you're on a job", tags: ["Missed-call text back"] },
+      { icon: "calendar", title: "The job gets booked", line: "Straight into your calendar", tags: ["Online booking", "Quote follow-up"] },
+      { icon: "star", title: "A review lands", line: "Two hours after the job", tags: ["Review automation"] },
+    ];
+
+    return h("div", { class: "pipe" }, [
+      h("ol", { class: "pp-row" }, stages.map((st, i) =>
+        h("li", { class: `pp-stage${st.lead ? " is-lead" : ""}` }, [
+          h("span", { class: "pp-n", text: String(i + 1) }),
+          h("span", { class: "pp-ico" }, [pipeIcon(st.icon)]),
+          h("p", { class: "pp-t", text: st.title }),
+          h("p", { class: "pp-l", text: st.line }),
+          st.tags.length ? h("div", { class: "pp-tags" }, st.tags.map((t) => h("span", { class: "pp-tag", text: t }))) : null,
+        ].filter(Boolean))
+      )),
+      h("div", { class: "pp-loop", "aria-hidden": "true" }, [
+        h("span", { class: "pp-loop-t", text: "More reviews push you higher, so more searches find you" }),
+      ]),
+      h("p", { class: "pp-loop-sr", text: "More reviews push you higher, so more searches find you. The system feeds itself." }),
+    ]);
+  }
+
+  // Part one, per Matt: get the foundation right before anything runs on top of it. The
+  // website is the first layer, then the listings that have to agree with it. Each tile
+  // carries their own state from the scan where we measured it, and says so plainly
+  // where we did not.
+  function renderFoundation(report) {
+    const w = report?.website || {};
+    const p = report?.profile || {};
+    const gbpDone = (p.photoCount || 0) >= 5 && Boolean(p.hasHours) && Boolean(p.phone) && Boolean(w.found);
+    const site = !w.found ? ["gap", "No website on your listing"]
+      : w.broken ? ["gap", "Yours doesn't load"]
+      : num(w.mobileScore) !== null && w.mobileScore < 50 ? ["gap", "Yours is slow on a phone"]
+      : ["ok", "Yours is up"];
+    const gbp = gbpDone ? ["ok", "Yours is complete"] : ["gap", "Yours has gaps"];
+    const tiles = [
+      { name: "Website", what: "The base everything points to. Fast on a phone, books jobs.", first: true, state: site },
+      { name: "Google Business Profile", what: "Complete, photos, hours, services.", state: gbp },
+      { name: "Yelp", what: "Claimed, with the same details.", state: ["unknown", "We check this"] },
+      { name: "Facebook", what: "Same name, address and phone.", state: ["unknown", "We check this"] },
+    ];
+    return h("div", { class: "fd" }, [
+      h("div", { class: "fd-row" }, tiles.map((t) =>
+        h("div", { class: `fd-tile${t.first ? " is-first" : ""}` }, [
+          t.first ? h("span", { class: "fd-first", text: "Layer one" }) : null,
+          h("p", { class: "fd-name", text: t.name }),
+          h("p", { class: "fd-what", text: t.what }),
+          h("span", { class: `fd-state is-${t.state[0]}`, text: t.state[1] }),
+        ].filter(Boolean))
+      )),
+      h("p", { class: "fd-rule" }, [
+        h("b", { text: "Same name, address and phone everywhere." }),
+        " Google and the AI tools cross-check them. When they disagree, you rank lower.",
+      ]),
+    ]);
+  }
 
   function renderPlanSteps(report, summary) {
-    const pieces = tourFor(report).filter((x) => x.visual);
     return [
-      h("ol", { class: "features" }, pieces.map((x, i) =>
-        h("li", { class: "fb" }, [
-          h("div", { class: "fb-copy" }, [
-            h("span", { class: "fb-letter", "aria-hidden": "true", text: LETTERS[i] || "" }),
-            h("h4", { class: "fb-name", text: x.name }),
-            h("p", { class: "fb-issue", text: x.tag }),
-            h("ul", { class: "fb-list" }, x.includes.map((t) => h("li", { text: t }))),
-            x.now ? h("p", { class: "fb-now" }, [
-              h("span", { class: "fb-now-tag", text: "Right now" }),
-              ((t) => t.charAt(0).toUpperCase() + t.slice(1))(x.now.replace(/^Right now /, "")),
-            ]) : null,
-          ].filter(Boolean)),
-          h("div", { class: "fb-art" }, [x.visual]),
-        ])
-      )),
+      h("div", { class: "pp-part" }, [
+        h("span", { class: "pp-part-n", text: "1" }),
+        h("h3", { class: "pp-h", text: "Get your foundation right" }),
+      ]),
+      renderFoundation(report),
+      h("div", { class: "pp-part" }, [
+        h("span", { class: "pp-part-n", text: "2" }),
+        h("h3", { class: "pp-h", text: "The system runs on top of it" }),
+      ]),
+      renderPipeline(report),
       renderPlanClose(report),
     ];
   }
 
   function renderPlanClose(report) {
     const g = report?.growth;
+    const who = shortName(report?.profile?.name);
     return h("div", { class: "plan-close" }, [
       h("div", { class: "plan-ask" }, [
-        h("h4", { text: "All six, set up for you." }),
+        h("h4", { text: `Get this set up for ${who}` }),
         h("p", { text: g
-          ? `That is the whole system. One more job a week at your ticket is ${money(g.perMonth)} a month. Reply to the text we sent you and we will book an operational review.`
-          : "That is the whole system. Reply to the text we sent you and we will book an operational review." }),
+          ? `We build and run all of it for you. One more job a week at your ticket is ${money(g.perMonth)} a month. Reply to the text we sent you and we'll book a call.`
+          : "We build and run all of it for you. Reply to the text we sent you and we'll book a call." }),
       ]),
     ]);
   }

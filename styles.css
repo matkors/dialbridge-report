@@ -2552,3 +2552,160 @@ details[open] .ck-chev { transform: rotate(90deg); }
 .ai-you { display: inline-block; margin: 0 0 3px 6px; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #fff; background: var(--good); padding: 2px 6px; border-radius: 999px; vertical-align: middle; }
 .airep.is-goal .ai-list li.is-me { background: var(--good-soft); margin-left: -8px; padding: 6px 8px; border-radius: 8px; }
 @media (max-width: 860px) { .reviewflow { grid-template-columns: 1fr; } }
+
+
+/* ============ THE PLAN, AS ONE PICTURE ============ */
+.pp-head { margin: 8px 0 20px; text-align: center; }
+.pp-h { margin: 0; font-size: clamp(1.35rem, 3vw, 1.8rem); font-weight: 800; letter-spacing: -0.03em; text-wrap: balance; }
+
+.pipe { position: relative; padding-bottom: 8px; }
+.pp-row {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 22px;
+  position: relative; z-index: 1;
+}
+.pp-stage {
+  position: relative;
+  display: grid; gap: 8px; align-content: start; justify-items: center; text-align: center;
+  padding: 20px 12px 18px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(15, 27, 45, 0.05), 0 8px 22px rgba(15, 27, 45, 0.06);
+}
+/* The arrow between stages sits in the gap. */
+.pp-stage:not(:last-child)::after {
+  content: "";
+  position: absolute; top: 50px; right: -18px;
+  width: 14px; height: 14px;
+  border-top: 2.5px solid var(--accent); border-right: 2.5px solid var(--accent);
+  transform: rotate(45deg);
+}
+.pp-stage.is-lead { background: var(--paper); box-shadow: none; }
+.pp-n {
+  position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
+  width: 22px; height: 22px; border-radius: 50%;
+  background: var(--ink); color: #fff;
+  display: grid; place-items: center; font-size: 0.7rem; font-weight: 700;
+}
+.pp-ico {
+  width: 52px; height: 52px; border-radius: 14px;
+  display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent-ink);
+}
+.pp-stage.is-lead .pp-ico { background: var(--surface); color: var(--ink-2); border: 1px solid var(--rule); }
+.pp-icon { width: 26px; height: 26px; }
+.pp-t { margin: 2px 0 0; font-size: 0.98rem; font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; color: var(--ink); }
+.pp-l { margin: 0; font-size: 0.8rem; line-height: 1.4; color: var(--ink-2); }
+.pp-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-top: 4px; }
+.pp-tag {
+  font-size: 0.66rem; font-weight: 700; letter-spacing: 0.02em;
+  padding: 3px 8px; border-radius: 999px;
+  background: var(--ink); color: #fff;
+}
+
+/* The loop: from the last stage back round to the first. */
+.pp-loop {
+  position: relative;
+  margin: -14px 9% 0;
+  height: 54px;
+  border: 2.5px dashed var(--good);
+  border-top: 0;
+  border-radius: 0 0 22px 22px;
+}
+.pp-loop::before {
+  content: "";
+  position: absolute; top: -2px; left: -9px;
+  border-left: 7px solid transparent; border-right: 7px solid transparent;
+  border-bottom: 11px solid var(--good);
+}
+.pp-loop-t {
+  position: absolute; left: 50%; bottom: -12px; transform: translateX(-50%);
+  background: var(--surface);
+  padding: 2px 12px;
+  font-size: 0.82rem; font-weight: 700; color: var(--good);
+  white-space: nowrap;
+}
+.pp-loop-sr { display: none; }
+
+/* What's included: two columns, one line each. */
+.pp-inc { margin-top: 46px; }
+.pp-inc-h { margin: 0 0 12px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); text-align: center; }
+.pp-inc-list {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px;
+}
+.pp-inc-list li {
+  display: grid; grid-template-columns: 22px 1fr; gap: 2px 10px;
+  padding: 13px 0; border-bottom: 1px solid var(--rule);
+}
+.pp-inc-list li::before { content: "\2713"; grid-row: 1 / 3; color: var(--good); font-weight: 800; }
+.pp-inc-list b { font-size: 0.98rem; color: var(--ink); }
+.pp-inc-list span { font-size: 0.85rem; color: var(--ink-2); }
+
+@media (max-width: 860px) {
+  .pp-row { grid-template-columns: 1fr; gap: 26px; }
+  .pp-stage { grid-template-columns: 52px 1fr; justify-items: start; text-align: left; column-gap: 14px; padding: 16px; }
+  .pp-stage .pp-ico { grid-row: 1 / 4; }
+  .pp-tags { justify-content: flex-start; }
+  .pp-n { left: 16px; transform: none; }
+  .pp-stage:not(:last-child)::after { top: auto; bottom: -19px; right: auto; left: 34px; transform: rotate(135deg); }
+  .pp-loop { display: none; }
+  .pp-loop-sr {
+    display: block; margin: 18px 0 0; padding: 12px 14px;
+    border: 2px dashed var(--good); border-radius: 12px;
+    font-size: 0.88rem; font-weight: 700; color: var(--good); text-align: center;
+  }
+  .pp-inc-list { grid-template-columns: 1fr; }
+}
+
+
+/* ---- the two parts ---- */
+.pp-part { display: flex; align-items: center; gap: 12px; margin: 34px 0 18px; }
+.pp-part:first-child { margin-top: 10px; }
+.pp-part .pp-h { text-align: left; }
+.pp-part-n {
+  flex: none; width: 32px; height: 32px; border-radius: 50%;
+  background: var(--accent); color: #fff;
+  display: grid; place-items: center; font-size: 0.95rem; font-weight: 800;
+}
+
+/* ---- part one: the foundation ---- */
+.fd { display: grid; gap: 12px; }
+.fd-row { display: grid; grid-template-columns: 1.3fr 1fr 1fr 1fr; gap: 12px; }
+.fd-tile {
+  display: grid; gap: 6px; align-content: start;
+  padding: 16px; border-radius: 14px;
+  background: var(--surface); border: 1px solid var(--rule);
+}
+.fd-tile.is-first { background: var(--ink); border-color: var(--ink); }
+.fd-tile.is-first .fd-name { color: #fff; }
+.fd-tile.is-first .fd-what { color: #c9d1dc; }
+.fd-first { justify-self: start; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink); background: var(--accent); padding: 2px 8px; border-radius: 999px; }
+.fd-name { margin: 0; font-size: 1rem; font-weight: 800; letter-spacing: -0.015em; color: var(--ink); }
+.fd-what { margin: 0; font-size: 0.8rem; line-height: 1.4; color: var(--ink-2); }
+.fd-state { justify-self: start; margin-top: 4px; font-size: 0.7rem; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
+.fd-state.is-ok { background: var(--good-soft); color: var(--good); }
+.fd-state.is-gap { background: var(--bad-soft); color: var(--bad); }
+.fd-state.is-unknown { background: var(--paper); color: var(--ink-3); border: 1px dashed var(--ink-3); }
+.fd-rule { margin: 0; padding: 12px 16px; border-radius: 12px; background: var(--paper); font-size: 0.88rem; line-height: 1.5; color: var(--ink-2); }
+.fd-rule b { color: var(--ink); }
+.pipe { margin-top: 18px; }
+
+@media (max-width: 860px) {
+  .fd-row { grid-template-columns: 1fr 1fr; }
+  .fd-tile.is-first { grid-column: 1 / -1; }
+}
+
+/* The older .card-plan h3 rule gives every heading auto margins and a 26ch cap, which
+   floated the part headings to the middle, away from their numbers. */
+.card-plan .pp-part .pp-h { margin: 0; max-width: none; text-align: left; }
+/* The loop's arrowhead, pointing back up into stage one. */
+.pp-loop::before { top: -4px; left: -8.5px; border-bottom-width: 12px; }
+
+@media (max-width: 860px) {
+  /* The step number moves to the right so the down arrow on the left never sits on it. */
+  .pp-n { left: auto; right: 16px; }
+  /* Website and Google profile full width, Yelp and Facebook side by side: no orphan tile. */
+  .fd-row > .fd-tile:nth-child(2) { grid-column: 1 / -1; }
+}
