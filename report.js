@@ -2577,7 +2577,7 @@
         wide: true,
       }),
       h("div", { class: "gp-loop" }, [
-        h("div", { class: "gp-loop-row" }, ["More reviews", "Higher on Google", "More calls", "More jobs"].flatMap((t, i, arr) =>
+        h("div", { class: "gp-loop-row" }, ["More reviews", "Rank higher on Google", "Get more calls", "Book more jobs"].flatMap((t, i, arr) =>
           [h("span", { class: "gp-loop-s", text: t }), i < arr.length - 1 ? h("span", { class: "gp-loop-a", "aria-hidden": "true", text: "\u2192" }) : null]
         ).filter(Boolean)),
       ]),
