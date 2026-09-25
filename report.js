@@ -693,7 +693,11 @@
             tone: rv.standing?.ok ? "good" : rv.standing?.rated ? "warn" : "bad",
           }
         : null,
-      num(w.mobileScore) !== null
+      // A dead site's Lighthouse score is for the error page, so it does not get a tile.
+      // "100 of 100" beside "the site does not respond" was read, correctly, as nonsense.
+      w.broken
+        ? { value: "Down", unit: "", label: "website does not load", tone: "bad" }
+        : num(w.mobileScore) !== null
         ? { value: `${w.mobileScore}`, unit: "of 100", label: "website speed on a phone", tone: w.mobileScore >= 80 ? "good" : w.mobileScore >= 50 ? "warn" : "bad" }
         : null,
       num(w.desktopScore) !== null
@@ -1621,7 +1625,7 @@
         planLock.classList.remove("is-locked");
         planLock.removeAttribute("aria-hidden");
         form.replaceChildren();
-        note.textContent = "Unlocked. Your plan is below.";
+        note.remove();
         note.className = "gate-note is-good";
       } catch (err) {
         console.warn("Blueprint request failed", err);
@@ -1647,9 +1651,6 @@
       ? h("div", { class: "prize" }, [
           h("p", { class: "prize-n", text: "One more job a week" }),
           h("p", { class: "prize-v", text: `is about ${money(g.perMonth)} a month at your ticket` }),
-          g.nowJobs
-            ? h("p", { class: "prize-now", text: `You do about ${g.nowJobs} a month now. Everything below is aimed at the same number.` })
-            : null,
         ])
       : h("h3", { text: capacity ? "What to stop losing" : "What to fix, and in what order" });
 
