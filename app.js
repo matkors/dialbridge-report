@@ -279,10 +279,6 @@ document.getElementById("clearBtn").addEventListener("click", () => {
   input.focus();
 });
 
-document.getElementById("cantFind").addEventListener("click", () => {
-  setStatus("Manual entry and phone number search come next in the build.");
-});
-
 // The logo goes home, the way it does on every other site, and there is an explicit way
 // out beside it for anyone who does not think to try the logo.
 function goHome() {

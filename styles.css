@@ -3644,3 +3644,27 @@ details[open] .ck-chev { transform: rotate(90deg); }
   /* The calendar sizes itself once it loads; this is only the floor while it does. */
   .bk-cal-slot, .bk-cal-frame { min-height: 600px; }
 }
+
+/* The headline names both halves of the offer: the report, then the Growth Plan. */
+.h1-accent { color: var(--accent-ink); }
+
+/* On a phone the steps stack, and the markup puts the picture first, so the step's
+   heading arrived after its own illustration. Below the desktop breakpoint the words
+   lead; at desktop width nothing changes. */
+@media (max-width: 1039px) {
+  .how-copy { order: -1; }
+}
+/* Two statements, two lines: the report, then the plan. */
+.hero h1 { max-width: none; font-size: clamp(2rem, 4.6vw, 3.25rem); }
+.h1-accent { display: block; }
+/* The hero column is 760px, too narrow for either sentence to hold a line at this size.
+   The headline alone spills wider, centred on the column; nothing else moves. */
+.hero h1 {
+  width: min(1040px, calc(100vw - 40px));
+  margin-left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(1.9rem, 4.2vw, 3rem);
+}
+
+.nowrap { white-space: nowrap; }
+.hero .sub { text-wrap: balance; }
