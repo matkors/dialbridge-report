@@ -1334,242 +1334,129 @@
     );
   }
 
-  // ============ THE PLAN, AS A PRODUCT ============
+  // ============ THE PLAN, AS A CHECKLIST ============
   //
-  // Earlier passes led with the problem and buried what we actually sell under a heading
-  // that said "what we do". That is the wrong order for somebody who already knows their
-  // business has gaps. They are not buying a diagnosis.
+  // Three rebuilds of this were diagnoses in different clothes. What converts is not a
+  // description of what is wrong, it is a picture of what a business fully on the system
+  // has, as one fixed list in the order the pieces depend on each other, with their own
+  // tick or cross on every row. The list is the same for everybody; the state is theirs.
+  // It reads as a to-do list, the gap is a count, and every cross is a thing we set up.
   //
-  // So every block is: the named piece of the system, the gap it closes in their own
-  // numbers, what is in it, and what comes out. Feature, issue, result. The layout
-  // alternates side to side and stays quiet, because the argument is the product, not the
-  // decoration.
+  // The replicas that earned their place (their listing, the search list, the review bars,
+  // the AI answer) sit under the rows they belong to, opened when the row is a cross.
 
-  const LETTERS = "ABCDEFGH";
-
-  function featureBlock({ letter, name, issue, includes, result, resultNote, visual }) {
-    const copy = h("div", { class: "fb-copy" }, [
-      h("span", { class: "fb-letter", "aria-hidden": "true", text: LETTERS[letter - 1] || "" }),
-      h("h4", { class: "fb-name", text: name }),
-      h("p", { class: "fb-issue", text: issue }),
-      h("ul", { class: "fb-list" }, includes.map((t) => h("li", { text: t }))),
-      result
-        ? h("div", { class: "fb-result" }, [
-            h("span", { class: "fb-result-tag", text: "What you get" }),
-            h("p", { class: "fb-result-t", text: result }),
-            resultNote ? h("p", { class: "fb-result-n", text: resultNote }) : null,
-          ].filter(Boolean))
-        : null,
-    ].filter(Boolean));
-
-    return h("li", { class: "fb" }, [
-      copy,
-      h("div", { class: "fb-art" }, visual || null),
-    ]);
-  }
-
-  // How many reviews the automation is worth over a window, from their own job count. The
-  // rate is the only assumption and it is printed underneath rather than buried here.
   const CAPTURE_RATE = 0.25;
-  function reviewsIn(months, jobsPerMonth) {
-    if (!jobsPerMonth) return null;
-    return Math.round(jobsPerMonth * months * CAPTURE_RATE);
-  }
-
-  // Six blocks, about forty words each. The earlier version carried ninety: four checks
-  // written as full sentences, a result paragraph and a footnote, which is a brochure.
-  // Alan's reference runs at twenty-five. The picture is the argument; the words label it.
-
   const money = (x) => "$" + Number(x).toLocaleString("en-US");
-  const fmt = (x) => Number(x).toLocaleString("en-US");
 
-  function playListing(report, n) {
+  function answersNow() {
+    if (window.leadAnswers && typeof window.leadAnswers === "object") return window.leadAnswers;
+    try { return JSON.parse(sessionStorage.getItem("dialbridge_answers") || "{}") || {}; } catch (e) { return {}; }
+  }
+
+  // Each row: what a set-up business has, and whether this one has it. "unknown" is for
+  // the rows we could not measure, and it is shown as a question mark rather than hidden,
+  // because a list that only shows what we could check is a list that flatters us.
+  function checklistFor(report) {
     const p = report?.profile || {};
-    const gaps = [];
-    if (!report?.website?.found) gaps.push("website link");
-    if ((p.photoCount || 0) < 5) gaps.push("photos");
-    if (!p.hasHours) gaps.push("opening hours");
-    return featureBlock({
-      letter: n,
-      name: "Google Business Profile, optimized",
-      issue: gaps.length ? `Missing on your listing: ${listWords(gaps)}.` : "Your listing is filled in. It has to stay that way.",
-      includes: ["Real job photos, kept current", "Category, hours and services", "Checked every month"],
-      result: "The first thing Google and the AI tools read.",
-      visual: visualMyListing(report) || visualListings(),
-    });
-  }
-
-  function playMap(report, n) {
+    const w = report?.website || {};
+    const rv = report?.reviews || {};
     const r = report?.ranking || {};
-    const total = (r.ranks || []).length;
-    if (!total) return null;
-    return featureBlock({
-      letter: n,
-      name: "Google Maps ranking, tracked monthly",
-      issue: `Top three at ${r.pointsInTop3 || 0} of the ${total} spots we checked.`,
-      includes: ["25-point grid, re-run monthly", "Your main keyword tracked", "The shops beating you, watched"],
-      result: "The top three take nearly every call.",
-      visual: visualSearchList(report),
-    });
-  }
+    const sg = report?.signals || {};
+    const a = answersNow();
+    const rating = num(rv.googleRating);
+    const count = num(rv.googleReviewCount) ?? 0;
 
-  function playAi(report, n) {
-    const rep = visualAiAnswer(report);
-    if (!rep) return null;
-    const rating = num(report?.reviews?.googleRating);
-    const kw = report?.ranking?.keyword || "contractor";
-    return featureBlock({
-      letter: n,
-      name: "DialBridge AEO, getting named by the AI",
-      issue: `People ask ChatGPT for a ${kw} now. You are not in the answer.`,
-      includes: [
-        "Same details everywhere",
-        rating !== null && rating < 3.4 ? `Rating above the 3.4 line (you: ${rating.toFixed(1)})` : "Rating and reviews above the bar",
-        "Monthly content refresh",
-      ],
-      result: "Recommended shops average 4.3 stars. That is the bar.",
-      resultNote: "SOCi 2026 Local Visibility Index, about 350,000 locations.",
-      visual: rep,
-    });
-  }
-
-  function playBooking(report, n) {
-    const v = num(report?.leak?.jobValue);
-    return featureBlock({
-      letter: n,
-      name: "Missed call text back and online booking",
-      issue: v ? `Calls wait when you are busy. Each one is about ${money(v)}.` : "Calls wait when you are busy.",
-      includes: ["Text back in seconds", "She books herself in", "Lands in your calendar and CRM"],
-      result: v ? `One recovered call a month is ${money(v * 12)} a year.` : "Nothing that comes in goes unanswered.",
-      visual: twoTrack(
-        "What happens now", ["Call comes in", "You are on a job", "You ring back at 6pm"], "Already booked someone",
-        "What happens with it running", ["Call comes in", "Text back in 8 seconds", "She picks a slot"], "In your calendar",
-        "Same call, same day. The only thing that changed is how long she waited."
-      ),
-    });
-  }
-
-  function playQuotes(report, n) {
-    return featureBlock({
-      letter: n,
-      name: "DialBridge Quote Follow-Up",
-      issue: "Quotes get chased when you remember.",
-      includes: ["Every open estimate tracked", "Texts until it is a yes or a no", "Past customers, on a schedule"],
-      result: "Quotes stop dying of silence.",
-      visual: visualQuoteTrack(),
-    });
-  }
-
-  function playReviews(report, n) {
-    const mine = num(report?.reviews?.googleReviewCount) ?? 0;
-    const rival = num(report?.signals?.topRivalReviews);
-    const jobs = num(report?.leak?.jobs);
-    const q = reviewsIn(3, jobs);
-    const y = reviewsIn(12, jobs);
-    return featureBlock({
-      letter: n,
-      name: "DialBridge Review Automation",
-      issue: rival && rival > mine ? `They have ${fmt(rival)}. You have ${fmt(mine)}.` : "The count, and how fast it moves, is what gets read.",
-      includes: ["A text after every job", "In your name, two hours later", "Every customer, automatic"],
-      result: q && y ? `About ${q} reviews in 90 days, ${y} in a year.` : "Reviews arrive after every job, on their own.",
-      resultNote: q ? `At ${jobs} jobs a month, if one in four leaves one.` : null,
-      visual: visualReviewGap(report),
-    });
-  }
-
-  // Which play a finding turns into. Lead follow-up splits in two, because a missed call
-  // and a quote going quiet are different leaks with different fixes.
-  const PLAY_FOR_KEY = {
-    speed_to_lead: { build: playBooking, stage: 1 },
-    quote_followup: { build: playQuotes, stage: 1 },
-  };
-  const PLAY_FOR_AREA = {
-    google_profile: { build: playListing, stage: 0 },
-    foundation: { build: playListing, stage: 0 },
-    website: { build: playListing, stage: 0 },
-    map_ranking: { build: playMap, stage: 0 },
-    reviews: { build: playReviews, stage: 2 },
-    lead_follow_up: { build: playBooking, stage: 1 },
-  };
-
-  function renderPlanSteps(report, summary) {
-    // Every qualifying finding, not the four the report prints. Same worst-first order.
-    const findings = summary?.allFindings || summary?.findings || [];
-    const picked = new Map(); // build -> { build, stage, rank, findings }
-    findings.forEach((f, i) => {
-      const entry = PLAY_FOR_KEY[f.key] || PLAY_FOR_AREA[f.area];
-      if (!entry) return;
-      const got = picked.get(entry.build);
-      if (got) { got.findings.push(f); return; }
-      picked.set(entry.build, { ...entry, rank: i, findings: [f] });
-    });
-
-    let chosen = [...picked.values()];
-    // A clean profile still gets a plan. Being fine today is not the same as staying fine.
-    if (!chosen.length) {
-      chosen = [
-        { build: playBooking, stage: 1, rank: 0, findings: [] },
-        { build: playReviews, stage: 2, rank: 1, findings: [] },
-      ];
-    }
-
-    // Fixed arc, not severity order. Get found, then win the job, then keep it running.
-    // Ordering stages by severity meant a business whose worst number was its review count
-    // opened on reviews and closed on being invisible, which is a shuffled deck rather than
-    // an argument. A product page earns its conversion from a narrative that runs the same
-    // way every time. Severity still decides the order inside a stage.
-    chosen.sort((a, b) => a.stage - b.stage || a.rank - b.rank);
-
-    // Nothing in the audit measures AI visibility, so no finding can route to it, but it
-    // applies to every one of them and it is the only part of the plan that is news rather
-    // than diagnosis. It sits with the other two ways of being found.
-    // A business already winning on Google is the sharpest audience for this, not the
-    // weakest: SOCi found fewer than half the brands doing well in local search show up in
-    // AI answers at all. So it runs for everybody, after the other get-found plays when
-    // there are any, and at the front when there are none.
-    const found = chosen.filter((c) => c.stage === 0);
-    const aiPlay = { build: playAi, stage: 0, rank: found.length ? found[found.length - 1].rank + 0.5 : -1, findings: [] };
-    chosen.splice(found.length ? chosen.indexOf(found[found.length - 1]) + 1 : 0, 0, aiPlay);
-
-    const plays = chosen
-      .map((c, i) => c.build(report, i + 1, c.findings))
-      .filter(Boolean);
-    if (!plays.length) return [h("p", { class: "plan-lead", text: "Nothing on your profile is costing you work today. The plan is to keep it that way." })];
+    const gbpDone = (p.photoCount || 0) >= 5 && Boolean(p.hasHours) && Boolean(p.phone) && Boolean(w.found);
+    const siteState = !w.found ? "todo" : w.broken ? "todo" : num(w.mobileScore) === null ? "unknown" : w.mobileScore >= 50 ? "done" : "todo";
+    const napState = w.callNumberMatchesGoogle === null || w.callNumberMatchesGoogle === undefined ? "unknown" : w.callNumberMatchesGoogle ? "done" : "todo";
+    const gridKnown = Array.isArray(r.ranks) && r.ranks.length > 0;
+    const mapsState = !gridKnown ? "unknown" : r.pointsInTop3 >= Math.ceil(r.ranks.length / 2) ? "done" : "todo";
+    // Five or fewer reviews means we saw all of them; above that the honest signal is the
+    // age of the ones Google shows first. Same rule as the finding.
+    const reviewsMoving = count <= 5
+      ? (sg.reviewVelocity90d || 0) > 0
+      : (sg.newestReviewDays !== null && sg.newestReviewDays !== undefined && sg.newestReviewDays <= 90);
+    const aiState = rating === null ? "unknown" : rating >= 3.4 && count >= 10 ? "done" : "todo";
+    // The capture and retention rows are things a system does. Nobody has them by
+    // accident, so they are a cross unless they told us it already runs on its own.
+    const quotesAuto = a.quoteFollowUp === "automatic";
 
     return [
-      h("ol", { class: "features" }, plays),
-      renderPlanClose(report, plays.length),
-    ].filter(Boolean);
+      { stage: "Foundation", rows: [
+        { key: "gbp", label: "Google Business Profile complete", state: gbpDone ? "done" : "todo", detail: () => visualMyListing(report) },
+        { key: "site", label: "Website that loads on a phone", state: siteState },
+        { key: "nap", label: "Same name, phone and address everywhere", state: napState },
+        { key: "yelp", label: "Yelp profile claimed and rated", state: "unknown", note: "Checked once Yelp is connected." },
+      ]},
+      { stage: "Visibility", rows: [
+        { key: "maps", label: r.keyword ? `Top 3 on Google Maps for "${r.keyword}"` : "Top 3 on Google Maps for your trade", state: mapsState, detail: () => visualSearchList(report) },
+        { key: "reviews", label: "New reviews arriving every month", state: reviewsMoving ? "done" : "todo", detail: () => visualReviewGap(report) },
+        { key: "ai", label: "Named when somebody asks the AI", state: aiState, detail: () => visualAiAnswer(report) },
+      ]},
+      { stage: "Lead capture", rows: [
+        { key: "textback", label: "Missed calls get a text back in seconds", state: "todo" },
+        { key: "booking", label: "Customers book themselves into your calendar", state: "todo" },
+        { key: "quotes", label: "Quotes followed up until it is a yes or a no", state: quotesAuto ? "done" : "todo" },
+      ]},
+      { stage: "Retention", rows: [
+        { key: "ask", label: "Review request after every job, on its own", state: quotesAuto && reviewsMoving ? "done" : "todo" },
+        { key: "past", label: "Past customers hear from you before they go looking", state: "todo" },
+      ]},
+    ];
   }
 
-  // The close. A plan nobody can picture starting is a plan nobody starts, so this is the
-  // order and the rough shape of it, then the ask. The ask is deliberately a reply to a
-  // text they already have rather than a calendar link: they verified that number ten
-  // minutes ago, and asking them to book on top of it is where a free report starts
-  // feeling like a funnel.
-  function renderPlanClose(report, count) {
-    const g = report?.growth;
-    const money = g
-      ? `Four of these a month is ${"$" + Number(g.perMonth).toLocaleString("en-US")}. Your job value, your job count, nothing invented.`
-      : "";
+  function renderPlanSteps(report, summary) {
+    const groups = checklistFor(report);
+    const all = groups.flatMap((g) => g.rows);
+    const done = all.filter((x) => x.state === "done").length;
+    const known = all.filter((x) => x.state !== "unknown").length;
+    const todo = all.filter((x) => x.state === "todo").length;
 
-    const step = (when, what) =>
-      h("li", { class: "seq-step" }, [
-        h("span", { class: "seq-when", text: when }),
-        h("span", { class: "seq-what", text: what }),
+    const icon = (state) => h("span", {
+      class: `ck-ico is-${state}`, "aria-hidden": "true",
+      text: state === "done" ? "\u2713" : state === "todo" ? "\u2715" : "?",
+    });
+    const body = (x) => h("div", { class: "ck-body" }, [
+      h("span", { class: "ck-label", text: x.label }),
+      x.note ? h("span", { class: "ck-note", text: x.note }) : null,
+    ].filter(Boolean));
+
+    const row = (x) => {
+      const panel = typeof x.detail === "function" ? x.detail() : null;
+      if (!panel) return h("li", { class: `ck-row is-${x.state}` }, [icon(x.state), body(x)]);
+      // A cross with evidence opens by default: that is the moment the page is for.
+      const det = h("details", { class: `ck-row has-detail is-${x.state}`, ...(x.state === "todo" ? { open: "" } : {}) }, [
+        h("summary", { class: "ck-sum" }, [icon(x.state), body(x), h("span", { class: "ck-chev", "aria-hidden": "true", text: "\u203a" })]),
+        h("div", { class: "ck-detail" }, [panel]),
       ]);
+      return h("li", {}, [det]);
+    };
 
-    return h("div", { class: "plan-close" }, [
-      h("p", { class: "eyebrow", text: "The order it gets built in" }),
-      h("ol", { class: "seq" }, [
-        step("Week one", "Listing finished. The free leaks plugged."),
-        step("Weeks two to six", "Booking, quotes and reviews go automatic, wired to your calendar and CRM."),
-        step("Every week after", "The map climbs. Old customers hear from you first."),
+    return [
+      h("div", { class: "ck-head" }, [
+        h("p", { class: "ck-count" }, [h("b", { text: String(done) }), ` of ${known} in place`]),
+        h("span", { class: "ck-bar", "aria-hidden": "true" }, [
+          h("span", { class: "ck-bar-fill", style: `width: ${known ? Math.round((done / known) * 100) : 0}%` }),
+        ]),
       ]),
-      money ? h("p", { class: "plan-money", text: money }) : null,
+      ...groups.map((g) => h("section", { class: "ck-stage" }, [
+        h("h4", { class: "ck-stage-t", text: g.stage }),
+        h("ul", { class: "ck-list" }, g.rows.map(row)),
+      ])),
+      renderPlanClose(report, todo),
+    ];
+  }
+
+  // The close is the count. Every cross above is a thing the system runs, so the ask
+  // writes itself.
+  function renderPlanClose(report, todo) {
+    const g = report?.growth;
+    return h("div", { class: "plan-close" }, [
       h("div", { class: "plan-ask" }, [
-        h("h4", { text: "Ready to build a shop that runs without you in the middle of it?" }),
-        h("p", { text: "Reply to the text we sent you and we will book an operational review. We go through what is leaking, what we would plug first, and what it takes. If it is not for you, no harm done, and this plan is yours either way." }),
+        h("h4", { text: todo ? `We set up the other ${todo}.` : "You have the full setup." }),
+        h("p", { text: g
+          ? `Every cross above is something the system runs for you. One more job a week at your ticket is ${money(g.perMonth)} a month. Reply to the text we sent you and we will book an operational review.`
+          : "Reply to the text we sent you and we will book an operational review." }),
       ]),
     ]);
   }

@@ -2400,3 +2400,49 @@ body.is-locked { overflow: hidden; }
   .fb-art { padding: 20px; }
   .fb-name { font-size: clamp(1.5rem, 6.5vw, 1.9rem); }
 }
+
+
+/* ============ THE PLAN, AS A CHECKLIST ============ */
+.ck-head { display: grid; gap: 10px; margin: 4px 0 8px; }
+.ck-count { margin: 0; font-size: 1.05rem; color: var(--ink-2); }
+.ck-count b { font-size: 1.7rem; font-weight: 800; color: var(--ink); letter-spacing: -0.03em; margin-right: 5px; }
+.ck-bar { display: block; height: 8px; border-radius: 999px; background: var(--rule); overflow: hidden; }
+.ck-bar-fill { display: block; height: 100%; border-radius: 999px; background: var(--good); }
+
+.ck-stage { margin-top: 28px; }
+.ck-stage-t { margin: 0 0 6px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-3); }
+.ck-list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+.ck-list > li { border-bottom: 1px solid var(--rule); }
+
+.ck-row { display: grid; grid-template-columns: 30px 1fr; gap: 12px; align-items: center; padding: 15px 0; }
+details.ck-row { display: block; padding: 0; }
+.ck-sum { display: grid; grid-template-columns: 30px 1fr auto; gap: 12px; align-items: center; padding: 15px 0; cursor: pointer; list-style: none; }
+.ck-sum::-webkit-details-marker { display: none; }
+
+.ck-ico { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 0.85rem; font-weight: 800; }
+.ck-ico.is-done { background: var(--good-soft); color: var(--good); }
+.ck-ico.is-todo { background: var(--bad-soft); color: var(--bad); }
+.ck-ico.is-unknown { background: var(--paper); color: var(--ink-3); border: 1px dashed var(--ink-3); }
+
+.ck-body { display: grid; gap: 2px; min-width: 0; }
+.ck-label { font-size: 1.05rem; font-weight: 600; color: var(--ink); letter-spacing: -0.01em; line-height: 1.35; }
+.ck-row.is-done .ck-label { color: var(--ink-2); font-weight: 500; }
+.ck-note { font-size: 0.8rem; color: var(--ink-3); }
+.ck-chev { font-size: 1.5rem; line-height: 1; color: var(--ink-3); transition: transform 0.2s ease; }
+details[open] .ck-chev { transform: rotate(90deg); }
+
+.ck-detail { padding: 2px 0 22px 42px; }
+.ck-detail .play-visual { margin: 0; background: var(--paper); border-radius: 16px; padding: 20px; }
+
+.plan-close { margin-top: 30px; padding-top: 0; border-top: 0; }
+
+@media (max-width: 640px) {
+  .ck-detail { padding-left: 0; }
+  .ck-detail .play-visual { padding: 14px; }
+  .ck-label { font-size: 0.98rem; }
+}
+@media (prefers-reduced-motion: reduce) { .ck-chev { transition: none; } }
+
+/* The empty photo slot in a listing replica was a 16:9 box, which on the checklist's
+   full-width column became a striped billboard. Empty needs no aspect ratio. */
+.gl-photo.is-empty { aspect-ratio: auto; min-height: 112px; padding: 26px 0; }
