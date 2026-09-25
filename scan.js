@@ -854,6 +854,8 @@
     // be hidden alongside it rather than with it.
     const how = $("how");
     if (how) how.hidden = true;
+    const inside = document.querySelector("section.inside");
+    if (inside) inside.hidden = true;
     $("scanDone").hidden = true;
     $("scan").hidden = false;
     $("scanTitle").textContent = `Scanning ${business.name}`;
@@ -1044,6 +1046,8 @@
     document.querySelector("main.hero").hidden = false;
     const how = $("how");
     if (how) how.hidden = false;
+    const inside = document.querySelector("section.inside");
+    if (inside) inside.hidden = false;
     document.getElementById("clearBtn")?.click();
     showBack(false);
     window.scrollTo({ top: 0 });

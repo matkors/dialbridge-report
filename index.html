@@ -24,7 +24,8 @@
   </header>
 
   <main class="hero">
-    <p class="eyebrow">Used by 500+ local contractors</p>
+    <div class="hero-main">
+    <p class="eyebrow hero-pill">Used by 500+ local contractors</p>
     <h1>See the jobs you're losing. <span class="h1-accent">Get your free Growth Plan.</span></h1>
 
     <div class="search" id="search">
@@ -60,6 +61,11 @@
       </div>
 
       <p id="searchHint" class="hint">Include your city for best results, e.g. Atlantic Shore Morganville</p>
+      <ul class="hero-checks">
+        <li>Free</li>
+        <li>About 2 minutes</li>
+        <li>No sign-up</li>
+      </ul>
 
     </div>
 
@@ -80,7 +86,55 @@
         <div><dt>Place ID</dt><dd id="pId" class="mono"></dd></div>
       </dl>
     </section>
+    </div>
+
+    <!-- A picture of the report next to the headline, so the result is visible before the
+         search. The listing is a real Google profile used as an example; the cards are what
+         our report shows about any business. -->
+    <div class="hero-art" aria-hidden="true">
+      <div class="ha-phone">
+        <div class="ha-notch"></div>
+        <img src="img/panel-complete.webp" alt="" loading="eager" />
+      </div>
+      <div class="ha-card ha-money">
+        <p class="ha-k">Jobs slipping away</p>
+        <p class="ha-v">$12,000<span>/month</span></p>
+      </div>
+      <div class="ha-card ha-map">
+        <p class="ha-k">Top 3 on Google Maps</p>
+        <div class="ha-grid"><i></i><i class="ok"></i><i></i><i></i><i class="ok"></i><i></i><i></i><i></i><i></i></div>
+        <p class="ha-s">2 of 25 spots</p>
+      </div>
+      <div class="ha-card ha-rivals">
+        <p class="ha-k">Your top competitors</p>
+        <div class="ha-row"><span class="ha-av a1">RS</span><b>421 reviews</b></div>
+        <div class="ha-row"><span class="ha-av a2">RR</span><b>312 reviews</b></div>
+        <div class="ha-row"><span class="ha-av a3">WB</span><b>198 reviews</b></div>
+      </div>
+      <div class="ha-card ha-ai">
+        <p class="ha-k">Recommended by ChatGPT</p>
+        <p class="ha-no"><span>&#10005;</span> Not yet</p>
+      </div>
+      <div class="ha-card ha-plan">
+        <span class="ha-tick">&#10003;</span>
+        <div><p class="ha-k">Your Growth Plan</p><p class="ha-s">Ready, step by step</p></div>
+      </div>
+    </div>
   </main>
+
+  <!-- What the report checks. One line each: the detail is in the report itself. -->
+  <section class="inside" aria-labelledby="insideTitle">
+    <h2 id="insideTitle" class="inside-title">What's in your free report</h2>
+    <ol class="inside-list">
+      <li><span class="in-n">01</span><b>Google profile score</b><span>Which fields are missing or weak</span></li>
+      <li><span class="in-n">02</span><b>Map ranking</b><span>Where you show up across 25 spots around you</span></li>
+      <li><span class="in-n">03</span><b>Your top competitors</b><span>Who ranks above you, and by how much</span></li>
+      <li><span class="in-n">04</span><b>AI visibility</b><span>Whether ChatGPT would recommend you</span></li>
+      <li><span class="in-n">05</span><b>Website on a phone</b><span>How fast it loads, and if it works at all</span></li>
+      <li><span class="in-n">06</span><b>What it's costing you</b><span>The jobs slipping away, in dollars a month</span></li>
+    </ol>
+    <p class="inside-plus"><span>+</span> Your free Growth Plan: the exact steps to win those jobs back.</p>
+  </section>
 
 <section class="how" id="how" aria-labelledby="howTitle">
       <h2 id="howTitle" class="how-title">How it works</h2>
@@ -150,7 +204,7 @@
               </div>
               <div class="mock-mapline">
                 <span class="mock-minigrid" aria-hidden="true"><i></i><i></i><i class="is-ok"></i><i></i><i class="is-ok"></i><i></i><i></i><i></i><i></i></span>
-                <span>Top 3 at 2 of 9 spots nearby</span>
+                <span>Top 3 at 2 of 25 spots nearby</span>
               </div>
               <div class="mock-find"><i>1</i><span>The busier you get, the more work you lose</span></div>
             </div>
@@ -167,32 +221,32 @@
             <div class="how-chrome"><i></i><i></i><i></i></div>
             <div class="how-screen">
               <div class="mock-plan">
-                <div class="mock-pillar">
-                  <em>1. Get found</em>
-                  <b>Be the one they see</b>
-                </div>
                 <div class="mock-pillar is-start">
-                  <em>2. Get chosen</em>
-                  <b>Recent reviews win the call</b>
+                  <em>1. Foundations</em>
+                  <b>Website, Google profile, same details everywhere</b>
                   <span class="mock-flag">Start here</span>
                 </div>
                 <div class="mock-pillar">
-                  <em>3. Capture every lead</em>
-                  <b>Nothing goes unanswered</b>
+                  <em>2. The system</em>
+                  <b>Every call answered, every quote followed up</b>
+                </div>
+                <div class="mock-pillar">
+                  <em>3. The result</em>
+                  <b>Top of Google, named by ChatGPT</b>
                 </div>
               </div>
             </div>
           </div>
           <div class="how-copy">
             <p class="how-num">Step 4</p>
-            <h3>Keep the growth plan</h3>
-            <p>The three things that decide whether a job is yours, what each one changes, and which to fix first. Free, and yours to keep.</p>
+            <h3>Get your Growth Plan</h3>
+            <p>The foundations to fix first, the system top contractors run on top of them, and what it gets you. Free, and yours to keep.</p>
           </div>
         </li>
       </ol>
 
       <ul class="how-stats">
-        <li><strong>9</strong><span>search points checked around your address</span></li>
+        <li><strong>25</strong><span>search points checked around your address</span></li>
         <li><strong>~40s</strong><span>from search to finished report</span></li>
         <li><strong>$0</strong><span>and no call required to see it</span></li>
       </ul>

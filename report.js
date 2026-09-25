@@ -182,7 +182,7 @@
       ]),
       h("a", { class: "nextup-row is-next", href: "#blueprintOffer" }, [
         h("span", { class: "nextup-mark", text: "2" }),
-        h("span", { class: "nextup-name", text: "Growth Blueprint" }),
+        h("span", { class: "nextup-name", text: "Growth Plan" }),
         h("span", { class: "nextup-state", text: "Yours free, at the end" }),
         h("span", { class: "nextup-go", "aria-hidden": "true", text: "\u2192" }),
       ]),
@@ -194,7 +194,7 @@
   function renderBlueprintNudge() {
     return h("p", { class: "blueprint-nudge" }, [
       "When you have read this, ",
-      h("a", { href: "#blueprintOffer", text: "your Growth Blueprint" }),
+      h("a", { href: "#blueprintOffer", text: "your Growth Plan" }),
       " is waiting at the end. It is the plan for fixing what is above, in the order that pays.",
     ]);
   }
@@ -280,6 +280,55 @@
   // Everything anybody gets for nothing: the two scores, and the one line that names which
   // of them is the problem. What those scores are made of, what it costs and what fixes it
   // all sits behind the phone check below.
+  // Four cards summing up the report before the detail: what it is costing, where they
+  // show on the map, who is beating them, and whether ChatGPT would name them. The same
+  // cards as the preview on the landing page, now with their numbers. Every value is
+  // measured or is their own answer; the ChatGPT card is a verdict against the 3.4 and
+  // 4.3 lines from SOCi's study, not a claim that we asked ChatGPT.
+  function renderSnapshot(report) {
+    const leak = report?.leak || {};
+    const r = report?.ranking || {};
+    const total = Array.isArray(r.ranks) ? r.ranks.length : 0;
+    const rating = num(report?.reviews?.googleRating);
+    const count = num(report?.reviews?.googleReviewCount) ?? 0;
+    const rivals = rivalsFor(report, 3);
+    const initialsOf = (n) => String(n || "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join("");
+    const cards = [];
+
+    if (leak.perMonth) cards.push(h("div", { class: "sn-card sn-money" }, [
+      h("p", { class: "sn-k", text: "Jobs slipping away" }),
+      h("p", { class: "sn-v" }, [`$${Number(leak.perMonth).toLocaleString("en-US")}`, h("span", { text: "/month" })]),
+    ]));
+
+    if (total) cards.push(h("div", { class: "sn-card" }, [
+      h("p", { class: "sn-k", text: "Top 3 on Google Maps" }),
+      h("p", { class: "sn-v" }, [String(r.pointsInTop3 || 0), h("span", { text: ` of ${total} spots` })]),
+      total === 25 ? h("div", { class: "sn-grid", "aria-hidden": "true" }, r.ranks.map((k) =>
+        h("i", { class: Number(k) >= 1 && Number(k) <= 3 ? "ok" : Number(k) >= 1 ? "mid" : "" }))) : null,
+    ].filter(Boolean)));
+
+    if (rivals.length) cards.push(h("div", { class: "sn-card" }, [
+      h("p", { class: "sn-k", text: "Your top competitors" }),
+      h("div", { class: "sn-rivals" }, rivals.map((c, i) => h("div", { class: "sn-rival" }, [
+        h("span", { class: `sn-av a${i + 1}`, text: initialsOf(c.name) }),
+        h("span", { class: "sn-rn", text: c.name }),
+        h("b", { text: c.reviewCount ? `${Number(c.reviewCount).toLocaleString("en-US")}` : "" }),
+      ]))),
+    ]));
+
+    if (rating !== null) {
+      const state = rating >= 4.3 && count >= 25 ? ["ok", "Likely"] : rating < 3.4 ? ["no", "Unlikely"] : ["warn", "At risk"];
+      cards.push(h("div", { class: `sn-card sn-ai is-${state[0]}` }, [
+        h("p", { class: "sn-k", text: "Recommended by ChatGPT" }),
+        h("p", { class: "sn-v" }, [state[1]]),
+        h("p", { class: "sn-s", text: `${rating.toFixed(1)} stars, ${count} reviews` }),
+      ]));
+    }
+
+    if (!cards.length) return null;
+    return h("section", { class: "snapshot" }, cards);
+  }
+
   function renderHero(summary, report) {
     const response = num(report?.responseScore);
     return h("header", { class: "report-hero" }, [
@@ -2530,7 +2579,6 @@
     const part = (n, title) => h("div", { class: `gp-part${n > 1 ? " is-next" : ""}` }, [h("span", { class: "gp-part-n", text: String(n) }), h("h3", { class: "gp-part-t", text: title })]);
 
     return [
-      h("a", { class: "book-jump", href: "#book" }, [`Book your free Growth Plan call`, h("span", { "aria-hidden": "true", text: " \u2193" })]),
       part(1, "Get Your Business Foundations in Place"),
       planSection({
         kicker: "Foundation 1",
@@ -2567,14 +2615,14 @@
         kicker: "Step 2",
         title: "Customers Book Straight From Google",
         art: artBookingScreens(report),
-        legend: [],
+        legend: ["They find you on Google", "They pick a time", "It lands in your calendar"],
         wide: true,
       }),
       planSection({
         kicker: "Step 3",
         title: "Every Quote Followed Up",
         art: artQuoteFlow(report),
-        legend: [],
+        legend: ["The quote goes out as a PDF", "Follow-ups go out on their own", "The quote gets accepted"],
         note: "Our system checks in on every quote by text until you get a yes or a no.",
         auto: true,
         wide: true,
@@ -2593,22 +2641,22 @@
         ).filter(Boolean)),
       ]),
 
-      part(3, "What You Get"),
+      part(3, "If You Use This System, You Will:"),
       planSection({
         kicker: "Result 1",
-        title: "You Show Up at the Top of Google",
+        title: "Show Up at the Top of Google",
         art: artTopOfGoogle(report, { chat: false }),
         legend: ["Local Services Ads, pay per lead", "Top 3 on Google Maps"],
       }),
       planSection({
         kicker: "Result 2",
-        title: "ChatGPT Recommends You",
+        title: "Get Recommended by ChatGPT",
         art: artChatGpt(report),
         legend: ["Your business named in the answer"],
       }),
       planSection({
         kicker: "Result 3",
-        title: "Leads You Used to Miss Become Jobs",
+        title: "Turn Missed Leads Into Booked Jobs",
         art: artPipeline(report),
         legend: ["Missed calls that turned into jobs", "Quotes still being followed up"],
         wide: true,
@@ -2656,6 +2704,10 @@
       slot.dataset.loaded = "1";
       const frame = h("iframe", {
         src: bookingSrc(),
+        // GoHighLevel draws its own title, duration and date block above the calendar,
+        // which repeats our heading right above it. The embed is shifted up inside a
+        // clipping box so the calendar starts at the month. The widget switches layout at
+        // 730px wide, and each layout's header is a different height.
         id: `${BOOKING_CALENDAR_ID}_${Date.now()}`,
         title: "Book your free Growth Plan call",
         scrolling: "no",
@@ -2663,6 +2715,9 @@
         class: "bk-cal-frame",
       });
       frame.addEventListener("load", () => slot.classList.add("is-ready"), { once: true });
+      const crop = () => { frame.style.marginTop = slot.clientWidth >= 730 ? "-222px" : "-176px"; };
+      crop();
+      window.addEventListener("resize", crop, { passive: true });
       slot.appendChild(frame);
       loadEmbedScript();
     };
@@ -3240,6 +3295,7 @@
     // business gets the map up front, because that is theirs.
     const capacityTrack = report?.track === "capacity";
     const gated = capacityTrack ? [
+      renderSnapshot(report),
       renderWon(report, summary),
       renderLeak(report?.leak),
       renderJourney(report),
@@ -3256,6 +3312,7 @@
       ].filter(Boolean)),
       renderBlueprintOffer(report, summary),
     ].filter(Boolean) : [
+      renderSnapshot(report),
       renderLeak(report?.leak),
       renderJourney(report),
       renderFindings(summary),
