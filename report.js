@@ -1948,20 +1948,22 @@
 
   const pin = (n, cls = "") => h("span", { class: `pin ${cls}`.trim(), text: String(n) });
 
-  function planSection({ kicker, title, line, art, legend, now }) {
+  function planSection({ kicker, title, line, art, legend, auto }) {
     return h("section", { class: "ps" }, [
       h("p", { class: "ps-kick", text: kicker }),
       h("h4", { class: "ps-title", text: title }),
       line ? h("p", { class: "ps-line", text: line }) : null,
-      h("div", { class: "ps-art" }, [art]),
+      h("div", { class: "ps-art" }, [
+        auto ? h("span", { class: "ps-auto" }, [h("i", { "aria-hidden": "true" }), "Runs automatically"]) : null,
+        art,
+      ].filter(Boolean)),
       h("ol", { class: "ps-legend" }, legend.map((t, i) => h("li", {}, [h("span", { class: "ps-n", text: String(i + 1) }), h("span", { text: t })]))),
-      now ? h("p", { class: "ps-now" }, [h("b", { text: "Right now: " }), now]) : null,
     ].filter(Boolean));
   }
 
   // ---- a real, well-built contractor homepage on a phone, marked up
   function artSiteExample() {
-    const shot = img("img/example-site.webp", { alt: "The mobile homepage of a well-known plumbing company", loading: "lazy" });
+    const shot = img("img/example-site.webp", { alt: "The mobile homepage of a well-known electrical company", loading: "lazy" });
     return h("figure", { class: "ex" }, [
       h("div", { class: "ex-phone" }, [
         shot,
@@ -1969,65 +1971,74 @@
         pin(2, "at-photo"),
         pin(3, "at-bar"),
       ]),
-      h("figcaption", { class: "ex-cap", text: "Example: a top plumbing company's homepage on a phone" }),
+      h("figcaption", { class: "ex-cap", text: "Example: a top home service company's homepage on a phone" }),
     ]);
   }
 
-  // ---- the same name, address and phone on the three places people check
+  // ---- the same name, address and phone on the three places people check. Three
+  //      listings with equal signs between them: the point is visible before it is read.
   function artNap(report) {
     const p = report?.profile || {};
     const name = p.name || "Your business";
     const addr = p.address || `Serves ${townOf(report) || "your area"}`;
     const phone = p.phone || "(555) 123-4567";
-    const row = (brand, cls) => h("div", { class: `nx-row ${cls}` }, [
-      h("span", { class: "nx-brand", text: brand }),
-      h("span", { class: "nx-cell", text: name }),
-      h("span", { class: "nx-cell", text: addr }),
-      h("span", { class: "nx-cell", text: phone }),
-    ]);
-    return h("div", { class: "nx" }, [
-      h("div", { class: "nx-row nx-head" }, [
-        h("span", {}),
-        h("span", { class: "nx-h" }, ["Name", pin(1)]),
-        h("span", { class: "nx-h" }, ["Address", pin(2)]),
-        h("span", { class: "nx-h" }, ["Phone", pin(3)]),
+    const card = (brand, cls, first) => h("div", { class: `nq ${cls}` }, [
+      h("div", { class: "nq-top" }, [h("span", { class: "nq-logo", text: brand })]),
+      h("div", { class: "nq-body" }, [
+        h("p", { class: "nq-f nq-name" }, [h("span", { text: name }), first ? pin(1, "at-right") : null].filter(Boolean)),
+        h("p", { class: "nq-f" }, [h("span", { text: addr }), first ? pin(2, "at-right") : null].filter(Boolean)),
+        h("p", { class: "nq-f nq-phone" }, [h("span", { text: phone }), first ? pin(3, "at-right") : null].filter(Boolean)),
       ]),
-      row("Google", "is-google"),
-      row("Yelp", "is-yelp"),
-      row("Facebook", "is-fb"),
-      h("p", { class: "nx-ok", text: "\u2713 All three match" }),
+    ]);
+    const eq = () => h("span", { class: "nq-eq", "aria-hidden": "true", text: "=" });
+    return h("div", { class: "nqs" }, [
+      h("div", { class: "nq-row" }, [card("Google", "is-google", true), eq(), card("yelp", "is-yelp"), eq(), card("facebook", "is-fb")]),
+      h("p", { class: "nq-ok", text: "\u2713 Identical everywhere" }),
     ]);
   }
 
-  // ---- the top of Google: Local Services Ad, the map, and the AI answer
+  // ---- the top of Google: the Local Services Ad, the map pack, and a ChatGPT answer.
   function artTopOfGoogle(report) {
     const name = report?.profile?.name || "Your business";
     const rating = num(report?.reviews?.googleRating);
     const count = num(report?.reviews?.googleReviewCount) ?? 0;
     const kw = report?.ranking?.keyword || tradeWord(report) || "contractor";
+    const cat = report?.profile?.category || capFirst(kw);
+    const town = townOf(report);
     const rivals = rivalsFor(report, 2);
     const mapRow = (n, nm, r, c, mine) => h("div", { class: `tg-row${mine ? " is-me" : ""}` }, [
-      h("span", { class: "tg-n", text: String(n) }),
-      h("span", { class: "tg-name", text: nm }),
-      h("span", { class: "tg-meta" }, [r !== null && r !== undefined ? `${Number(r).toFixed(1)} ` : "", starsFor(r), ` (${c || 0})`]),
+      h("span", { class: "tg-dot", text: String(n) }),
+      h("div", { class: "tg-info" }, [
+        h("p", { class: "tg-name", text: nm }),
+        h("p", { class: "tg-meta" }, [r !== null && r !== undefined ? `${Number(r).toFixed(1)} ` : "", starsFor(r), ` (${c || 0}) \u00b7 ${cat}`]),
+        h("p", { class: "tg-open", text: "Open 24 hours" }),
+      ]),
+      h("div", { class: "tg-btns" }, [h("span", { text: "Call" }), h("span", { text: "Directions" })]),
       mine ? pin(2, "at-right") : null,
     ].filter(Boolean));
-    return h("div", { class: "tg" }, [
-      h("div", { class: "tg-q" }, [h("span", { class: "rs-q-ico", "aria-hidden": "true" }), `${kw} near me`]),
-      h("div", { class: "tg-lsa" }, [
-        h("p", { class: "tg-spons", text: "Sponsored \u00b7 Google Guaranteed" }),
-        h("p", { class: "tg-lsa-name" }, [name, h("span", { class: "tg-gg", text: "\u2713" })]),
-        h("p", { class: "tg-meta" }, [rating !== null ? `${rating.toFixed(1)} ` : "", starsFor(rating), ` (${count}) \u00b7 Open now`]),
-        pin(1, "at-right"),
+    return h("div", { class: "tg-wrap" }, [
+      h("div", { class: "tg" }, [
+        h("div", { class: "tg-q" }, [h("span", { class: "rs-q-ico", "aria-hidden": "true" }), `${kw} near me`]),
+        h("div", { class: "tg-lsa" }, [
+          h("p", { class: "tg-spons", text: "Sponsored \u00b7 Google Guaranteed" }),
+          h("p", { class: "tg-lsa-name" }, [name, h("span", { class: "tg-gg", text: "\u2713" })]),
+          h("p", { class: "tg-meta" }, [rating !== null ? `${rating.toFixed(1)} ` : "", starsFor(rating), ` (${count}) \u00b7 Open now`]),
+          pin(1, "at-right"),
+        ]),
+        h("div", { class: "tg-map", "aria-hidden": "true" }, [
+          h("span", { class: "tg-mpin m1" }, [h("b", { text: "1" })]),
+          h("span", { class: "tg-mpin m2" }, [h("b", { text: "2" })]),
+          h("span", { class: "tg-mpin m3" }, [h("b", { text: "3" })]),
+        ]),
+        h("div", { class: "tg-list" }, [
+          mapRow(1, name, rating, count, true),
+          ...rivals.map((c, i) => mapRow(i + 2, c.name, c.rating, c.reviewCount, false)),
+        ]),
       ]),
-      h("div", { class: "tg-map", "aria-hidden": "true" }),
-      h("div", { class: "tg-list" }, [
-        mapRow(1, name, rating, count, true),
-        ...rivals.map((c, i) => mapRow(i + 2, c.name, c.rating, c.reviewCount, false)),
-      ]),
-      h("div", { class: "tg-ai" }, [
-        h("span", { class: "tg-ai-t", text: "ChatGPT" }),
-        h("span", { text: `${shortName(name)} is a well-reviewed ${kw} near you.` }),
+      h("div", { class: "tg-chat" }, [
+        h("p", { class: "tg-chat-h", text: "ChatGPT" }),
+        h("p", { class: "tg-ask", text: town ? `Who's a good ${kw} in ${town}?` : `Who's a good ${kw} near me?` }),
+        h("p", { class: "tg-ans" }, [h("b", { text: shortName(name) }), ` is a well-reviewed ${kw}${town ? ` in ${town}` : ""}, answers fast and books online.`]),
         pin(3, "at-right"),
       ]),
     ]);
@@ -2098,71 +2109,67 @@
       : w.yelpUrl ? "your site links to Yelp, but not to Facebook."
       : "your site doesn't link to a Facebook or Yelp page.";
 
-    // Add the markers to the Google profile picture's legend, same numbers as its pins.
     const part = (n, title) => h("div", { class: "gp-part" }, [h("span", { class: "gp-part-n", text: String(n) }), h("h3", { class: "gp-part-t", text: title })]);
 
     return [
-      part(1, "Get your business foundations in place"),
+      part(1, "Get Your Business Foundations in Place"),
       planSection({
         kicker: "Foundation 1",
-        title: "A website that gets calls",
+        title: "A Website That Gets Calls",
         art: artSiteExample(),
         legend: ["Says what you do in 5 seconds", "Real photos of your team", "Call and book on every screen"],
-        now: siteNow,
       }),
-      h("p", { class: "ps-plus", text: "Plus a page for every service and every town you serve. That's what shows up in Google." }),
       planSection({
         kicker: "Foundation 2",
-        title: "A Google Business Profile that's finished",
+        title: "A Complete Google Business Profile",
         art: artGbp(report),
         legend: ["Real job photos every month", "Booking button and all services", "A new update every week", "Every review answered"],
-        now: gaps.length ? `your profile is missing ${listWords(gaps)}.` : null,
       }),
       planSection({
         kicker: "Foundation 3",
-        title: "The same details everywhere",
+        title: "The Same Details Everywhere",
         line: "Google checks. If they don't match, you rank lower.",
         art: artNap(report),
         legend: ["Same business name", "Same address", "Same phone number"],
-        now: socialNow,
       }),
 
-      part(2, "The system top contractors use"),
+      part(2, "The System Top Contractors Use"),
       planSection({
         kicker: "Step 1",
-        title: "Show up at the top of Google",
+        title: "Show Up at the Top of Google",
         art: artTopOfGoogle(report),
         legend: ["Local Services Ads, pay per lead", "Top 3 on Google Maps", "Recommended by ChatGPT"],
-        now: Array.isArray(r.ranks) && r.ranks.length ? `top 3 at ${r.pointsInTop3 || 0} of ${r.ranks.length} spots we checked.` : null,
       }),
       planSection({
         kicker: "Step 2",
-        title: "Customers book straight from Google",
+        title: "Customers Book Straight From Google",
         art: artBookFromGoogle(report),
         legend: ["A Book button on your listing", "They pick a time", "It lands in your calendar"],
+        auto: true,
       }),
       planSection({
         kicker: "Step 3",
-        title: "Every call and message answered",
+        title: "Every Call and Message Answered",
+        line: "Our system texts back every missed call in seconds and puts every message in one inbox.",
         art: artInbox(report),
-        legend: ["Missed calls get a text in seconds", "Facebook and Instagram messages", "Website forms, all in one inbox"],
-        now: a.leadResponse === "within_hour" ? null : "you told us calls sometimes wait until you're free.",
+        legend: ["Missed calls get a text in seconds", "Facebook and Instagram messages", "Website forms, all in one place"],
+        auto: true,
       }),
       planSection({
         kicker: "Step 4",
-        title: "Every quote followed up",
+        title: "Every Quote Followed Up",
+        line: "Our system checks in on every quote by text, on a schedule, until you get a yes or a no.",
         art: artQuote(report),
-        legend: ["Quote sent", "Automatic check-ins by text", "They say yes"],
-        now: a.quoteFollowUp === "automatic" ? null : "you told us quotes get followed up when you remember.",
+        legend: ["You send the quote", "The check-ins go out on their own", "The customer says yes"],
+        auto: true,
       }),
       planSection({
         kicker: "Step 5",
-        title: "A review after every job",
+        title: "A Review After Every Job",
+        line: "Our system texts every customer your review link two hours after the job is done.",
         art: artReview(report),
-        legend: ["Text sent 2 hours after the job", "A new 5-star review on Google"],
-        now: rival && rival > count
-          ? `${fmt(count)} reviews, the shop above you has ${fmt(rival)}.${q ? ` This adds about ${q} in 90 days.` : ""}`
-          : q ? `${fmt(count)} reviews. This adds about ${q} in 90 days.` : null,
+        legend: ["The review request goes out on its own", "A new 5-star review on Google"],
+        auto: true,
       }),
       h("div", { class: "gp-loop" }, [
         h("div", { class: "gp-loop-row" }, ["More reviews", "Higher on Google", "More calls", "More jobs"].flatMap((t, i, arr) =>
@@ -2261,7 +2268,7 @@
     const money = (n) => `$${Number(n).toLocaleString("en-US")}`;
     const headline = g
       ? h("div", { class: "prize" }, [
-          h("p", { class: "prize-n", text: "One more job a week" }),
+          h("p", { class: "prize-n", text: "One More Job a Week" }),
           h("p", { class: "prize-v", text: `is about ${money(g.perMonth)} a month at your ticket` }),
         ])
       : h("h3", { text: capacity ? "What to stop losing" : "What to fix, and in what order" });

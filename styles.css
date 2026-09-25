@@ -3149,3 +3149,65 @@ details[open] .ck-chev { transform: rotate(90deg); }
 
 /* Marker on the ad card sits on its corner, clear of the Guaranteed tick. */
 .tg-lsa > .pin.at-right { top: -11px; transform: none; }
+
+
+/* ============ TIGHTER, ONE-LINE TITLES ============ */
+.gp-part { margin: 30px 0 0; }
+.ps { padding: 26px 0 4px; gap: 8px; }
+.card-plan .ps-title { max-width: none; font-size: clamp(1.2rem, 2.6vw, 1.6rem); }
+@media (min-width: 700px) { .card-plan .ps-title, .card-plan .gp-part-t { white-space: nowrap; } }
+.ps-art { position: relative; margin-top: 6px; }
+.ps-plus, .ps-now { display: none; }
+
+/* site example markers, placed on the new screenshot */
+.ex-phone .pin.at-headline { right: -12px; top: 62%; }
+.ex-phone .pin.at-photo { left: -12px; top: 32%; }
+.ex-phone .pin.at-bar { right: -12px; top: 95%; }
+
+/* "Runs automatically" */
+.ps-auto { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 7px; padding: 5px 12px; border-radius: 999px; background: var(--ink); color: #fff; font: 700 11.5px/1 -apple-system, "Segoe UI", sans-serif; white-space: nowrap; z-index: 4; box-shadow: 0 4px 12px rgba(0,0,0,.18); }
+.ps-auto i { width: 8px; height: 8px; border-radius: 50%; background: #34c759; box-shadow: 0 0 0 3px rgba(52,199,89,.3); }
+
+/* ---- Foundation 3: three listings, equal signs ---- */
+.nqs { display: grid; gap: 12px; }
+.nq-row { display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; gap: 8px; align-items: center; }
+.nq { background: #fff; border-radius: 12px; overflow: visible; box-shadow: 0 2px 4px rgba(20,20,20,.06), 0 12px 28px rgba(20,20,20,.08); }
+.nq-top { padding: 9px 12px; border-bottom: 1px solid #eee; border-radius: 12px 12px 0 0; }
+.nq-logo { font-weight: 900; font-size: 15px; letter-spacing: -0.03em; }
+.is-google .nq-logo { color: #4285f4; font-weight: 700; letter-spacing: 0; }
+.is-yelp .nq-logo { color: #d32323; }
+.is-fb .nq-logo { color: #1877f2; }
+.nq-body { padding: 10px; display: grid; gap: 6px; }
+.nq-f { position: relative; margin: 0; background: #e6f4ea; color: #0d652d; border-radius: 6px; padding: 6px 8px; font-size: 11.5px; font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.nq-name { font-weight: 800; }
+.nq-f .pin.at-right { right: -14px; width: 22px; height: 22px; font-size: 10.5px; }
+.nq-eq { font-size: 26px; font-weight: 800; color: #188038; }
+.nq-ok { margin: 0; text-align: center; font-weight: 800; color: #188038; font-size: 13px; }
+
+/* ---- Step 1: map, list, chat ---- */
+.tg-wrap { display: grid; gap: 12px; }
+.tg-map { position: relative; height: 104px; }
+.tg-mpin { position: absolute; width: 26px; height: 26px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: #ea4335; box-shadow: 0 2px 5px rgba(0,0,0,.25); display: grid; place-items: center; }
+.tg-mpin b { transform: rotate(45deg); color: #fff; font: 700 11px/1 -apple-system, sans-serif; }
+.tg-mpin.m1 { left: 44%; top: 26%; background: #188038; }
+.tg-mpin.m2 { left: 20%; top: 52%; } .tg-mpin.m3 { left: 72%; top: 44%; }
+.tg-row { grid-template-columns: 26px 1fr auto; align-items: center; column-gap: 10px; }
+.tg-dot { width: 22px; height: 22px; border-radius: 50%; background: #ea4335; color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+.tg-row.is-me .tg-dot { background: #188038; }
+.tg-info { display: grid; gap: 1px; min-width: 0; }
+.tg-open { font-size: 11px; color: #188038; }
+.tg-btns { display: flex; gap: 5px; }
+.tg-btns span { font-size: 10.5px; color: #1a73e8; border: 1px solid #dadce0; border-radius: 999px; padding: 4px 9px; }
+.tg-chat { position: relative; background: #fff; border-radius: 14px; padding: 12px 14px; box-shadow: 0 2px 4px rgba(20,20,20,.06), 0 12px 28px rgba(20,20,20,.08); display: grid; gap: 8px; font-size: 12px; }
+.tg-chat-h { font-size: 11px; font-weight: 800; color: #10a37f; }
+.tg-ask { justify-self: end; background: #f1f1f1; border-radius: 14px; padding: 7px 11px; max-width: 80%; }
+.tg-ans { line-height: 1.45; }
+
+@media (max-width: 640px) {
+  .nq-row { grid-template-columns: 1fr; }
+  .nq-eq { justify-self: center; line-height: 1; }
+  .tg-btns { display: none; }
+}
+
+/* Room for the "Runs automatically" badge above the picture. */
+.ps-art:has(.ps-auto) { margin-top: 20px; }
