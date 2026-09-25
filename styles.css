@@ -3511,3 +3511,38 @@ details[open] .ck-chev { transform: rotate(90deg); }
 .ios { min-height: 380px; }
 .gp-part.is-next { margin-top: 40px; }
 .gm-av { color: #fff; }
+
+
+/* ---- Step 3: equal cards, full PDF, content centered ---- */
+.bss { align-items: stretch; }
+.bss > .bs-col { grid-template-rows: 1fr auto; }
+.bss .bs-arrow { margin-top: 0; }
+.bs.qf2 { align-content: center; }
+.gm-thumb { max-height: none; }
+.gm-thumb .pdf-btn { display: none; }
+.pdf-head { flex-wrap: wrap; gap: 2px 8px; }
+.fu-head { display: flex; align-items: center; gap: 7px; padding-bottom: 7px; margin-bottom: 2px; border-bottom: 1px solid #ececec; font-size: 11.5px; }
+.fu-av { width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(#a8adb7, #858a94); color: #fff; font-size: 9px; font-weight: 700; display: grid; place-items: center; }
+.qa-booked { margin: 8px 0 0 !important; display: flex; align-items: center; gap: 7px; padding: 8px 10px; border-radius: 8px; background: #e6f4ea; color: #137333; font-weight: 700; font-size: 11.5px; }
+.qa-booked span { width: 18px; height: 18px; border-radius: 50%; background: #188038; color: #fff; display: grid; place-items: center; font-size: 10px; flex: none; }
+
+/* ---- Step 4: the review inside their Google reviews panel ---- */
+.rp { grid-template-columns: auto auto minmax(0, 340px); gap: 22px; }
+.rp-panel { background: #fff; border-radius: 14px; box-shadow: 0 2px 4px rgba(20,20,20,.06), 0 18px 40px rgba(20,20,20,.10); overflow: visible; font: 12px/1.4 -apple-system, "Segoe UI", sans-serif; }
+.rp-top { padding: 12px 14px; border-bottom: 1px solid #eee; display: grid; gap: 3px; }
+.rp-biz { margin: 0; font-size: 14px; font-weight: 500; color: #202124; }
+.rp-sum { margin: 0; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.rp-sum b { font-size: 13px; }
+.rp-count { color: #1a0dab; }
+.rp-count s { color: #9aa0a6; margin-right: 2px; }
+.rp-panel .rv-card { box-shadow: none; border-radius: 0 0 14px 14px; background: #f6fbf7; }
+.rv-head { position: relative; }
+.rp-new { margin-left: auto; align-self: flex-start; font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #fff; background: #188038; padding: 3px 7px; border-radius: 999px; }
+.rp-arrow { color: #8a8175; font-size: 26px; }
+
+.gm .gm-av { color: #fff; }
+
+@media (max-width: 860px) {
+  .rp { grid-template-columns: 1fr; justify-items: center; }
+  .rp-review { width: 100%; max-width: 340px; }
+}

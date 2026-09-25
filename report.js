@@ -2243,6 +2243,7 @@
       arrow(),
       screen(2, "Follow-ups go out on their own", [
         h("div", { class: "fu" }, [
+          h("div", { class: "fu-head" }, [h("span", { class: "fu-av", text: initials(me) }), h("b", { text: me })]),
           h("p", { class: "fu-stamp", text: "Wednesday \u00b7 automatic" }),
           h("p", { class: "fu-b", text: "Hi Mark, just checking you got the quote. Any questions?" }),
           h("p", { class: "fu-stamp", text: "Saturday \u00b7 automatic" }),
@@ -2251,13 +2252,18 @@
         ]),
       ]),
       arrow(),
-      screen(3, "The quote gets accepted", [pdfDoc(report, { total, accepted: true })]),
+      screen(3, "The quote gets accepted", [
+        pdfDoc(report, { total, accepted: true }),
+        h("p", { class: "qa-booked" }, [h("span", { text: "\u2713" }), "Booked for Tuesday, 9 AM"]),
+      ]),
     ]);
   }
 
   // ---- Step 4: the review request as a real iMessage, and the review it turns into
   function artReviewPhone(report) {
     const me = shortName(report?.profile?.name);
+    const rating = num(report?.reviews?.googleRating);
+    const count = num(report?.reviews?.googleReviewCount) ?? 0;
     return h("div", { class: "rp" }, [
       deviceFrame(iosMessages(me, [
         { stamp: "Today 4:06 PM" },
@@ -2268,12 +2274,25 @@
       ])),
       h("span", { class: "rp-arrow", "aria-hidden": "true", text: "\u2192" }),
       h("div", { class: "rp-review" }, [
-        h("p", { class: "rp-on", text: "On your Google profile" }),
-        h("div", { class: "rv-card" }, [
-          h("div", { class: "rv-head" }, [h("span", { class: "rs-av", text: "S" }), h("div", {}, [h("b", { text: "Sarah K." }), h("p", { class: "rs-muted", text: "Local Guide \u00b7 14 reviews" })])]),
-          h("p", {}, [h("span", { class: "rs-stars", text: "\u2605\u2605\u2605\u2605\u2605" }), h("span", { class: "rs-muted", text: " just now" })]),
-          h("p", { class: "rv-t", text: "Showed up on time, explained everything, fixed it fast. Would call again." }),
-          pin(2, "at-right"),
+        h("div", { class: "rp-panel" }, [
+          h("div", { class: "rp-top" }, [
+            h("p", { class: "rp-biz", text: report?.profile?.name || "Your business" }),
+            h("p", { class: "rp-sum" }, [
+              h("b", { text: rating !== null ? rating.toFixed(1) : "5.0" }),
+              starsFor(rating),
+              h("span", { class: "rp-count" }, [h("s", { text: `${count}` }), ` ${count + 1} reviews`]),
+            ]),
+          ]),
+          h("div", { class: "rv-card" }, [
+            h("div", { class: "rv-head" }, [
+              h("span", { class: "rs-av", text: "S" }),
+              h("div", {}, [h("b", { text: "Sarah K." }), h("p", { class: "rs-muted", text: "Local Guide \u00b7 14 reviews" })]),
+              h("span", { class: "rp-new", text: "New" }),
+            ]),
+            h("p", {}, [h("span", { class: "rs-stars", text: "\u2605\u2605\u2605\u2605\u2605" }), h("span", { class: "rs-muted", text: " just now" })]),
+            h("p", { class: "rv-t", text: "Showed up on time, explained everything, fixed it fast. Would call again." }),
+            pin(2, "at-right"),
+          ]),
         ]),
       ]),
     ]);
@@ -2531,7 +2550,6 @@
         title: "Every Call and Message Answered",
         art: artCallsPhones(report),
         legend: ["You miss the call", "She calls the next company", "With DialBridge, she gets a text in seconds", "The job gets booked"],
-        note: "When you can't pick up, our system texts them back in seconds and books the job.",
         auto: true,
         wide: true,
       }),
@@ -2540,7 +2558,6 @@
         title: "Customers Book Straight From Google",
         art: artBookingScreens(report),
         legend: [],
-        auto: true,
         wide: true,
       }),
       planSection({
@@ -2579,14 +2596,12 @@
         title: "ChatGPT Recommends You",
         art: artChatGpt(report),
         legend: ["Your business named in the answer"],
-        note: "The goal. Today your name isn't in this answer.",
       }),
       planSection({
         kicker: "Result 3",
         title: "Leads You Used to Miss Become Jobs",
         art: artPipeline(report),
         legend: ["Missed calls that turned into jobs", "Quotes still being followed up"],
-        note: "Example of your pipeline in the DialBridge system.",
         wide: true,
       }),
       renderPlanClose(report),
