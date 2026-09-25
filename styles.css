@@ -3043,3 +3043,109 @@ details[open] .ck-chev { transform: rotate(90deg); }
 .fbp-body > div { padding-bottom: 2px; }
 /* Pins: a white dot in the middle instead of a sideways number. */
 .mp-pin::after { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #fff; }
+
+
+/* ============ CENTERED: PICTURE, NUMBERS, A FEW WORDS ============ */
+.gp-part { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 40px 0 6px; }
+.gp-part:first-child { margin-top: 6px; }
+.gp-part-n { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-weight: 800; }
+.card-plan .gp-part-t { margin: 0; max-width: none; font-size: clamp(1.4rem, 3.4vw, 2rem); font-weight: 800; letter-spacing: -0.03em; }
+
+.ps { --ui: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; --warm: #f2eee8; display: grid; justify-items: center; text-align: center; gap: 10px; padding: 40px 0 8px; }
+.ps + .ps { border-top: 1px solid var(--rule); }
+.ps-kick { margin: 0; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-ink); }
+.card-plan .ps-title { margin: 0; max-width: 22ch; font-size: clamp(1.35rem, 3vw, 1.75rem); font-weight: 800; letter-spacing: -0.025em; line-height: 1.15; }
+.ps-line { margin: 0; max-width: 44ch; font-size: 0.98rem; color: var(--ink-2); }
+.ps-art { width: 100%; max-width: 560px; margin-top: 10px; padding: 26px; background: var(--warm); border-radius: 22px; font-family: var(--ui); text-align: left; }
+.ps-art p { margin: 0; }
+.ps-legend { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px; max-width: 620px; }
+.ps-legend li { display: flex; align-items: center; gap: 8px; font-size: 0.95rem; font-weight: 600; color: var(--ink); }
+.ps-n { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 0.72rem; font-weight: 800; display: grid; place-items: center; }
+.ps-now { margin: 4px 0 0; font-size: 0.86rem; color: var(--ink-2); max-width: 52ch; }
+.ps-now b { color: var(--accent-ink); }
+.ps-plus { margin: 4px auto 0; max-width: 46ch; text-align: center; font-size: 0.92rem; color: var(--ink-2); }
+
+/* the numbered markers on every picture */
+.pin { position: absolute; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; font: 800 12px/1 -apple-system, "Segoe UI", sans-serif; display: grid; place-items: center; box-shadow: 0 0 0 3px #fff, 0 4px 10px rgba(0,0,0,.25); z-index: 3; }
+.pin.at-right { right: -11px; top: 50%; transform: translateY(-50%); }
+
+/* ---- the example website ---- */
+.ex { margin: 0 auto; display: grid; justify-items: center; gap: 10px; }
+.ex-phone { position: relative; width: 250px; border-radius: 30px; padding: 7px; background: linear-gradient(160deg, #3d4553, #171b22); box-shadow: 0 18px 40px rgba(20,20,20,.22); }
+.ex-phone img { display: block; width: 100%; border-radius: 24px; }
+.ex-phone .pin.at-headline { right: -12px; top: 36%; }
+.ex-phone .pin.at-photo { left: -12px; top: 74%; }
+.ex-phone .pin.at-bar { right: -12px; top: 94%; }
+.ex-cap { font-size: 0.78rem; color: #8a8175; text-align: center; }
+
+/* ---- same details everywhere ---- */
+.nx { background: #fff; border-radius: 14px; padding: 14px; box-shadow: 0 2px 4px rgba(20,20,20,.06), 0 12px 28px rgba(20,20,20,.08); font-size: 12px; display: grid; gap: 0; }
+.nx-row { display: grid; grid-template-columns: 72px 1.2fr 1.3fr 1fr; gap: 10px; align-items: center; padding: 10px 4px; border-bottom: 1px solid #eee; }
+.nx-head { border-bottom: 0; padding-bottom: 6px; }
+.nx-h { position: relative; font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: #8a8175; display: flex; align-items: center; gap: 6px; }
+.nx-h .pin { position: static; width: 20px; height: 20px; font-size: 10px; box-shadow: none; }
+.nx-brand { font-weight: 800; font-size: 13px; }
+.is-google .nx-brand { color: #4285f4; } .is-yelp .nx-brand { color: #d32323; } .is-fb .nx-brand { color: #1877f2; }
+.nx-cell { background: #e6f4ea; border-radius: 6px; padding: 5px 7px; line-height: 1.3; color: #0d652d; font-weight: 600; overflow-wrap: anywhere; }
+.nx-ok { margin-top: 10px !important; text-align: center; font-weight: 800; color: #188038; font-size: 13px; }
+
+/* ---- top of Google ---- */
+.tg { background: #fff; border-radius: 14px; overflow: visible; box-shadow: 0 2px 4px rgba(20,20,20,.06), 0 18px 40px rgba(20,20,20,.10); font-size: 12px; color: #202124; display: grid; }
+.tg-q { display: flex; align-items: center; gap: 8px; margin: 12px; padding: 8px 12px; border-radius: 999px; box-shadow: 0 1px 4px rgba(32,33,36,.18); font-size: 13px; }
+.tg-lsa { position: relative; margin: 0 12px 10px; padding: 10px 12px; border: 1px solid #dadce0; border-radius: 10px; display: grid; gap: 3px; }
+.tg-spons { font-size: 10.5px; font-weight: 700; color: #188038; }
+.tg-lsa-name { font-size: 14px; font-weight: 600; color: #1a0dab; display: flex; align-items: center; gap: 6px; }
+.tg-gg { width: 16px; height: 16px; border-radius: 50%; background: #188038; color: #fff; font-size: 10px; display: grid; place-items: center; }
+.tg-meta { font-size: 11.5px; color: #5f6368; display: flex; align-items: center; flex-wrap: wrap; gap: 2px; }
+.tg-map { height: 80px;
+  background: linear-gradient(90deg, transparent 36%, #fff 36%, #fff 39%, transparent 39%), linear-gradient(0deg, transparent 52%, #fff 52%, #fff 56%, transparent 56%), linear-gradient(160deg, transparent 64%, #fde293 64%, #fde293 67%, transparent 67%), #e8e6e1; }
+.tg-list { display: grid; }
+.tg-row { position: relative; display: grid; grid-template-columns: 20px 1fr; column-gap: 8px; padding: 9px 14px; border-top: 1px solid #eee; }
+.tg-row.is-me { background: #e6f4ea; }
+.tg-n { grid-row: 1 / 3; font-weight: 700; color: #70757a; }
+.tg-name { font-size: 12.5px; font-weight: 600; color: #1a0dab; }
+.tg-ai { position: relative; margin: 10px 12px 12px; padding: 9px 12px; border-radius: 10px; background: #f4f4f4; display: grid; gap: 2px; font-size: 11.5px; }
+.tg-ai-t { font-size: 10px; font-weight: 800; color: #10a37f; }
+
+/* ---- booking from Google ---- */
+.bk { display: grid; gap: 10px; }
+.bk-listing, .bk-sheet, .bk-done { position: relative; background: #fff; border-radius: 12px; padding: 12px 14px; box-shadow: 0 2px 4px rgba(20,20,20,.06), 0 10px 24px rgba(20,20,20,.08); }
+.bk-name { font-size: 14px; font-weight: 500; margin-bottom: 8px !important; }
+.bk-btn { position: relative; display: block; text-align: center; background: #1a73e8; color: #fff; font-weight: 600; border-radius: 999px; padding: 8px; font-size: 12.5px; }
+.bk-h { font-size: 12.5px; font-weight: 600; margin-bottom: 8px !important; }
+.bk-slots { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.bk-slots span { text-align: center; border: 1px solid #dadce0; border-radius: 8px; padding: 7px 4px; font-size: 11.5px; color: #1a73e8; }
+.bk-slots .is-on { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+.bk-done { display: flex; align-items: center; gap: 10px; font-size: 12.5px; font-weight: 600; color: #137333; background: #e6f4ea; }
+.bk-tick { width: 24px; height: 24px; border-radius: 50%; background: #188038; color: #fff; display: grid; place-items: center; flex: none; }
+
+/* ---- one inbox ---- */
+.ib { background: #fff; border-radius: 14px; padding: 6px 0; box-shadow: 0 2px 4px rgba(20,20,20,.06), 0 18px 40px rgba(20,20,20,.10); font-size: 12px; }
+.ib-h { padding: 8px 14px 10px; font-weight: 800; font-size: 13px; border-bottom: 1px solid #eee; }
+.ib-row { position: relative; display: grid; grid-template-columns: 84px 1fr; gap: 10px; align-items: start; padding: 10px 14px; border-bottom: 1px solid #f0f0f0; }
+.ib-row:last-child { border-bottom: 0; }
+.ib-src { font-size: 10px; font-weight: 800; padding: 3px 7px; border-radius: 999px; text-align: center; color: #fff; }
+.is-call .ib-src { background: #d93025; } .is-fb .ib-src { background: #1877f2; } .is-ig .ib-src { background: #c13584; } .is-web .ib-src { background: #202124; }
+.ib-who { font-weight: 700; display: flex; justify-content: space-between; gap: 8px; }
+.ib-when { font-weight: 400; color: #70757a; font-size: 10.5px; }
+.ib-text { color: #3c4043; line-height: 1.35; }
+
+/* the quote and review pictures carry markers too */
+.qf-card, .qf-won, .rv-sms, .rv-card, .qf-pinwrap { position: relative; }
+
+@media (max-width: 640px) {
+  .ps-art { padding: 14px; border-radius: 16px; }
+  .ps-legend { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .nx-row { grid-template-columns: 1fr; gap: 4px; }
+  .nx-head { display: none; }
+  .nx-brand { margin-top: 4px; }
+  .pin.at-right { right: -8px; }
+}
+
+/* Markers keep their own look inside rows that style every span. */
+.qf-won > .pin { background: var(--accent); width: 26px; height: 26px; color: #fff; }
+/* Room on the right of each inbox row so the marker never covers the time. */
+.ib-row { padding-right: 30px; }
+
+/* Marker on the ad card sits on its corner, clear of the Guaranteed tick. */
+.tg-lsa > .pin.at-right { top: -11px; transform: none; }

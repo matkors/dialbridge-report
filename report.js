@@ -1908,11 +1908,12 @@
         h("div", { class: "qf-head" }, [h("p", { class: "qf-no", text: "Estimate #1047" }), h("span", { class: "qf-sent", text: "Sent Monday" })]),
         h("p", { class: "qf-job", text: "Water heater replacement \u00b7 Mark T." }),
         h("p", { class: "qf-amt", text: amount }),
+        pin(1, "at-right"),
       ]),
       h("p", { class: "qf-auto", text: "Sent automatically, in your name" }),
-      bubble("Wednesday", "Hi Mark, just checking you got the estimate. Any questions I can answer?"),
+      h("div", { class: "qf-pinwrap" }, [bubble("Wednesday", "Hi Mark, just checking you got the estimate. Any questions I can answer?"), pin(2, "at-right")]),
       bubble("Saturday", "We have an opening Tuesday if you'd like to get it done before the weekend."),
-      h("div", { class: "qf-won" }, [h("span", { text: "\u2713" }), h("p", { text: "Mark accepted \u00b7 booked for Tuesday" })]),
+      h("div", { class: "qf-won" }, [h("span", { text: "\u2713" }), h("p", { text: "Mark accepted \u00b7 booked for Tuesday" }), pin(3, "at-right")]),
     ]);
   }
 
@@ -1924,29 +1925,162 @@
         h("p", { class: "rv-b", text: "Thanks for having us out today, Sarah! If you have a minute, a quick review really helps a small crew like ours." }),
         h("p", { class: "rv-link", text: "g.page/r/review" }),
         h("p", { class: "rv-when", text: "Sent 2 hours after the job was marked done" }),
+        pin(1, "at-right"),
       ]),
       h("span", { class: "rv-arrow", "aria-hidden": "true", text: "\u2193" }),
       h("div", { class: "rv-card" }, [
         h("div", { class: "rv-head" }, [h("span", { class: "rs-av", text: "S" }), h("div", {}, [h("b", { text: "Sarah K." }), h("p", { class: "rs-muted", text: "Local Guide \u00b7 14 reviews" })])]),
         h("p", {}, [h("span", { class: "rs-stars", text: "\u2605\u2605\u2605\u2605\u2605" }), h("span", { class: "rs-muted", text: " just now" })]),
         h("p", { class: "rv-t", text: "Showed up on time, explained everything, fixed it fast. Would call again." }),
+        pin(2, "at-right"),
       ]),
     ]);
   }
 
   // ---------------------------------------------------------------- the plan
+  //
+  // One pattern, the one that worked: a centered picture with numbered markers on it, and
+  // a numbered line or two under it. Almost no prose. The sections follow the offer on the
+  // SOPs board ("What we sell"): website, Google profile, consistent listings, then Local
+  // Services Ads and Maps, Reserve with Google, missed-call text back and one inbox,
+  // quote follow-up, review generation. AI phone answering is optional there and stays
+  // out of here.
+
+  const pin = (n, cls = "") => h("span", { class: `pin ${cls}`.trim(), text: String(n) });
+
+  function planSection({ kicker, title, line, art, legend, now }) {
+    return h("section", { class: "ps" }, [
+      h("p", { class: "ps-kick", text: kicker }),
+      h("h4", { class: "ps-title", text: title }),
+      line ? h("p", { class: "ps-line", text: line }) : null,
+      h("div", { class: "ps-art" }, [art]),
+      h("ol", { class: "ps-legend" }, legend.map((t, i) => h("li", {}, [h("span", { class: "ps-n", text: String(i + 1) }), h("span", { text: t })]))),
+      now ? h("p", { class: "ps-now" }, [h("b", { text: "Right now: " }), now]) : null,
+    ].filter(Boolean));
+  }
+
+  // ---- a real, well-built contractor homepage on a phone, marked up
+  function artSiteExample() {
+    const shot = img("img/example-site.webp", { alt: "The mobile homepage of a well-known plumbing company", loading: "lazy" });
+    return h("figure", { class: "ex" }, [
+      h("div", { class: "ex-phone" }, [
+        shot,
+        pin(1, "at-headline"),
+        pin(2, "at-photo"),
+        pin(3, "at-bar"),
+      ]),
+      h("figcaption", { class: "ex-cap", text: "Example: a top plumbing company's homepage on a phone" }),
+    ]);
+  }
+
+  // ---- the same name, address and phone on the three places people check
+  function artNap(report) {
+    const p = report?.profile || {};
+    const name = p.name || "Your business";
+    const addr = p.address || `Serves ${townOf(report) || "your area"}`;
+    const phone = p.phone || "(555) 123-4567";
+    const row = (brand, cls) => h("div", { class: `nx-row ${cls}` }, [
+      h("span", { class: "nx-brand", text: brand }),
+      h("span", { class: "nx-cell", text: name }),
+      h("span", { class: "nx-cell", text: addr }),
+      h("span", { class: "nx-cell", text: phone }),
+    ]);
+    return h("div", { class: "nx" }, [
+      h("div", { class: "nx-row nx-head" }, [
+        h("span", {}),
+        h("span", { class: "nx-h" }, ["Name", pin(1)]),
+        h("span", { class: "nx-h" }, ["Address", pin(2)]),
+        h("span", { class: "nx-h" }, ["Phone", pin(3)]),
+      ]),
+      row("Google", "is-google"),
+      row("Yelp", "is-yelp"),
+      row("Facebook", "is-fb"),
+      h("p", { class: "nx-ok", text: "\u2713 All three match" }),
+    ]);
+  }
+
+  // ---- the top of Google: Local Services Ad, the map, and the AI answer
+  function artTopOfGoogle(report) {
+    const name = report?.profile?.name || "Your business";
+    const rating = num(report?.reviews?.googleRating);
+    const count = num(report?.reviews?.googleReviewCount) ?? 0;
+    const kw = report?.ranking?.keyword || tradeWord(report) || "contractor";
+    const rivals = rivalsFor(report, 2);
+    const mapRow = (n, nm, r, c, mine) => h("div", { class: `tg-row${mine ? " is-me" : ""}` }, [
+      h("span", { class: "tg-n", text: String(n) }),
+      h("span", { class: "tg-name", text: nm }),
+      h("span", { class: "tg-meta" }, [r !== null && r !== undefined ? `${Number(r).toFixed(1)} ` : "", starsFor(r), ` (${c || 0})`]),
+      mine ? pin(2, "at-right") : null,
+    ].filter(Boolean));
+    return h("div", { class: "tg" }, [
+      h("div", { class: "tg-q" }, [h("span", { class: "rs-q-ico", "aria-hidden": "true" }), `${kw} near me`]),
+      h("div", { class: "tg-lsa" }, [
+        h("p", { class: "tg-spons", text: "Sponsored \u00b7 Google Guaranteed" }),
+        h("p", { class: "tg-lsa-name" }, [name, h("span", { class: "tg-gg", text: "\u2713" })]),
+        h("p", { class: "tg-meta" }, [rating !== null ? `${rating.toFixed(1)} ` : "", starsFor(rating), ` (${count}) \u00b7 Open now`]),
+        pin(1, "at-right"),
+      ]),
+      h("div", { class: "tg-map", "aria-hidden": "true" }),
+      h("div", { class: "tg-list" }, [
+        mapRow(1, name, rating, count, true),
+        ...rivals.map((c, i) => mapRow(i + 2, c.name, c.rating, c.reviewCount, false)),
+      ]),
+      h("div", { class: "tg-ai" }, [
+        h("span", { class: "tg-ai-t", text: "ChatGPT" }),
+        h("span", { text: `${shortName(name)} is a well-reviewed ${kw} near you.` }),
+        pin(3, "at-right"),
+      ]),
+    ]);
+  }
+
+  // ---- Reserve with Google: booking from the listing
+  function artBookFromGoogle(report) {
+    const name = report?.profile?.name || "Your business";
+    const slots = ["9:00 AM", "11:00 AM", "2:00 PM", "4:00 PM"];
+    return h("div", { class: "bk" }, [
+      h("div", { class: "bk-listing" }, [
+        h("p", { class: "bk-name", text: name }),
+        h("span", { class: "bk-btn" }, ["Book online", pin(1, "at-right")]),
+      ]),
+      h("div", { class: "bk-sheet" }, [
+        h("p", { class: "bk-h", text: "Choose a time \u00b7 Tuesday" }),
+        h("div", { class: "bk-slots" }, slots.map((t) => h("span", { class: t === "2:00 PM" ? "is-on" : "", text: t }))),
+        pin(2, "at-right"),
+      ]),
+      h("div", { class: "bk-done" }, [
+        h("span", { class: "bk-tick", text: "\u2713" }),
+        h("span", { text: "Booked for Tuesday, 2:00 PM. It's in your calendar." }),
+        pin(3, "at-right"),
+      ]),
+    ]);
+  }
+
+  // ---- one inbox: missed calls, Facebook, Instagram and the website form
+  function artInbox(report) {
+    const short = shortName(report?.profile?.name);
+    const row = (src, cls, who, text, when, n) => h("div", { class: `ib-row ${cls}` }, [
+      h("span", { class: "ib-src", text: src }),
+      h("div", { class: "ib-body" }, [h("p", { class: "ib-who" }, [who, h("span", { class: "ib-when", text: when })]), h("p", { class: "ib-text", text })]),
+      n ? pin(n, "at-right") : null,
+    ].filter(Boolean));
+    return h("div", { class: "ib" }, [
+      h("p", { class: "ib-h", text: `${short} \u00b7 Inbox` }),
+      row("Missed call", "is-call", "Mark T.", `Auto-reply: "Sorry we missed you, we're on a job. What do you need?"`, "8 sec later", 1),
+      row("Facebook", "is-fb", "Dana R.", "Do you do water heaters? Mine is leaking.", "2 min", 2),
+      row("Instagram", "is-ig", "Chris P.", "How soon could you come out?", "10 min", null),
+      row("Website", "is-web", "Quote request", "Kitchen remodel, need a price this week.", "1 hr", 3),
+    ]);
+  }
 
   function renderPlanSteps(report, summary) {
     const p = report?.profile || {};
     const w = report?.website || {};
-    const rv = report?.reviews || {};
     const r = report?.ranking || {};
-    const leak = report?.leak || {};
+    const rv = report?.reviews || {};
     const a = answersNow();
-    const kw = r.keyword || tradeWord(report) || "contractor";
     const count = num(rv.googleReviewCount) ?? 0;
     const rival = num(report?.signals?.topRivalReviews);
-    const jobs = num(leak.jobs);
+    const jobs = num(report?.leak?.jobs);
     const q = jobs ? Math.round(jobs * 3 * 0.25) : null;
 
     const gaps = [];
@@ -1954,140 +2088,86 @@
     if (!p.hasHours) gaps.push("opening hours");
     if (!w.found) gaps.push("a website link");
 
-    const siteNow = !w.found ? "You don't have a website on your Google listing."
-      : w.broken ? `Your website${w.url ? ` (${domainOf(w.url)})` : ""} doesn't load. Google is sending people to an error page.`
-      : num(w.loadMs) !== null ? `Your site takes ${(w.loadMs / 1000).toFixed(1)} seconds to load on a phone.`
+    const siteNow = !w.found ? "no website on your Google listing."
+      : w.broken ? "your website doesn't load."
+      : num(w.loadMs) !== null ? `your site takes ${(w.loadMs / 1000).toFixed(1)} seconds to load on a phone.`
       : null;
+    const socialNow = w.broken || !w.found ? null
+      : w.facebookUrl && w.yelpUrl ? "your site links to both your Facebook and Yelp pages."
+      : w.facebookUrl ? "your site links to Facebook, but not to Yelp."
+      : w.yelpUrl ? "your site links to Yelp, but not to Facebook."
+      : "your site doesn't link to a Facebook or Yelp page.";
 
-    const socialNow = w.broken || !w.found ? "We couldn't check your website for Facebook and Yelp links."
-      : [
-          w.facebookUrl ? `Facebook is linked from your site (${domainOf(w.facebookUrl)}${w.facebookUrl.replace(/^https?:\/\/[^/]+/i, "")}).` : "Your site doesn't link to a Facebook page.",
-          w.yelpUrl ? "Yelp is linked too." : "It doesn't link to Yelp.",
-        ].join(" ");
-
-    const foundation = [
-      planBlock({
-        kicker: "Foundation 1 of 3",
-        title: "A website that brings in jobs",
-        body: "It's the first place Google looks and the first place a homeowner checks after finding you. A home page on its own isn't enough: each service and each town you work in needs its own page, because that's what shows up in search.",
-        bullets: [
-          ["Home page", "What you do and where, in five seconds, with a call button at the top"],
-          ["A page for each service", `${servicesFor(kw).slice(0, 2).join(", ")}, and the rest`],
-          ["A page for each town", "So you show up when people search from there"],
-          ["About and reviews", "Real photos of you and your crew, and what customers say"],
-          ["Booking on every page", "Tap to call or book online, wherever they land"],
-        ],
-        now: siteNow,
-        art: artWebsite(report),
-      }),
-      planBlock({
-        kicker: "Foundation 2 of 3",
-        title: "A Google Business Profile that's actually finished",
-        body: "This is what people see when they search for you or your trade nearby. Google shows complete, active profiles first. Most contractors fill theirs in once and never touch it again.",
-        numbered: true,
-        bullets: [
-          ["Photos of real jobs", "Added every month, not once"],
-          ["Every service and a booking link", "So people can book without calling"],
-          ["A new update every week", "Google treats active profiles as open for business"],
-          ["Every review answered", "Future customers read the replies too"],
-        ],
-        now: gaps.length ? `Your profile is missing ${listWords(gaps)}.` : "Your profile is filled in. Keeping it active is the part most businesses skip.",
-        art: artGbp(report),
-      }),
-      planBlock({
-        kicker: "Foundation 3 of 3",
-        title: "The same details on Yelp and Facebook",
-        body: "Homeowners check Yelp and Facebook before they call, and Google and ChatGPT read them too. When your name, address or phone differs anywhere, they trust you less and rank you lower.",
-        bullets: [
-          ["Claimed and complete", "Both pages owned by you, with hours, services and photos"],
-          ["Identical details", "The same name, address and phone as Google and your website"],
-          ["Linked from your website", "So Google can tell they're all the same business"],
-        ],
-        now: socialNow,
-        art: artListings(report),
-      }),
-    ];
-
-    const system = [
-      planBlock({
-        kicker: "Step 1 of 5 \u00b7 DialBridge Maps Ranking and AEO",
-        title: "Show up first on Google Maps and in ChatGPT",
-        body: `Most people call one of the first three businesses they see. A finished profile, a real website and a steady flow of reviews are what move you up, on Google and in the answers ChatGPT gives when someone asks for a ${kw}.`,
-        bullets: [
-          ["Top 3 on the map", "Where nearly every call goes"],
-          ["Named by ChatGPT", `When someone asks it for a ${kw} near them`],
-          ["Checked every month", "We re-run the 25-point map so you can watch it move"],
-        ],
-        now: Array.isArray(r.ranks) && r.ranks.length ? `You're in the top 3 at ${r.pointsInTop3 || 0} of the ${r.ranks.length} spots we checked.` : null,
-        art: artMaps(report),
-      }),
-      planBlock({
-        kicker: "Step 2 of 5 \u00b7 DialBridge Missed-Call Text Back",
-        title: "Answer every call, even when you're on a job",
-        body: "When you miss a call, most people just call the next number. The system texts them back within seconds, so the conversation starts before they call someone else.",
-        bullets: [
-          ["Text back in seconds", "Every missed call, day or night"],
-          ["One inbox", "Calls, texts, Facebook and web chat on your phone"],
-          ["Emergencies", "Flagged and sent straight to you"],
-        ],
-        now: a.leadResponse === "within_hour" ? "You told us you usually reply within the hour." : "You told us calls sometimes wait until you're free.",
-        art: visualTextBack(report),
-      }),
-      planBlock({
-        kicker: "Step 3 of 5 \u00b7 DialBridge Online Booking",
-        title: "Jobs book themselves into your calendar",
-        body: "Customers pick a time from your real availability, from the text, your website or your Google profile. It lands in your calendar and your CRM without anyone playing phone tag.",
-        bullets: [
-          ["Your real availability", "No double bookings"],
-          ["Reminders sent for you", "So people actually show up"],
-          ["Straight into your CRM", "Name, address and the job, ready to go"],
-        ],
-        now: null,
-        art: artCalendar(report),
-      }),
-      planBlock({
-        kicker: "Step 4 of 5 \u00b7 DialBridge Quote Follow-Up",
-        title: "Every quote followed up until it's a yes or a no",
-        body: "Most quotes that turn into jobs need a few follow-ups, and that's the first thing to slip in a busy week. The system sends them for you, on a schedule, in your name.",
-        bullets: [
-          ["Every estimate tracked", "No list to keep"],
-          ["Friendly check-ins by text", "Until the customer answers"],
-          ["Past customers too", "A check-in every season, so they come back to you"],
-        ],
-        now: a.quoteFollowUp === "automatic" ? "You told us your follow-up already runs on its own." : "You told us quotes get followed up when you remember.",
-        art: artQuote(report),
-      }),
-      planBlock({
-        kicker: "Step 5 of 5 \u00b7 DialBridge Review Automation",
-        title: "A review after every job",
-        body: "Two hours after a job is marked done, the customer gets a text with your review link, while they're still happy. Unhappy customers reach you privately first, not on Google.",
-        bullets: [
-          ["Sent automatically", "After every job, to every customer"],
-          ["In your name", "From the same number they already know"],
-          ["Bad ones to you first", "So you can fix it before it's public"],
-        ],
-        now: rival && rival > count
-          ? `You have ${fmt(count)} reviews, the shop above you has ${fmt(rival)}.${q ? ` At ${jobs} jobs a month this adds roughly ${q} in the first 90 days.` : ""}`
-          : `You have ${fmt(count)} reviews.${q ? ` At ${jobs} jobs a month this adds roughly ${q} in the first 90 days.` : ""}`,
-        art: artReview(report),
-      }),
-    ];
+    // Add the markers to the Google profile picture's legend, same numbers as its pins.
+    const part = (n, title) => h("div", { class: "gp-part" }, [h("span", { class: "gp-part-n", text: String(n) }), h("h3", { class: "gp-part-t", text: title })]);
 
     return [
-      h("div", { class: "gp-intro" }, [
-        h("p", { text: "This is how you get there, in two parts. First the foundations every good local business has in place. Then the system top contractors run on top of them." }),
-      ]),
-      h("div", { class: "pp-part" }, [h("span", { class: "pp-part-n", text: "1" }), h("h3", { class: "pp-h", text: "Get your business foundations in place" })]),
-      h("ol", { class: "pbs" }, foundation),
-      h("div", { class: "pp-part" }, [h("span", { class: "pp-part-n", text: "2" }), h("h3", { class: "pp-h", text: "The system top contractors use" })]),
-      h("p", { class: "gp-sub", text: "With the foundations in place, this is what turns searches into booked jobs every day, without you in the middle of it. Every step runs on DialBridge." }),
-      h("ol", { class: "pbs" }, system),
+      part(1, "Get your business foundations in place"),
+      planSection({
+        kicker: "Foundation 1",
+        title: "A website that gets calls",
+        art: artSiteExample(),
+        legend: ["Says what you do in 5 seconds", "Real photos of your team", "Call and book on every screen"],
+        now: siteNow,
+      }),
+      h("p", { class: "ps-plus", text: "Plus a page for every service and every town you serve. That's what shows up in Google." }),
+      planSection({
+        kicker: "Foundation 2",
+        title: "A Google Business Profile that's finished",
+        art: artGbp(report),
+        legend: ["Real job photos every month", "Booking button and all services", "A new update every week", "Every review answered"],
+        now: gaps.length ? `your profile is missing ${listWords(gaps)}.` : null,
+      }),
+      planSection({
+        kicker: "Foundation 3",
+        title: "The same details everywhere",
+        line: "Google checks. If they don't match, you rank lower.",
+        art: artNap(report),
+        legend: ["Same business name", "Same address", "Same phone number"],
+        now: socialNow,
+      }),
+
+      part(2, "The system top contractors use"),
+      planSection({
+        kicker: "Step 1",
+        title: "Show up at the top of Google",
+        art: artTopOfGoogle(report),
+        legend: ["Local Services Ads, pay per lead", "Top 3 on Google Maps", "Recommended by ChatGPT"],
+        now: Array.isArray(r.ranks) && r.ranks.length ? `top 3 at ${r.pointsInTop3 || 0} of ${r.ranks.length} spots we checked.` : null,
+      }),
+      planSection({
+        kicker: "Step 2",
+        title: "Customers book straight from Google",
+        art: artBookFromGoogle(report),
+        legend: ["A Book button on your listing", "They pick a time", "It lands in your calendar"],
+      }),
+      planSection({
+        kicker: "Step 3",
+        title: "Every call and message answered",
+        art: artInbox(report),
+        legend: ["Missed calls get a text in seconds", "Facebook and Instagram messages", "Website forms, all in one inbox"],
+        now: a.leadResponse === "within_hour" ? null : "you told us calls sometimes wait until you're free.",
+      }),
+      planSection({
+        kicker: "Step 4",
+        title: "Every quote followed up",
+        art: artQuote(report),
+        legend: ["Quote sent", "Automatic check-ins by text", "They say yes"],
+        now: a.quoteFollowUp === "automatic" ? null : "you told us quotes get followed up when you remember.",
+      }),
+      planSection({
+        kicker: "Step 5",
+        title: "A review after every job",
+        art: artReview(report),
+        legend: ["Text sent 2 hours after the job", "A new 5-star review on Google"],
+        now: rival && rival > count
+          ? `${fmt(count)} reviews, the shop above you has ${fmt(rival)}.${q ? ` This adds about ${q} in 90 days.` : ""}`
+          : q ? `${fmt(count)} reviews. This adds about ${q} in 90 days.` : null,
+      }),
       h("div", { class: "gp-loop" }, [
-        h("p", { class: "gp-loop-h", text: "Why it keeps getting better" }),
-        h("div", { class: "gp-loop-row" }, ["More reviews", "Higher on Google and ChatGPT", "More calls", "More jobs"].flatMap((t, i, arr) =>
+        h("div", { class: "gp-loop-row" }, ["More reviews", "Higher on Google", "More calls", "More jobs"].flatMap((t, i, arr) =>
           [h("span", { class: "gp-loop-s", text: t }), i < arr.length - 1 ? h("span", { class: "gp-loop-a", "aria-hidden": "true", text: "\u2192" }) : null]
         ).filter(Boolean)),
-        h("p", { class: "gp-loop-t", text: "Every job brings in a review, and every review brings in the next job." }),
       ]),
       renderPlanClose(report),
     ];
