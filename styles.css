@@ -3826,3 +3826,12 @@ details[open] .ck-chev { transform: rotate(90deg); }
 .ha-phone::before { content: ""; position: absolute; inset: 9px; border-radius: 32px; background: #fff; z-index: 0; }
 .ha-phone img { position: relative; z-index: 1; }
 .ha-notch { z-index: 2; }
+
+/* The leak section is the working behind the summary card, so it is compact. */
+.leak { padding: 20px 22px; }
+.leak .leak-lead { margin: 0 0 12px; font-size: 1rem; font-weight: 600; color: var(--ink); }
+.leak .leak-lead b { color: var(--bad); }
+.leak .leak-math { margin-top: 0; padding-top: 0; border-top: 0; }
+
+/* The calendar frame needs a real height of its own; clipped to zero it was never fetched. */
+.bk-cal-frame { min-height: 780px; }

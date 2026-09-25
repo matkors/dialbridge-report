@@ -376,14 +376,10 @@
     const times = () => h("i", { class: "leak-x", "aria-hidden": "true", text: "×" });
 
     return h("section", { class: "leak" }, [
-      h("p", { class: "leak-lead", text: "You're losing about" }),
-      h("p", { class: "leak-value" }, [
-        h("strong", { text: money(leak.perMonth) }),
-        h("span", { text: "a month" }),
-      ]),
-      h("p", { class: "leak-sub", text: "in work you already paid to get" }),
+      // The total leads the summary cards above, so this is the working behind it rather
+      // than a second copy of the same big number.
+      h("p", { class: "leak-lead" }, ["How we got ", h("b", { text: `${money(leak.perMonth)} a month` }), " in jobs slipping away"]),
       h("div", { class: "leak-math" }, [
-        h("p", { class: "leak-math-head", text: "How we got there" }),
         h("p", { class: "leak-eq" }, [
           term(String(leak.calls), "calls a month"),
           times(),
@@ -2623,7 +2619,6 @@
         title: "Every Quote Followed Up",
         art: artQuoteFlow(report),
         legend: ["The quote goes out as a PDF", "Follow-ups go out on their own", "The quote gets accepted"],
-        note: "Our system checks in on every quote by text until you get a yes or a no.",
         auto: true,
         wide: true,
       }),
@@ -2711,7 +2706,6 @@
         id: `${BOOKING_CALENDAR_ID}_${Date.now()}`,
         title: "Book your free Growth Plan call",
         scrolling: "no",
-        loading: "lazy",
         class: "bk-cal-frame",
       });
       frame.addEventListener("load", () => slot.classList.add("is-ready"), { once: true });
