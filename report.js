@@ -2144,6 +2144,9 @@
         h("span", { class: "rc-info", text: "i" }),
         r.pin ? pin(r.pin, "at-in") : null,
       ].filter(Boolean)))),
+      h("div", { class: "ios-tabs" }, [
+        ["\u2605", "Favorites"], ["\u25f7", "Recents", true], ["\u25cf", "Contacts"], ["\u2237", "Keypad"], ["\u25ce", "Voicemail"],
+      ].map(([ico, t, on]) => h("span", { class: on ? "is-on" : "" }, [h("i", { text: ico }), t]))),
     ]);
   }
 
@@ -2169,6 +2172,10 @@
           it.pin ? pin(it.pin, "at-in") : null,
         ].filter(Boolean));
       })),
+      h("div", { class: "im-compose" }, [
+        h("span", { class: "im-plus", text: "+" }),
+        h("span", { class: "im-field" }, ["iMessage", h("i", { class: "im-mic", "aria-hidden": "true" })]),
+      ]),
     ]);
   }
 
@@ -2187,6 +2194,9 @@
         { name: me, sub: "No answer", time: "2:14 PM", missed: true, pin: 1 },
         { name: "Dentist Office", sub: "mobile", time: "Yesterday" },
         { name: "(732) 555-0147", sub: "Unknown", time: "Monday" },
+        { name: "Mom", sub: "mobile", time: "Sunday" },
+        { name: "Tom (work)", sub: "mobile", time: "Saturday" },
+        { name: "Pharmacy", sub: "home", time: "9/18/26" },
       ]), `She called you, then called ${rival}.`),
       col("good", "With DialBridge", iosMessages(me, [
         { stamp: "Today 2:14 PM" },

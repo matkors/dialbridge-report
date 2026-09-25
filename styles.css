@@ -3551,3 +3551,53 @@ details[open] .ck-chev { transform: rotate(90deg); }
    width, same left edge as the box's text. An old "margin: 14px 0 0 !important"
    was pinning a narrow, centred block to the left. */
 .card-plan > .gate-fine { max-width: none; margin: 12px 0 0 !important; padding: 0 20px; text-align: left; }
+
+
+/* ============ PHONES, MORE LIKE THE REAL THING ============ */
+/* Scoped to the growth plan so the report's own website phone keeps its natural height. */
+.ps-art .device-phone { width: 262px; }
+.ps-art .dp-body {
+  padding: 3px;
+  border-radius: 46px;
+  background: linear-gradient(145deg, #9aa0a8 0%, #4a4f57 22%, #25282e 50%, #50555d 78%, #a3a8b0 100%);
+  box-shadow: 0 1px 1px rgba(255,255,255,.4) inset, 0 28px 50px -12px rgba(20,20,20,.38), 0 10px 22px rgba(20,20,20,.14);
+}
+.ps-art .dp-screen {
+  border: 7px solid #0a0a0c;
+  border-radius: 43px;
+  aspect-ratio: 9 / 19.5;
+  grid-template-rows: auto 1fr;
+}
+.ps-art .dp-status { padding: 10px 20px 4px; font-size: 11px; }
+.ps-art .dp-island { top: 7px; width: 78px; height: 22px; }
+.ps-art .dp-view { min-height: 0; display: grid; }
+.ps-art .dp-home { bottom: 6px; width: 96px; height: 4px; background: #111; opacity: .85; }
+.ps-art .dp-btn { background: linear-gradient(90deg, #5c6168, #2c3036); width: 3px; }
+.ps-art .dp-mute { left: -3px; top: 96px; height: 24px; }
+.ps-art .dp-vol-up { left: -3px; top: 134px; height: 42px; }
+.ps-art .dp-vol-dn { left: -3px; top: 186px; height: 42px; }
+.ps-art .dp-power { right: -3px; top: 150px; height: 64px; }
+
+/* The screens fill the phone instead of stopping short. */
+.ps-art .ios { min-height: 0; height: 100%; }
+.ps-art .ios-rc { display: grid; grid-template-rows: auto auto 1fr auto; }
+.ps-art .ios-im { grid-template-rows: auto 1fr auto; }
+.ps-art .im-body { overflow: hidden; align-content: start; }
+
+/* Phone app tab bar */
+.ios-tabs { display: grid; grid-template-columns: repeat(5, 1fr); padding: 6px 4px 18px; border-top: 1px solid #e5e5ea; background: #f7f7f9; }
+.ios-tabs span { display: grid; justify-items: center; gap: 1px; font-size: 8px; color: #8e8e93; }
+.ios-tabs i { font-style: normal; font-size: 14px; line-height: 1.1; }
+.ios-tabs .is-on { color: #0a84ff; }
+
+/* Messages compose bar */
+.im-compose { display: flex; align-items: center; gap: 7px; padding: 6px 10px 18px; background: #fff; }
+.im-plus { width: 26px; height: 26px; border-radius: 50%; background: #e9e9eb; color: #8e8e93; display: grid; place-items: center; font-size: 17px; line-height: 1; flex: none; }
+.im-field { flex: 1; display: flex; justify-content: space-between; align-items: center; border: 1px solid #d1d1d6; border-radius: 16px; padding: 5px 10px; font-size: 11px; color: #b3b3b8; }
+.im-mic { width: 7px; height: 11px; border-radius: 4px; border: 1.5px solid #b3b3b8; }
+
+/* A microphone, not a zero: capsule, cradle and stem. */
+.im-mic { position: relative; width: 6px; height: 9px; margin-right: 3px; border: 1.5px solid #b3b3b8; border-radius: 4px; }
+.im-mic::after { content: ""; position: absolute; left: 50%; top: 4px; width: 10px; height: 6px; transform: translateX(-50%); border: 1.5px solid #b3b3b8; border-top: 0; border-radius: 0 0 6px 6px; }
+.im-mic::before { content: ""; position: absolute; left: 50%; top: 11px; width: 1.5px; height: 3px; transform: translateX(-50%); background: #b3b3b8; }
+.ps-art .rc-list { overflow: hidden; }
