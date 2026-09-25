@@ -1207,6 +1207,10 @@
         // The site-check's verdict on whether the address works at all. A speed score
         // for a dead site is meaningless and everything downstream reads these first.
         httpStatus: num(website.httpStatus),
+        // Their own Facebook and Yelp pages, as linked from their homepage. Absence means
+        // "not linked from the site", never "has no page", and the report says so.
+        facebookUrl: website.facebookUrl || null,
+        yelpUrl: website.yelpUrl || null,
         reachable: website.reachable ?? null,
         broken: website.broken === true,
         // The filmstrip Lighthouse already took, plus the two paint times as real numbers.
