@@ -1634,64 +1634,148 @@
     return svg;
   }
 
+  // The icon-card version read as a template: the same rounded box, pastel icon square
+  // and pill tags five times over is what every generated landing page looks like. What
+  // actually lands is a real-looking piece of product, so both parts are drawn as the
+  // screens themselves: their details on four listings, then five snippets of the system
+  // running, one after another on a single track.
+
+  const star5 = "\u2605\u2605\u2605\u2605\u2605";
+  // Stars that match the number beside them. Five gold stars next to a 3.0 is a lie a
+  // contractor spots instantly, because it is his own rating.
+  const starsFor = (r) => {
+    const n = r === null || r === undefined ? 5 : Math.max(0, Math.min(5, Math.round(Number(r))));
+    return h("span", { class: "rs-stars" }, [
+      "\u2605".repeat(n),
+      n < 5 ? h("span", { class: "rs-stars-off", text: "\u2605".repeat(5 - n) }) : null,
+    ].filter(Boolean));
+  };
+
+  // ---- part two: five snippets on a track
   function renderPipeline(report) {
     const kw = report?.ranking?.keyword || tradeWord(report) || "contractor";
-    const stages = [
-      { icon: "search", title: "Someone searches", line: `"${kw} near me" on Google, or asks ChatGPT`, tags: [] , lead: true },
-      { icon: "pin", title: "They find you first", line: "Top of the map, and named by the AI", tags: ["Maps ranking", "AI search"] },
-      { icon: "chat", title: "You answer in seconds", line: "Even when you're on a job", tags: ["Missed-call text back"] },
-      { icon: "calendar", title: "The job gets booked", line: "Straight into your calendar", tags: ["Online booking", "Quote follow-up"] },
-      { icon: "star", title: "A review lands", line: "Two hours after the job", tags: ["Review automation"] },
+    const name = report?.profile?.name || "Your business";
+    const short = shortName(name);
+    const rating = num(report?.reviews?.googleRating);
+    const count = num(report?.reviews?.googleReviewCount) ?? 0;
+    const cat = report?.profile?.category || "";
+
+    const searchBox = h("div", { class: "rs rs-search" }, [
+      h("div", { class: "rs-q" }, [h("span", { class: "rs-q-ico", "aria-hidden": "true" }), h("span", { text: `${kw} near me` })]),
+      h("p", { class: "rs-or", text: "or, to ChatGPT:" }),
+      h("p", { class: "rs-ask", text: `"Who's a good ${kw} near me?"` }),
+    ]);
+
+    const mapsCard = h("div", { class: "rs rs-maps" }, [
+      h("span", { class: "rs-pos", text: "1st on the map" }),
+      h("p", { class: "rs-mname", text: name }),
+      h("p", { class: "rs-mrate" }, [
+        h("span", { text: rating !== null ? rating.toFixed(1) : "5.0" }),
+        starsFor(rating),
+        h("span", { class: "rs-muted", text: `(${count || 0})` }),
+      ]),
+      h("p", { class: "rs-muted", text: [cat, "Open now"].filter(Boolean).join(" \u00b7 ") }),
+      h("div", { class: "rs-mbtns" }, ["Call", "Website", "Book"].map((t) => h("span", { text: t }))),
+    ]);
+
+    const thread = h("div", { class: "rs rs-sms" }, [
+      h("p", { class: "rs-missed", text: "Missed call \u00b7 2:14 PM" }),
+      h("p", { class: "rs-b rs-b-in", text: `Hi, it's ${short}. Sorry we missed you, we're on a job. What do you need?` }),
+      h("p", { class: "rs-b rs-b-out", text: "Sink's backing up. Can someone come today?" }),
+      h("p", { class: "rs-when", text: "8 seconds after the missed call" }),
+    ]);
+
+    const slot = h("div", { class: "rs rs-cal" }, [
+      h("div", { class: "rs-calhead" }, [h("span", { class: "rs-day", text: "Tue" }), h("span", { class: "rs-date", text: "14" })]),
+      h("div", { class: "rs-event" }, [
+        h("p", { class: "rs-ev-t", text: "2:00 \u2013 4:00 PM".replace("\u2013", "to") }),
+        h("p", { class: "rs-ev-b", text: "Kitchen sink \u00b7 Mark" }),
+        h("p", { class: "rs-ev-s", text: "Booked online, added to your CRM" }),
+      ]),
+    ]);
+
+    const review = h("div", { class: "rs rs-rev" }, [
+      h("div", { class: "rs-rev-h" }, [
+        h("span", { class: "rs-av", text: "S" }),
+        h("span", {}, [h("b", { text: "Sarah K." }), h("span", { class: "rs-muted", text: " \u00b7 2 hours ago" })]),
+      ]),
+      h("p", { class: "rs-stars", text: star5 }),
+      h("p", { class: "rs-rev-b", text: "Showed up on time, fixed it fast. Would call again." }),
+    ]);
+
+    const stations = [
+      { step: "Someone searches", art: searchBox, runs: "" },
+      { step: "They find you first", art: mapsCard, runs: "Maps ranking, AI search" },
+      { step: "You answer in seconds", art: thread, runs: "Missed-call text back" },
+      { step: "The job gets booked", art: slot, runs: "Online booking, quote follow-up" },
+      { step: "A review lands", art: review, runs: "Review automation" },
     ];
 
-    return h("div", { class: "pipe" }, [
-      h("ol", { class: "pp-row" }, stages.map((st, i) =>
-        h("li", { class: `pp-stage${st.lead ? " is-lead" : ""}` }, [
-          h("span", { class: "pp-n", text: String(i + 1) }),
-          h("span", { class: "pp-ico" }, [pipeIcon(st.icon)]),
-          h("p", { class: "pp-t", text: st.title }),
-          h("p", { class: "pp-l", text: st.line }),
-          st.tags.length ? h("div", { class: "pp-tags" }, st.tags.map((t) => h("span", { class: "pp-tag", text: t }))) : null,
-        ].filter(Boolean))
+    return h("div", { class: "rt" }, [
+      h("ol", { class: "rt-row" }, stations.map((st, n) =>
+        h("li", { class: "rt-st" }, [
+          h("p", { class: "rt-step" }, [h("span", { class: "rt-n", text: String(n + 1) }), st.step]),
+          st.art,
+          st.runs ? h("p", { class: "rt-runs", text: st.runs }) : h("p", { class: "rt-runs is-empty", text: "The homeowner" }),
+        ])
       )),
-      h("div", { class: "pp-loop", "aria-hidden": "true" }, [
-        h("span", { class: "pp-loop-t", text: "More reviews push you higher, so more searches find you" }),
+      h("p", { class: "rt-loop" }, [
+        h("span", { class: "rt-loop-line", "aria-hidden": "true" }),
+        h("span", { class: "rt-loop-t", text: "Every review pushes you higher, so the next search finds you first." }),
       ]),
-      h("p", { class: "pp-loop-sr", text: "More reviews push you higher, so more searches find you. The system feeds itself." }),
     ]);
   }
 
-  // Part one, per Matt: get the foundation right before anything runs on top of it. The
-  // website is the first layer, then the listings that have to agree with it. Each tile
-  // carries their own state from the scan where we measured it, and says so plainly
-  // where we did not.
+  // ---- part one: the same details, on the four places a homeowner checks
   function renderFoundation(report) {
     const w = report?.website || {};
     const p = report?.profile || {};
+    const name = p.name || "Your business";
+    const addr = p.address || (p.serviceAreaOnly ? `Serves ${cityWord(report) || "your area"}` : "");
+    const phone = p.phone || "";
+    const rating = num(report?.reviews?.googleRating);
+    const count = num(report?.reviews?.googleReviewCount) ?? 0;
     const gbpDone = (p.photoCount || 0) >= 5 && Boolean(p.hasHours) && Boolean(p.phone) && Boolean(w.found);
-    const site = !w.found ? ["gap", "No website on your listing"]
-      : w.broken ? ["gap", "Yours doesn't load"]
-      : num(w.mobileScore) !== null && w.mobileScore < 50 ? ["gap", "Yours is slow on a phone"]
-      : ["ok", "Yours is up"];
-    const gbp = gbpDone ? ["ok", "Yours is complete"] : ["gap", "Yours has gaps"];
-    const tiles = [
-      { name: "Website", what: "The base everything points to. Fast on a phone, books jobs.", first: true, state: site },
-      { name: "Google Business Profile", what: "Complete, photos, hours, services.", state: gbp },
-      { name: "Yelp", what: "Claimed, with the same details.", state: ["unknown", "We check this"] },
-      { name: "Facebook", what: "Same name, address and phone.", state: ["unknown", "We check this"] },
-    ];
-    return h("div", { class: "fd" }, [
-      h("div", { class: "fd-row" }, tiles.map((t) =>
-        h("div", { class: `fd-tile${t.first ? " is-first" : ""}` }, [
-          t.first ? h("span", { class: "fd-first", text: "Layer one" }) : null,
-          h("p", { class: "fd-name", text: t.name }),
-          h("p", { class: "fd-what", text: t.what }),
-          h("span", { class: `fd-state is-${t.state[0]}`, text: t.state[1] }),
-        ].filter(Boolean))
-      )),
-      h("p", { class: "fd-rule" }, [
-        h("b", { text: "Same name, address and phone everywhere." }),
-        " Google and the AI tools cross-check them. When they disagree, you rank lower.",
+    const site = !w.found ? ["gap", "No website yet"]
+      : w.broken ? ["gap", "Doesn't load right now"]
+      : num(w.mobileScore) !== null && w.mobileScore < 50 ? ["gap", "Slow on a phone right now"]
+      : ["ok", "Up and running"];
+
+    const listing = (brand, body, state, first) =>
+      h("div", { class: `nap nap-${brand.key}${first ? " is-first" : ""}` }, [
+        h("div", { class: "nap-bar" }, [
+          h("span", { class: "nap-brand", text: brand.label }),
+          first ? h("span", { class: "nap-layer", text: "Layer one" }) : null,
+        ].filter(Boolean)),
+        h("div", { class: "nap-body" }, body),
+        h("p", { class: `nap-state is-${state[0]}` }, [h("span", { "aria-hidden": "true", text: state[0] === "ok" ? "\u2713 " : state[0] === "gap" ? "\u2715 " : "? " }), state[1]]),
+      ]);
+    // A function, not an array: a DOM node can only live in one place, so one shared set
+    // of these was being moved from card to card and only the last card kept it.
+    const nap = () => [
+      h("p", { class: "nap-name", text: name }),
+      addr ? h("p", { class: "nap-line", text: addr }) : null,
+      phone ? h("p", { class: "nap-line nap-phone", text: phone }) : null,
+    ].filter(Boolean);
+
+    return h("div", { class: "fd2" }, [
+      h("div", { class: "fd2-row" }, [
+        listing({ key: "web", label: "Your website" }, [
+          h("p", { class: "nap-hero", text: `${(report?.ranking?.keyword || tradeWord(report) || "Service").replace(/^./, (c) => c.toUpperCase())} you can book today` }),
+          ...nap(),
+          h("div", { class: "nap-ctas" }, [h("span", { class: "is-primary", text: "Call now" }), h("span", { text: "Book online" })]),
+        ], site, true),
+        listing({ key: "google", label: "Google" }, [
+          ...nap().slice(0, 1),
+          h("p", { class: "nap-rate" }, [h("span", { text: rating !== null ? rating.toFixed(1) : "" }), starsFor(rating), h("span", { class: "rs-muted", text: `(${count})` })]),
+          ...nap().slice(1),
+        ], gbpDone ? ["ok", "Complete"] : ["gap", "Has gaps right now"]),
+        listing({ key: "yelp", label: "yelp" }, nap(), ["unknown", "We check this"]),
+        listing({ key: "fb", label: "facebook" }, nap(), ["unknown", "We check this"]),
+      ]),
+      h("p", { class: "fd2-rule" }, [
+        h("b", { text: "The same name, address and phone on all four." }),
+        " Google and the AI tools cross-check them, and rank you lower when they disagree.",
       ]),
     ]);
   }
