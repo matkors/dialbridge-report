@@ -813,9 +813,19 @@
   // was not there, and the only way to find out was somebody asking where the heatmap went.
   const tradeWord = (report) =>
     String(report?.profile?.category || "your trade").toLowerCase();
+  // "74-30 87th Ave, Woodhaven, NY 11421, USA" -> "Woodhaven, NY". The first version took
+  // the first two parts, which is the street for any business with a full address, and
+  // printed "Plumber in 74-30 87th Ave".
   const cityWord = (report) => {
     const parts = String(report?.profile?.address || "").split(",").map((x) => x.trim()).filter(Boolean);
-    return parts.length >= 2 ? `${parts[0]}, ${parts[1]}` : parts[0] || "";
+    if (parts.length && /^(USA|United States)$/i.test(parts[parts.length - 1])) parts.pop();
+    const st = parts.length ? parts[parts.length - 1].match(/^([A-Z]{2})(?:\s+\d{5}(?:-\d{4})?)?$/) : null;
+    if (st) {
+      parts.pop();
+      const city = parts.length ? parts[parts.length - 1] : "";
+      return city ? `${city}, ${st[1]}` : st[1];
+    }
+    return parts.length >= 2 ? `${parts[parts.length - 2]}, ${parts[parts.length - 1]}` : parts[0] || "";
   };
 
   function renderNoMap(report) {
@@ -1957,7 +1967,7 @@
         auto ? h("span", { class: "ps-auto" }, [h("i", { "aria-hidden": "true" }), "Runs automatically"]) : null,
         art,
       ].filter(Boolean)),
-      h("ol", { class: "ps-legend" }, legend.map((t, i) => h("li", {}, [h("span", { class: "ps-n", text: String(i + 1) }), h("span", { text: t })]))),
+      legend.length ? h("ol", { class: "ps-legend" }, legend.map((t, i) => h("li", {}, [h("span", { class: "ps-n", text: String(i + 1) }), h("span", { text: t })]))) : null,
     ].filter(Boolean));
   }
 
@@ -2064,7 +2074,11 @@
 
     const eq = () => h("span", { class: "lg-eq", "aria-hidden": "true", text: "=" });
     return h("div", { class: "lgs" }, [
-      h("div", { class: "lg-row" }, [google, eq(), yelp, eq(), fb]),
+      h("div", { class: "lg-row" }, [
+        h("div", { class: "lg-col" }, [google, h("p", { class: "lg-label", text: "Google" })]), eq(),
+        h("div", { class: "lg-col" }, [yelp, h("p", { class: "lg-label", text: "Yelp" })]), eq(),
+        h("div", { class: "lg-col" }, [fb, h("p", { class: "lg-label", text: "Facebook" })]),
+      ]),
       h("p", { class: "lg-ok", text: "\u2713 Identical everywhere" }),
     ]);
   }
@@ -2112,6 +2126,110 @@
         h("p", { class: "tg-ask", text: town ? `Who's a good ${kw} in ${town}?` : `Who's a good ${kw} near me?` }),
         h("p", { class: "tg-ans" }, [h("b", { text: shortName(name) }), ` is a well-reviewed ${kw}${town ? ` in ${town}` : ""}, answers fast and books online.`]),
         pin(3, "at-right"),
+      ]),
+    ]);
+  }
+
+  // ---- a lead's journey, twice: without the system and with it. Each stop is a small
+  //      piece of real-looking phone UI, so it reads as what actually happens rather than
+  //      as a diagram of it.
+  function journey(rows) {
+    const lane = (tone, label, stops) => h("div", { class: `jr-lane is-${tone}` }, [
+      h("p", { class: "jr-lab" }, [h("span", { class: "jr-dot" }), label]),
+      h("ol", { class: "jr-stops" }, stops.map((node, i) => [
+        h("li", { class: "jr-stop" }, [node]),
+        i < stops.length - 1 ? h("li", { class: "jr-arrow", "aria-hidden": "true", text: "\u2192" }) : null,
+      ]).flat().filter(Boolean)),
+    ]);
+    return h("div", { class: "jr" }, rows.map(([tone, label, stops]) => lane(tone, label, stops)));
+  }
+
+  const jCall = (who, sub) => h("div", { class: "jc jc-call" }, [
+    h("p", { class: "jc-sub", text: sub || "Calling\u2026" }),
+    h("p", { class: "jc-who", text: who }),
+    h("div", { class: "jc-btns" }, [h("span", { class: "end" }), h("span", { class: "ok" })]),
+  ]);
+  const jNote = (title, text, tone) => h("div", { class: `jc jc-note is-${tone || "plain"}` }, [
+    h("p", { class: "jc-nt", text: title }),
+    text ? h("p", { class: "jc-nx", text }) : null,
+  ].filter(Boolean));
+  const jText = (from, text, when) => h("div", { class: "jc jc-text" }, [
+    h("p", { class: "jc-from", text: from }),
+    h("p", { class: "jc-bub", text }),
+    when ? h("p", { class: "jc-when", text: when }) : null,
+  ].filter(Boolean));
+  const jResult = (ok, title, text) => h("div", { class: `jc jc-res ${ok ? "is-ok" : "is-bad"}` }, [
+    h("span", { class: "jc-ico", text: ok ? "\u2713" : "\u2715" }),
+    h("p", { class: "jc-nt", text: title }),
+    text ? h("p", { class: "jc-nx", text }) : null,
+  ].filter(Boolean));
+
+  function artCallsJourney(report) {
+    const me = shortName(report?.profile?.name);
+    const rival = shortName((rivalsFor(report, 1)[0] || {}).name || "Another company");
+    return journey([
+      ["bad", "Without an automated system", [
+        jCall(me),
+        jNote("Missed call", "You're on a job", "bad"),
+        jCall(rival, "She calls the next one\u2026"),
+        jResult(false, "Job lost", `Booked with ${rival}`),
+      ]],
+      ["good", "With DialBridge", [
+        jCall(me),
+        jNote("Missed call", "You're on a job", "bad"),
+        jText(me, "Sorry we missed you! What do you need help with?", "8 seconds later"),
+        jResult(true, "Job booked", "Tuesday, 2 to 4 PM"),
+      ]],
+    ]);
+  }
+
+  function artQuotesJourney(report) {
+    const v = num(report?.leak?.jobValue);
+    const amt = v ? money(v) : "$3,000";
+    const me = shortName(report?.profile?.name);
+    return journey([
+      ["bad", "Without an automated system", [
+        jNote("Quote sent", amt, "plain"),
+        jNote("Day 3", "No reply", "muted"),
+        jNote("Day 10", "You forgot to follow up", "muted"),
+        jResult(false, "Job lost", "Hired someone else"),
+      ]],
+      ["good", "With DialBridge", [
+        jNote("Quote sent", amt, "plain"),
+        jText(me, "Any questions about the quote?", "Day 2, automatic"),
+        jText(me, "We have an opening Tuesday.", "Day 5, automatic"),
+        jResult(true, "Quote accepted", "Booked for Tuesday"),
+      ]],
+    ]);
+  }
+
+  // ---- booking, as three screens side by side: listing, pick a time, confirmed.
+  function artBookingScreens(report) {
+    const name = report?.profile?.name || "Your business";
+    const rating = num(report?.reviews?.googleRating);
+    const count = num(report?.reviews?.googleReviewCount) ?? 0;
+    const screen = (n, label, body) => h("div", { class: "bs-col" }, [
+      h("div", { class: "bs" }, [...body, pin(n, "at-top")]),
+      h("p", { class: "bs-label", text: label }),
+    ]);
+    const arrow = () => h("span", { class: "bs-arrow", "aria-hidden": "true", text: "\u2192" });
+    return h("div", { class: "bss" }, [
+      screen(1, "They find you on Google", [
+        h("p", { class: "bs-name", text: name }),
+        h("p", { class: "bs-meta" }, [rating !== null ? `${rating.toFixed(1)} ` : "", starsFor(rating), ` (${count})`]),
+        h("span", { class: "bs-book", text: "Book online" }),
+      ]),
+      arrow(),
+      screen(2, "They pick a time", [
+        h("p", { class: "bs-h", text: "Tuesday" }),
+        h("div", { class: "bs-slots" }, ["9:00 AM", "11:00 AM", "2:00 PM", "4:00 PM"].map((t) => h("span", { class: t === "2:00 PM" ? "is-on" : "", text: t }))),
+      ]),
+      arrow(),
+      screen(3, "It's in your calendar", [
+        h("div", { class: "bs-cal" }, [
+          h("p", { class: "bs-day" }, [h("span", { text: "TUE" }), h("b", { text: "14" })]),
+          h("div", { class: "bs-ev" }, [h("b", { text: "2:00 PM" }), h("span", { text: "Kitchen sink" }), h("span", { class: "bs-new", text: "New booking" })]),
+        ]),
       ]),
     ]);
   }
@@ -2211,40 +2329,43 @@
       part(2, "The System Top Contractors Use"),
       planSection({
         kicker: "Step 1",
-        title: "Show Up at the Top of Google",
-        art: artTopOfGoogle(report),
-        legend: ["Local Services Ads, pay per lead", "Top 3 on Google Maps", "Recommended by ChatGPT"],
+        title: "Every Call and Message Answered",
+        line: "When you can't pick up, our system texts them back in seconds and books the job.",
+        art: artCallsJourney(report),
+        legend: [],
+        auto: true,
+        wide: true,
       }),
       planSection({
         kicker: "Step 2",
         title: "Customers Book Straight From Google",
-        art: artBookFromGoogle(report),
-        legend: ["A Book button on your listing", "They pick a time", "It lands in your calendar"],
+        art: artBookingScreens(report),
+        legend: [],
         auto: true,
+        wide: true,
       }),
       planSection({
         kicker: "Step 3",
-        title: "Every Call and Message Answered",
-        line: "Our system texts back every missed call in seconds and puts every message in one inbox.",
-        art: artInbox(report),
-        legend: ["Missed calls get a text in seconds", "Facebook and Instagram messages", "Website forms, all in one place"],
+        title: "Every Quote Followed Up",
+        line: "Our system checks in on every quote by text until you get a yes or a no.",
+        art: artQuotesJourney(report),
+        legend: [],
         auto: true,
+        wide: true,
       }),
       planSection({
         kicker: "Step 4",
-        title: "Every Quote Followed Up",
-        line: "Our system checks in on every quote by text, on a schedule, until you get a yes or a no.",
-        art: artQuote(report),
-        legend: ["You send the quote", "The check-ins go out on their own", "The customer says yes"],
+        title: "A Review Request After Every Job",
+        line: "Our system texts every customer your review link two hours after the job.",
+        art: artReview(report),
+        legend: ["The request goes out on its own", "A new 5-star review on Google"],
         auto: true,
       }),
       planSection({
-        kicker: "Step 5",
-        title: "A Review After Every Job",
-        line: "Our system texts every customer your review link two hours after the job is done.",
-        art: artReview(report),
-        legend: ["The review request goes out on its own", "A new 5-star review on Google"],
-        auto: true,
+        kicker: "The Result",
+        title: "You Show Up at the Top of Google",
+        art: artTopOfGoogle(report),
+        legend: ["Local Services Ads, pay per lead", "Top 3 on Google Maps", "Recommended by ChatGPT"],
       }),
       h("div", { class: "gp-loop" }, [
         h("div", { class: "gp-loop-row" }, ["More reviews", "Higher on Google", "More calls", "More jobs"].flatMap((t, i, arr) =>
