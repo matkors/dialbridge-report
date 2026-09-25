@@ -1958,7 +1958,7 @@
 
   const pin = (n, cls = "") => h("span", { class: `pin ${cls}`.trim(), text: String(n) });
 
-  function planSection({ kicker, title, line, art, legend, auto, wide }) {
+  function planSection({ kicker, title, line, note, art, legend, auto, wide }) {
     return h("section", { class: `ps${wide ? " is-wide" : ""}` }, [
       h("p", { class: "ps-kick", text: kicker }),
       h("h4", { class: "ps-title", text: title }),
@@ -1968,6 +1968,7 @@
         art,
       ].filter(Boolean)),
       legend.length ? h("ol", { class: "ps-legend" }, legend.map((t, i) => h("li", {}, [h("span", { class: "ps-n", text: String(i + 1) }), h("span", { text: t })]))) : null,
+      note ? h("p", { class: "ps-note", text: note }) : null,
     ].filter(Boolean));
   }
 
@@ -2079,12 +2080,11 @@
         h("div", { class: "lg-col" }, [yelp, h("p", { class: "lg-label", text: "Yelp" })]), eq(),
         h("div", { class: "lg-col" }, [fb, h("p", { class: "lg-label", text: "Facebook" })]),
       ]),
-      h("p", { class: "lg-ok", text: "\u2713 Identical everywhere" }),
     ]);
   }
 
   // ---- the top of Google: the Local Services Ad, the map pack, and a ChatGPT answer.
-  function artTopOfGoogle(report) {
+  function artTopOfGoogle(report, { chat = true } = {}) {
     const name = report?.profile?.name || "Your business";
     const rating = num(report?.reviews?.googleRating);
     const count = num(report?.reviews?.googleReviewCount) ?? 0;
@@ -2121,11 +2121,210 @@
           ...rivals.map((c, i) => mapRow(i + 2, c.name, c.rating, c.reviewCount, false)),
         ]),
       ]),
-      h("div", { class: "tg-chat" }, [
+      !chat ? null : h("div", { class: "tg-chat" }, [
         h("p", { class: "tg-chat-h", text: "ChatGPT" }),
         h("p", { class: "tg-ask", text: town ? `Who's a good ${kw} in ${town}?` : `Who's a good ${kw} near me?` }),
         h("p", { class: "tg-ans" }, [h("b", { text: shortName(name) }), ` is a well-reviewed ${kw}${town ? ` in ${town}` : ""}, answers fast and books online.`]),
         pin(3, "at-right"),
+      ]),
+    ].filter(Boolean));
+  }
+
+  // ============ REAL PHONE SCREENS ============
+  // iOS Recents and Messages, drawn the way they actually look, inside the same phone frame
+  // as the website section. The lead's side of the story, which is the side that decides.
+
+  function iosRecents(rows) {
+    return h("div", { class: "ios ios-rc" }, [
+      h("div", { class: "rc-seg" }, [h("span", { class: "is-on", text: "All" }), h("span", { text: "Missed" })]),
+      h("p", { class: "rc-title", text: "Recents" }),
+      h("div", { class: "rc-list" }, rows.map((r) => h("div", { class: `rc-row${r.missed ? " is-missed" : ""}` }, [
+        h("div", { class: "rc-main" }, [h("p", { class: "rc-name", text: r.name }), h("p", { class: "rc-sub", text: r.sub })]),
+        h("p", { class: "rc-time", text: r.time }),
+        h("span", { class: "rc-info", text: "i" }),
+        r.pin ? pin(r.pin, "at-in") : null,
+      ].filter(Boolean)))),
+    ]);
+  }
+
+  function iosMessages(contact, items) {
+    return h("div", { class: "ios ios-im" }, [
+      h("div", { class: "im-head" }, [
+        h("span", { class: "im-back", text: "\u2039" }),
+        h("span", { class: "im-av", text: initials(contact) }),
+        h("p", { class: "im-name", text: `${contact} \u203a` }),
+      ]),
+      h("div", { class: "im-body" }, items.map((it) => {
+        if (it.stamp) return h("p", { class: "im-stamp" }, [h("b", { text: it.stamp.split(" ")[0] }), " " + it.stamp.split(" ").slice(1).join(" ")]);
+        if (it.status) return h("p", { class: "im-status", text: it.status });
+        if (it.link) return h("div", { class: "im-row is-them" }, [
+          h("div", { class: "im-link" }, [
+            h("div", { class: "im-link-img" }, [h("span", { class: "im-g", text: "G" })]),
+            h("div", { class: "im-link-t" }, [h("b", { text: it.link }), h("span", { text: it.site || "g.page" })]),
+          ]),
+          it.pin ? pin(it.pin, "at-in") : null,
+        ].filter(Boolean));
+        return h("div", { class: `im-row is-${it.from}` }, [
+          h("p", { class: "im-b", text: it.text }),
+          it.pin ? pin(it.pin, "at-in") : null,
+        ].filter(Boolean));
+      })),
+    ]);
+  }
+
+  // ---- Step 1: her phone, twice
+  function artCallsPhones(report) {
+    const me = shortName(report?.profile?.name);
+    const rival = shortName((rivalsFor(report, 1)[0] || {}).name || "Another company");
+    const col = (tone, label, screen, cap) => h("div", { class: `cp-col is-${tone}` }, [
+      h("span", { class: "cp-tag", text: label }),
+      deviceFrame(screen),
+      h("p", { class: "cp-cap", text: cap }),
+    ]);
+    return h("div", { class: "cp" }, [
+      col("bad", "Without DialBridge", iosRecents([
+        { name: rival, sub: "Outgoing call \u00b7 11 min", time: "2:16 PM", pin: 2 },
+        { name: me, sub: "No answer", time: "2:14 PM", missed: true, pin: 1 },
+        { name: "Dentist Office", sub: "mobile", time: "Yesterday" },
+        { name: "(732) 555-0147", sub: "Unknown", time: "Monday" },
+      ]), `She called you, then called ${rival}.`),
+      col("good", "With DialBridge", iosMessages(me, [
+        { stamp: "Today 2:14 PM" },
+        { from: "them", text: `Hi, this is ${me}. Sorry we missed your call, we're on a job. What can we help with?`, pin: 3 },
+        { from: "me", text: "Kitchen sink is backing up. Can someone come today?" },
+        { from: "them", text: "Yes! We have 2 to 4 PM open today. Want it?" },
+        { from: "me", text: "Yes please, book it." },
+        { from: "them", text: "You're booked for 2 to 4 PM. See you then!", pin: 4 },
+        { status: "Delivered" },
+      ]), "She gets a text in seconds, and books."),
+    ]);
+  }
+
+  // ---- Step 3: the quote as a PDF in Gmail, the follow-ups, the yes
+  function quoteLines(total) {
+    const a = Math.round((total * 0.6) / 10) * 10;
+    const b = Math.round((total * 0.32) / 10) * 10;
+    return [["Equipment and parts", a], ["Labor and installation", b], ["Permit and haul-away", total - a - b]];
+  }
+
+  function pdfDoc(report, { total, accepted = false } = {}) {
+    const name = report?.profile?.name || "Your business";
+    return h("div", { class: `pdf${accepted ? " is-accepted" : ""}` }, [
+      h("div", { class: "pdf-head" }, [h("b", { text: shortName(name) }), h("span", { text: "ESTIMATE #1047" })]),
+      h("p", { class: "pdf-to", text: "Prepared for Mark T. \u00b7 Water heater replacement" }),
+      h("div", { class: "pdf-lines" }, quoteLines(total).map(([t, v]) => h("p", {}, [h("span", { text: t }), h("span", { text: money(v) })]))),
+      h("p", { class: "pdf-total" }, [h("span", { text: "Total" }), h("b", { text: money(total) })]),
+      accepted
+        ? h("div", { class: "pdf-sign" }, [h("span", { class: "pdf-sig", text: "Mark T." }), h("span", { class: "pdf-stamp", text: "ACCEPTED" })])
+        : h("span", { class: "pdf-btn", text: "Accept estimate" }),
+    ]);
+  }
+
+  function artQuoteFlow(report) {
+    const v = num(report?.leak?.jobValue);
+    const total = v && v >= 300 ? Math.round(v / 10) * 10 : 3000;
+    const me = shortName(report?.profile?.name);
+    const screen = (n, label, body) => h("div", { class: "bs-col" }, [
+      h("div", { class: "bs qf2" }, [...body, pin(n, "at-top")]),
+      h("p", { class: "bs-label", text: label }),
+    ]);
+    const arrow = () => h("span", { class: "bs-arrow", "aria-hidden": "true", text: "\u2192" });
+    return h("div", { class: "bss" }, [
+      screen(1, "The quote goes out as a PDF", [
+        h("div", { class: "gm" }, [
+          h("div", { class: "gm-from" }, [h("span", { class: "gm-av", text: initials(me) }), h("div", {}, [h("b", { text: me }), h("span", { text: "to Mark" })])]),
+          h("p", { class: "gm-subj", text: "Your quote: water heater replacement" }),
+          h("div", { class: "gm-att" }, [
+            h("div", { class: "gm-thumb" }, [pdfDoc(report, { total })]),
+            h("p", { class: "gm-chip" }, [h("span", { class: "gm-pdf", text: "PDF" }), "Estimate-1047.pdf"]),
+          ]),
+        ]),
+      ]),
+      arrow(),
+      screen(2, "Follow-ups go out on their own", [
+        h("div", { class: "fu" }, [
+          h("p", { class: "fu-stamp", text: "Wednesday \u00b7 automatic" }),
+          h("p", { class: "fu-b", text: "Hi Mark, just checking you got the quote. Any questions?" }),
+          h("p", { class: "fu-stamp", text: "Saturday \u00b7 automatic" }),
+          h("p", { class: "fu-b", text: "We have an opening Tuesday if you'd like to get it done." }),
+          h("p", { class: "fu-b is-me", text: "Tuesday works. Let's do it." }),
+        ]),
+      ]),
+      arrow(),
+      screen(3, "The quote gets accepted", [pdfDoc(report, { total, accepted: true })]),
+    ]);
+  }
+
+  // ---- Step 4: the review request as a real iMessage, and the review it turns into
+  function artReviewPhone(report) {
+    const me = shortName(report?.profile?.name);
+    return h("div", { class: "rp" }, [
+      deviceFrame(iosMessages(me, [
+        { stamp: "Today 4:06 PM" },
+        { from: "them", text: `Thanks for choosing ${me} today, Sarah! If you have a minute, a quick review would really help us.`, pin: 1 },
+        { link: `Review ${me}`, site: "g.page" },
+        { from: "me", text: "Just left you 5 stars. Great job!" },
+        { status: "Delivered" },
+      ])),
+      h("span", { class: "rp-arrow", "aria-hidden": "true", text: "\u2192" }),
+      h("div", { class: "rp-review" }, [
+        h("p", { class: "rp-on", text: "On your Google profile" }),
+        h("div", { class: "rv-card" }, [
+          h("div", { class: "rv-head" }, [h("span", { class: "rs-av", text: "S" }), h("div", {}, [h("b", { text: "Sarah K." }), h("p", { class: "rs-muted", text: "Local Guide \u00b7 14 reviews" })])]),
+          h("p", {}, [h("span", { class: "rs-stars", text: "\u2605\u2605\u2605\u2605\u2605" }), h("span", { class: "rs-muted", text: " just now" })]),
+          h("p", { class: "rv-t", text: "Showed up on time, explained everything, fixed it fast. Would call again." }),
+          pin(2, "at-right"),
+        ]),
+      ]),
+    ]);
+  }
+
+  // ---- Result 2: ChatGPT, drawn as ChatGPT
+  function artChatGpt(report) {
+    const me = report?.profile?.name || "Your business";
+    const kw = report?.ranking?.keyword || tradeWord(report) || "contractor";
+    const town = townOf(report);
+    const rivals = rivalsFor(report, 2);
+    const item = (n, name, sub, mine) => h("li", { class: mine ? "is-me" : "" }, [
+      h("b", { text: name }), ` \u2014 `.replace("\u2014", "-"), h("span", { text: sub }), mine ? pin(1, "at-in") : null,
+    ].filter(Boolean));
+    return h("div", { class: "cg" }, [
+      h("div", { class: "cg-top" }, [h("b", { text: "ChatGPT" }), h("span", { text: "\u2304" })]),
+      h("div", { class: "cg-body" }, [
+        h("p", { class: "cg-user", text: town ? `Who's a good ${kw} in ${town}?` : `Who's a good ${kw} near me?` }),
+        h("div", { class: "cg-ans" }, [
+          h("p", { text: `Here are a few well-reviewed options${town ? ` in ${town}` : ""}:` }),
+          h("ol", {}, [
+            item(1, me, "Highly rated, answers fast and books online.", true),
+            ...rivals.map((c, i) => item(i + 2, c.name, `${c.rating ? Number(c.rating).toFixed(1) + " stars" : ""}${c.reviewCount ? `, ${fmt(c.reviewCount)} reviews` : ""}.`, false)),
+          ]),
+        ]),
+      ]),
+      h("div", { class: "cg-input" }, [h("span", { text: "Ask anything" }), h("span", { class: "cg-send", text: "\u2191" })]),
+    ]);
+  }
+
+  // ---- Result 3: the pipeline, with the leads that used to slip away
+  function artPipeline(report) {
+    const me = shortName(report?.profile?.name);
+    const card = (src, who, what, extra, opts = {}) => h("div", { class: `pl-card${opts.rec ? " is-rec" : ""}` }, [
+      h("span", { class: `pl-src is-${src.toLowerCase().replace(/[^a-z]/g, "")}`, text: src }),
+      h("p", { class: "pl-who", text: who }),
+      h("p", { class: "pl-what", text: what }),
+      extra ? h("p", { class: "pl-x", text: extra }) : null,
+      opts.pin ? pin(opts.pin, "at-in") : null,
+    ].filter(Boolean));
+    const colm = (title, count, cards) => h("div", { class: "pl-col" }, [h("p", { class: "pl-h" }, [title, h("span", { text: String(count) })]), ...cards]);
+    return h("div", { class: "pl" }, [
+      h("div", { class: "pl-top" }, [h("b", { text: `${me} \u00b7 Pipeline` }), h("span", { text: "This week" })]),
+      h("div", { class: "pl-cols" }, [
+        colm("New", 2, [card("Facebook", "Chris P.", "Clogged drain"), card("Website", "Jen L.", "Bathroom remodel")]),
+        colm("Replied", 1, [card("Missed call", "Dana R.", "Water heater leaking", "Texted back in 8 sec")]),
+        colm("Quoted", 1, [card("Quote", "Ray S.", "Sewer line", "Follow-up 2 of 3", { pin: 2 })]),
+        colm("Booked", 2, [
+          card("Missed call", "Sam K.", "Kitchen sink", "Tue, 2 PM", { rec: true, pin: 1 }),
+          card("Quote", "Mark T.", "Water heater", "Accepted", { rec: true }),
+        ]),
       ]),
     ]);
   }
@@ -2299,7 +2498,7 @@
       : w.yelpUrl ? "your site links to Yelp, but not to Facebook."
       : "your site doesn't link to a Facebook or Yelp page.";
 
-    const part = (n, title) => h("div", { class: "gp-part" }, [h("span", { class: "gp-part-n", text: String(n) }), h("h3", { class: "gp-part-t", text: title })]);
+    const part = (n, title) => h("div", { class: `gp-part${n > 1 ? " is-next" : ""}` }, [h("span", { class: "gp-part-n", text: String(n) }), h("h3", { class: "gp-part-t", text: title })]);
 
     return [
       part(1, "Get Your Business Foundations in Place"),
@@ -2330,9 +2529,9 @@
       planSection({
         kicker: "Step 1",
         title: "Every Call and Message Answered",
-        line: "When you can't pick up, our system texts them back in seconds and books the job.",
-        art: artCallsJourney(report),
-        legend: [],
+        art: artCallsPhones(report),
+        legend: ["You miss the call", "She calls the next company", "With DialBridge, she gets a text in seconds", "The job gets booked"],
+        note: "When you can't pick up, our system texts them back in seconds and books the job.",
         auto: true,
         wide: true,
       }),
@@ -2347,31 +2546,49 @@
       planSection({
         kicker: "Step 3",
         title: "Every Quote Followed Up",
-        line: "Our system checks in on every quote by text until you get a yes or a no.",
-        art: artQuotesJourney(report),
+        art: artQuoteFlow(report),
         legend: [],
+        note: "Our system checks in on every quote by text until you get a yes or a no.",
         auto: true,
         wide: true,
       }),
       planSection({
         kicker: "Step 4",
         title: "A Review Request After Every Job",
-        line: "Our system texts every customer your review link two hours after the job.",
-        art: artReview(report),
+        art: artReviewPhone(report),
         legend: ["The request goes out on its own", "A new 5-star review on Google"],
+        note: "Our system texts every customer your review link two hours after the job.",
         auto: true,
-      }),
-      planSection({
-        kicker: "The Result",
-        title: "You Show Up at the Top of Google",
-        art: artTopOfGoogle(report),
-        legend: ["Local Services Ads, pay per lead", "Top 3 on Google Maps", "Recommended by ChatGPT"],
+        wide: true,
       }),
       h("div", { class: "gp-loop" }, [
         h("div", { class: "gp-loop-row" }, ["More reviews", "Higher on Google", "More calls", "More jobs"].flatMap((t, i, arr) =>
           [h("span", { class: "gp-loop-s", text: t }), i < arr.length - 1 ? h("span", { class: "gp-loop-a", "aria-hidden": "true", text: "\u2192" }) : null]
         ).filter(Boolean)),
       ]),
+
+      part(3, "What You Get"),
+      planSection({
+        kicker: "Result 1",
+        title: "You Show Up at the Top of Google",
+        art: artTopOfGoogle(report, { chat: false }),
+        legend: ["Local Services Ads, pay per lead", "Top 3 on Google Maps"],
+      }),
+      planSection({
+        kicker: "Result 2",
+        title: "ChatGPT Recommends You",
+        art: artChatGpt(report),
+        legend: ["Your business named in the answer"],
+        note: "The goal. Today your name isn't in this answer.",
+      }),
+      planSection({
+        kicker: "Result 3",
+        title: "Leads You Used to Miss Become Jobs",
+        art: artPipeline(report),
+        legend: ["Missed calls that turned into jobs", "Quotes still being followed up"],
+        note: "Example of your pipeline in the DialBridge system.",
+        wide: true,
+      }),
       renderPlanClose(report),
     ];
   }
